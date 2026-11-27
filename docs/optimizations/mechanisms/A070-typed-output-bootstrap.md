@@ -49,6 +49,8 @@ fixture`](../../../internal/backend/codegen/golang/print/gengo_typed_output_rete
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [A250](A250-typed-object-slabs.md), [A260](A260-typed-list-slabs.md), [A090](A090-typed-output-liveness-cleanup.md).
+Related mechanisms: [A250](A250-typed-object-slabs.md), [A260](A260-typed-list-slabs.md).
+
+Related rejected attempt: [record 094](../094-generated-typed-output-liveness.md).
 
 [Optimization Catalog](../README.md)

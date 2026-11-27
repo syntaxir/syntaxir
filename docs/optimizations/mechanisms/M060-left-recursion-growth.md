@@ -47,6 +47,6 @@ growth`](../../../pkg/runtime/libgo/typed.go).
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [R040](R040-memo-entry-retirement.md), [G150](G150-typed-left-recursion-bodies.md).
+Related designs: [Memo Entry Retirement](../../design/implementation/memo-entry-retirement.md), [Typed Go Printing](../../design/implementation/typed-go-printing.md).
 
 [Optimization Catalog](../README.md)

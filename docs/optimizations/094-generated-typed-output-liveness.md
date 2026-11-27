@@ -1,7 +1,10 @@
 # 094. Generation-Only Typed-Output Liveness Cleanup
 
-- **Status**: Proposed
+- **Status**: Rejected
 - **Date**: 2026-10-14
+- **Mechanisms**: A090
+- **Result**: Less retained heap on the direct typed path, but material small-input latency and allocation costs, and no reduction of retained heap or peak RSS on the conversion path
+- **Revisit when**: A revised design meets the cost limits of the default path while it keeps a meaningful benefit across direct and conversion results, returned matches, both position units, and ordinary and discard-heavy inputs
 
 ## Problem and Mechanism
 
@@ -9,20 +12,20 @@ Generated Go typed parsers allocate values in backing chunks. A small published 
 
 Two private generation-time variants were evaluated: an unbudgeted full sweep and a bounded sweep. The bounded variant preflights ownership directories and uses fixed work, key, pending-value, owner-record and slot budgets. Parent promotion consumes the bounded budget. If ownership is unknown or preflight, tracing or promotion exceeds a limit, it falls back to keep-all before clearing any cell. Directory collection during parsing is currently uncapped. The sweep examines whole backing blocks but zeros only unmarked slots; a live cell reached through an interior pointer retains its owner and descendants.
 
-The controls are private and default-off. They affect generated Go typed `ParseValue` and `ParseRuleValue` publication, for direct and conversion-based results, including returned `Match` values and owned backing cells. Generated Node `Parse`, `Recognize`, engine and VM backends, and TypeScript are outside this mechanism. No runtime selector is added and no default allocation policy has changed.
+The controls were private and default-off, and their code has since been removed. They affected generated Go typed `ParseValue` and `ParseRuleValue` publication, for direct and conversion-based results, including returned `Match` values and owned backing cells. Generated Node `Parse`, `Recognize`, engine and VM backends, and TypeScript are outside this mechanism. No runtime selector was added and no default allocation policy changed.
 
 ## Applicability
 
 | Execution profile | Applied / Partial / Not applied / Not applicable | Reason |
 |:--|:--|:--|
-| Generated Go typed results | Partial | Private full-sweep and bounded generation controls; both default-off and still gated |
+| Generated Go typed results | Partial | Private full-sweep and bounded generation controls, both default-off; removed |
 | Generated Go Node parsing and recognition | Not applicable | No typed-output chunks are published by these paths |
 | Engine closure and bytecode VMs | Not applicable | Separate runtime and ownership model |
 | Generated TypeScript | Not applicable | No implementation in this runtime |
 
 ## Reproduction
 
-See the retained-output fixture and benchmark commands in [design 034](../design/records/034-typed-output-liveness.md). The exact-parent baseline was `d55229fef1c7ade37e9cc208892e0cb20c5a3caa`. A same-generator reference disabled cleanup while preserving generated workload shape; its seven committed parser outputs matched byte-for-byte. The test generator selected cleanup with `enableTypedOutputSweep` or `enableBoundedTypedOutputSweep`; the same-generator reference used neither option. Direct and Node-to-typed conversion comparisons enabled the corresponding option. These controls and fixtures are part of the recorded implementation and can be reproduced from the linked design procedure. Build each benchmark test binary before measuring process RSS, then run only that binary under `/usr/bin/time -l` so compilation is excluded. Do not infer effects for other backends or output paths.
+See the retained-output fixture and benchmark commands in [design 034](../design/records/034-typed-output-liveness.md). The exact-parent baseline was `d55229fef1c7ade37e9cc208892e0cb20c5a3caa`. A same-generator reference disabled cleanup while preserving generated workload shape; its seven committed parser outputs matched byte-for-byte. The test generator selected cleanup with `enableTypedOutputSweep` or `enableBoundedTypedOutputSweep`; the same-generator reference used neither option. Direct and Node-to-typed conversion comparisons enabled the corresponding option. These controls and fixtures were part of the recorded implementation, at the baseline above, and the linked design procedure reproduces them. Build each benchmark test binary before measuring process RSS, then run only that binary under `/usr/bin/time -l` so compilation is excluded. Do not infer effects for other backends or output paths.
 
 ## Results
 
@@ -41,10 +44,10 @@ In retained-heap probes, the fixture clones every reachable `Text` field before 
 
 The Node-to-typed conversion path was measured separately for the same five shapes and both position units. For an input with an 8-rune prefix of `é` characters plus the fixture suffix, bounded time ratios were 1.165217–1.322767× with 1,443–1,541 additional B/op and 4–7 additional allocations; full-sweep ratios were 1.099241–1.292467× with 320–467 additional B/op and 4–8 additional allocations. For an input with a 1,048,576-rune prefix of `é` characters (2 MiB UTF-8) plus the fixture suffix, bounded time ratios were 0.987805–1.005104× with 1,428–1,587 additional B/op and 4–7 additional allocations; full-sweep ratios were 0.985538–1.006372× with 312–457 additional B/op and 4–8 additional allocations. In conversion retained-heap probes using the same `Text`-cloning fixture, reference, bounded and full-sweep variants all retained 272–1,232 B. Conversion peak-RSS paired median ratios were 0.993103–1.013966× (bounded) and 0.991826–1.009709× (full), showing no meaningful reduction. Direct-path memory results therefore do not transfer to conversion results.
 
-Across direct and conversion paths, 1,620 measurement rows covered ordinary workloads, size-controlled inputs, retained heap and peak process RSS. Timing used five alternating 500 ms samples; heap probes used five fresh one-shot runs; RSS used three fresh processes per shape and unit. Ranges are descriptive paired observations, not statistical confidence intervals, and ordinary host activity may add noise. Focused correctness checks, full root tests, generated parser checks, parser module tests, and an independent source review passed for this candidate. Seven default outputs remained byte-identical. The memory controls remain off: the small-input costs are material, bounded cleanup adds ordinary-workload allocations, and conversion results show no retained-heap or peak-RSS reduction. No broad speedup is established.
+Across direct and conversion paths, 1,620 measurement rows covered ordinary workloads, size-controlled inputs, retained heap and peak process RSS. Timing used five alternating 500 ms samples; heap probes used five fresh one-shot runs; RSS used three fresh processes per shape and unit. Ranges are descriptive paired observations, not statistical confidence intervals, and ordinary host activity may add noise. Focused correctness checks, full root tests, generated parser checks, parser module tests, and an independent source review passed for this candidate. Seven default outputs remained byte-identical. The memory controls were not adopted: the small-input costs are material, bounded cleanup adds ordinary-workload allocations, and conversion results show no retained-heap or peak-RSS reduction. No broad speedup is established.
 
 The implementation must preserve pointer identity, aliases, cycles, values, slice headers and all backing cells visible through published capacity. It must complete graph tracing and parent promotion before clearing, must not run during backtracking or action evaluation, and must retain all storage when ownership cannot be proven. Full sweep has no explicit budget; bounded sweep can fall back to retaining all values on budget exhaustion and still incurs uncapped directory-collection cost. The sweep examines unused slots too, but does not clear a cell reachable through a result, including an owner reached through an interior scalar-field pointer.
 
 ## Decision and Limits
 
-Not adopted; both controls remain disabled by default. The measurements show substantial direct-path retained-heap reduction but material small-input latency and allocation costs, plus no conversion-path retained-heap or peak-RSS reduction. Revisit only if a revised design meets default-path cost limits while retaining meaningful benefits across direct and conversion results, returned matches, both position units, and ordinary and discard-heavy inputs. Broader runtime and TypeScript behavior remain unmeasured and out of scope.
+Rejected; neither control was kept, and no code remains. The measurements show substantial direct-path retained-heap reduction but material small-input latency and allocation costs, plus no conversion-path retained-heap or peak-RSS reduction. Revisit only if a revised design meets default-path cost limits while retaining meaningful benefits across direct and conversion results, returned matches, both position units, and ordinary and discard-heavy inputs. Broader runtime and TypeScript behavior remain unmeasured and out of scope.

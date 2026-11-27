@@ -23,7 +23,8 @@ func TestCheckCatalog(t *testing.T) {
 	}{
 		{"no mechanism", func(f *Flag) { f.Mechanism = "" }, "names no mechanism"},
 		{"undeclared mechanism", func(f *Flag) { f.Mechanism = "M999" }, "neither declared nor unclassified"},
-		{"unclassified mechanism", func(f *Flag) { f.Mechanism, f.Backends = "M120", Engines }, ""},
+		{"former ID", func(f *Flag) { f.Mechanism = "R010" }, "neither declared nor unclassified"},
+		{"part of the mechanism's backends", func(f *Flag) { f.Mechanism, f.Backends = "M120", Engines }, ""},
 		{"no record", func(f *Flag) { f.Record = 0 }, "names no record"},
 		{"no trade-off", func(f *Flag) { f.Tradeoff = "" }, "what it trades"},
 		{"no backends", func(f *Flag) { f.Backends = 0 }, "no backend"},
@@ -63,5 +64,49 @@ func TestControlOf(t *testing.T) {
 	}
 	if got := ControlOf("M150", flags); got != ControlNone {
 		t.Errorf("M150: %v", got)
+	}
+}
+
+// The check of the declarations: a flag may name a mechanism that is not classified yet, and an ID
+// belongs to one list only.
+func TestCheckCatalogDeclarations(t *testing.T) {
+	m := Mechanism{ID: "M140", Title: "t", Page: "M140-t.md", Scope: "s", Partial: On(BackendTypedGo)}
+	f := catalogFlag()
+	for _, c := range []struct {
+		name string
+		cat  catalog
+		flag Flag
+		want string
+	}{
+		{"declared", catalog{mechanisms: []Mechanism{m}}, f, ""},
+		{"unclassified", catalog{unclassified: []string{"M140"}}, f, ""},
+		{"former", catalog{former: []string{"M140"}}, f, "neither declared nor unclassified"},
+		{"declared and unclassified", catalog{mechanisms: []Mechanism{m}, unclassified: []string{"M140"}}, f, "M140 is both mechanism and unclassified mechanism"},
+		{"unclassified and former", catalog{unclassified: []string{"M140"}, former: []string{"M140"}}, f, "M140 is both unclassified mechanism and former ID"},
+		{"former twice", catalog{mechanisms: []Mechanism{m}, former: []string{"R010", "R010"}}, f, "former ID R010 is declared twice"},
+		{"reference control of a former ID", catalog{mechanisms: []Mechanism{m}, former: []string{"R010"},
+			refs: []ReferenceControl{{Mechanism: "R010", Tag: "t", Backends: Engines, Record: 1}}}, f, "neither declared nor unclassified"},
+	} {
+		err := c.cat.check([]Flag{c.flag})
+		if c.want == "" && err != nil || c.want != "" && (err == nil || !strings.Contains(err.Error(), c.want)) {
+			t.Errorf("%s: %v, want %q", c.name, err, c.want)
+		}
+	}
+}
+
+// Uncontrolled returns the backends of a mechanism that no control lists.
+func TestUncontrolled(t *testing.T) {
+	m, ok := LookupMechanism("M120")
+	if !ok {
+		t.Fatal("M120 is not declared")
+	}
+	f := catalogFlag()
+	f.Mechanism, f.Backends = "M120", On(BackendTypedGo)
+	if got, want := Uncontrolled(m, []Flag{f}), m.Reaches()&^On(BackendTypedGo); got != want {
+		t.Errorf("M120 with a typed Go flag: %v, want %v", got, want)
+	}
+	f.Backends = m.Reaches()
+	if got := Uncontrolled(m, []Flag{f}); got != 0 {
+		t.Errorf("M120 with a flag on every backend: %v", got)
 	}
 }

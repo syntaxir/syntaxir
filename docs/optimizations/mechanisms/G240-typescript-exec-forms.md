@@ -35,6 +35,6 @@ Record [143](../143-compact-typescript-exec-forms.md) decides the state on the g
 
 Source owners: the package of the TypeScript Exec passes in the TypeScript backend.
 
-Related mechanisms: [G210](G210-typescript-from-flow-ir.md).
+Related designs: [TypeScript Printing](../../design/implementation/typescript-printing.md).
 
 [Optimization Catalog](../README.md)

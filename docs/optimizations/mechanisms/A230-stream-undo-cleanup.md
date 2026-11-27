@@ -39,6 +39,8 @@ pruning`](../../../internal/runtime/state/input.go).
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [A050](A050-streaming-state-reuse.md), [A240](A240-stream-vm-stack-cleanup.md).
+Related mechanisms: [A240](A240-stream-vm-stack-cleanup.md).
+
+Related designs: [Bounded Stream Storage](../../design/implementation/stream-storage.md).
 
 [Optimization Catalog](../README.md)

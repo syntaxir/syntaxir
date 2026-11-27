@@ -41,6 +41,8 @@ advancement`](../../../internal/runtime/state/runtime.go).
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [R090](R090-moving-document-trees.md), [R100](R100-document-repetition-resumption.md).
+Related mechanisms: [R090](R090-moving-document-trees.md).
+
+Related designs: [Document Repetition Records](../../design/implementation/document-repetition-records.md).
 
 [Optimization Catalog](../README.md)

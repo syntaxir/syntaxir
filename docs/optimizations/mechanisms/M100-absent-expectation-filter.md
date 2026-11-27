@@ -41,6 +41,6 @@ state`](../../../internal/runtime/vm/vm.go).
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [A110](A110-expected-set-ids.md).
+Related designs: [Expectation Sets](../../design/implementation/expectation-sets.md).
 
 [Optimization Catalog](../README.md)

@@ -53,6 +53,8 @@ emission`](../../../internal/backend/codegen/golang/print/generator.go),
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [R120](R120-transient-rule-memo-policy.md), [A030](A030-parser-frame-reuse.md), [A270](A270-shared-empty-capture-frame.md).
+Related mechanisms: [A030](A030-parser-frame-reuse.md), [A270](A270-shared-empty-capture-frame.md).
+
+Related designs: [Transient Rule Memo Policy](../../design/implementation/transient-rule-memo-policy.md).
 
 [Optimization Catalog](../README.md)

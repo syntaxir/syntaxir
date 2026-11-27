@@ -38,6 +38,8 @@ and rule`](../../../internal/runtime/engine/program_parse.go).
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [E040](E040-recognition-lowering.md), [M070](M070-vm-predecoded-match-data.md).
+Related mechanisms: [M070](M070-vm-predecoded-match-data.md).
+
+Related designs: [Recognition Lowering](../../design/implementation/recognition-lowering.md).
 
 [Optimization Catalog](../README.md)

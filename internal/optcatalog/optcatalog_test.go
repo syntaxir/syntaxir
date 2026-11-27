@@ -3,7 +3,6 @@ package optcatalog
 import (
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -81,36 +80,8 @@ func TestRecordsDecideTheStates(t *testing.T) {
 	}
 }
 
-// unclassifiedRow matches a row of the hand-written tables of the mechanisms that are not classified
-// yet, which link the mechanism's page.
-var unclassifiedRow = regexp.MustCompile(`^\| \[([EMRAG]\d{3})\]\(mechanisms/([^)]+)\) \|`)
-
-// unclassifiedRows returns the ID and page of every row of the catalog's section of unclassified
-// mechanisms.
-func unclassifiedRows(t *testing.T) map[string]string {
-	t.Helper()
-	data, err := os.ReadFile(filepath.Join(root, CatalogPath))
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, section, ok := strings.Cut(string(data), "\n## Unclassified Mechanisms\n")
-	if !ok {
-		t.Fatal("the catalog has no section of unclassified mechanisms")
-	}
-	if i := strings.Index(section, "\n## "); i >= 0 {
-		section = section[:i]
-	}
-	rows := map[string]string{}
-	for _, line := range strings.Split(section, "\n") {
-		if m := unclassifiedRow.FindStringSubmatch(line); m != nil {
-			rows[m[1]] = m[2]
-		}
-	}
-	return rows
-}
-
 // Every declared mechanism has its page, every page belongs to a declared or an unclassified
-// mechanism, and the catalog's rows of unclassified mechanisms are the registry's list.
+// mechanism and starts with its ID, and no page belongs to a former ID.
 func TestMechanismPages(t *testing.T) {
 	entries, err := os.ReadDir(filepath.Join(root, MechanismsDir))
 	if err != nil {
@@ -130,24 +101,95 @@ func TestMechanismPages(t *testing.T) {
 		}
 		owned[m.Page] = m.ID
 	}
-	rows := unclassifiedRows(t)
-	for id, page := range rows {
-		owned[page] = id
-		if !slices.Contains(pages, page) {
-			t.Errorf("unclassified mechanism %s has no page %s", id, page)
+	for _, id := range pass.Unclassified() {
+		i := slices.IndexFunc(pages, func(p string) bool { return strings.HasPrefix(p, id+"-") })
+		if i < 0 {
+			t.Errorf("unclassified mechanism %s has no page", id)
+			continue
 		}
+		owned[pages[i]] = id
 	}
 	for _, p := range pages {
 		if _, ok := owned[p]; !ok {
 			t.Errorf("the page %s belongs to no declared or unclassified mechanism", p)
 		}
 	}
-	var ids []string
-	for id := range rows {
-		ids = append(ids, id)
+}
+
+// The markers of former IDs and the rejected records are read as the generator reads them: an ID that
+// two pages carry, a marker before the page's title, and a rejected record without its result or
+// revisit condition are errors.
+func TestFormerMarkersAndRejectedRecords(t *testing.T) {
+	write := func(t *testing.T, files map[string]string) string {
+		t.Helper()
+		dir := t.TempDir()
+		for name, text := range files {
+			path := filepath.Join(dir, name)
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return dir
 	}
-	slices.Sort(ids)
-	if want := pass.Unclassified(); !slices.Equal(ids, want) {
-		t.Errorf("the catalog lists the unclassified mechanisms %v, the registry %v", ids, want)
+	dir := write(t, map[string]string{
+		DesignDir + "/a.md":   "# Page A\n\n<!-- former-mechanism R010: a contract depends on it -->\n",
+		DesignDir + "/x/b.md": "# Page B\n<!-- former-mechanism G080: retired -->\n",
+	})
+	got, err := ReadFormer(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]FormerPage{
+		"R010": {ID: "R010", Page: DesignDir + "/a.md", Title: "Page A", Reason: "a contract depends on it"},
+		"G080": {ID: "G080", Page: DesignDir + "/x/b.md", Title: "Page B", Reason: "retired"},
+	}
+	if len(got) != len(want) || got["R010"] != want["R010"] || got["G080"] != want["G080"] {
+		t.Errorf("ReadFormer: %v, want %v", got, want)
+	}
+	for name, files := range map[string]map[string]string{
+		"carried twice": {DesignDir + "/a.md": "# A\n<!-- former-mechanism R010: x -->\n", DesignDir + "/b.md": "# B\n<!-- former-mechanism R010: y -->\n"},
+		"before title":  {DesignDir + "/a.md": "<!-- former-mechanism R010: x -->\n# A\n"},
+	} {
+		if _, err := ReadFormer(write(t, files)); err == nil {
+			t.Errorf("%s: no error", name)
+		}
+	}
+	rec := "# 900. An Attempt\n\n- **Status**: Rejected\n- **Mechanisms**: A090\n"
+	for name, c := range map[string]struct {
+		text string
+		ok   bool
+	}{
+		"complete":      {rec + "- **Result**: no gain\n- **Revisit when**: never\n", true},
+		"no result":     {rec + "- **Revisit when**: never\n", false},
+		"no revisit":    {rec + "- **Result**: no gain\n", false},
+		"bad mechanism": {"# 900. X\n\n- **Status**: Adopted\n- **Mechanisms**: guards\n", false},
+	} {
+		records, err := ReadRecords(write(t, map[string]string{RecordsDir + "/900-an-attempt.md": c.text}))
+		if (err == nil) != c.ok {
+			t.Errorf("%s: %v", name, err)
+			continue
+		}
+		if c.ok {
+			r := records[900]
+			if r.Title != "An Attempt" || r.Status != Rejected || !slices.Equal(r.Mechanisms, []string{"A090"}) || r.Result != "no gain" || r.Revisit != "never" {
+				t.Errorf("%s: %+v", name, r)
+			}
+		}
+	}
+	for line, want := range map[string][]string{
+		"[A280](mechanisms/A280-x.md); it changes A280 and [G240](mechanisms/G240-y.md)": {"A280", "G240"},
+		"R060 (generated Go Node Documents)":                                             {"R060"},
+		"none (the generated form of an engine design)":                                  nil,
+	} {
+		text := "# 900. X\n\n- **Status**: Adopted\n- **Mechanisms**: " + line + "\n"
+		records, err := ReadRecords(write(t, map[string]string{RecordsDir + "/900-x.md": text}))
+		if err != nil {
+			t.Errorf("%q: %v", line, err)
+		} else if got := records[900].Mechanisms; !slices.Equal(got, want) {
+			t.Errorf("%q: mechanisms %v, want %v", line, got, want)
+		}
 	}
 }

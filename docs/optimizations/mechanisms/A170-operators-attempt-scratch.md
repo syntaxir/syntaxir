@@ -40,6 +40,8 @@ attempts`](../../../pkg/runtime/libgo/typed.go).
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [E030](E030-operators-line-value-elision.md), [A030](A030-parser-frame-reuse.md), [G160](G160-typed-operators-line-bodies.md).
+Related mechanisms: [E030](E030-operators-line-value-elision.md), [A030](A030-parser-frame-reuse.md).
+
+Related designs: [Typed Go Printing](../../design/implementation/typed-go-printing.md).
 
 [Optimization Catalog](../README.md)

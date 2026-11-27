@@ -35,6 +35,8 @@ preparation`](../../../pkg/runtime/libgo/lib.go).
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [G100](G100-generated-node-body-inlining.md), [G060](G060-ordinary-typed-direct-rules.md), [M130](M130-short-literal-comparisons.md).
+Related mechanisms: [M130](M130-short-literal-comparisons.md).
+
+Related designs: [Go Node Bodies](../../design/implementation/go-node-bodies.md), [Typed Go Printing](../../design/implementation/typed-go-printing.md).
 
 [Optimization Catalog](../README.md)

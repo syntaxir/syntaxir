@@ -541,6 +541,7 @@
         "SECURITY.md",
         "docs/*.md",
         "docs/design/*.md",
+        "docs/design/implementation/*.md",
         "docs/optimizations/*.md",
         "docs/optimizations/mechanisms/*.md"
       ],
@@ -572,6 +573,7 @@
             "docs/design/host-code-generation.md",
             "docs/design/observability.md",
             "docs/design/cost-analysis.md",
+            "docs/design/implementation/*.md",
             "docs/ref-cpython-pegen-packrat-parsing.md"
           ],
           "first": [
@@ -584,6 +586,7 @@
             "docs/design/host-code-generation.md",
             "docs/design/observability.md",
             "docs/design/cost-analysis.md",
+            "docs/design/implementation/README.md",
             "docs/ref-cpython-pegen-packrat-parsing.md"
           ]
         },
@@ -652,11 +655,27 @@
     },
     {
       "match": [
+        "docs/design/implementation/*.md"
+      ],
+      "values": {
+        "nav": false
+      }
+    },
+    {
+      "match": [
         "docs/optimizations/README.md"
       ],
       "values": {
         "nav": true,
         "navTitle": "Optimizations"
+      }
+    },
+    {
+      "match": [
+        "docs/design/implementation/README.md"
+      ],
+      "values": {
+        "nav": true
       }
     },
     {
@@ -709,6 +728,7 @@
     "docs/design/host-code-generation.md",
     "docs/design/observability.md",
     "docs/design/cost-analysis.md",
+    "docs/design/implementation/*.md",
     "docs/benchmarks.md",
     "docs/performance.md",
     "docs/optimizations/README.md",
@@ -718,6 +738,39 @@
     "docs/site.md"
   ],
   "redirects": {
+    "/docs/optimizations/mechanisms/A010-compact-node-representation/": "/docs/design/implementation/node-layout/",
+    "/docs/optimizations/mechanisms/A050-streaming-state-reuse/": "/docs/design/implementation/stream-storage/",
+    "/docs/optimizations/mechanisms/A090-typed-output-liveness-cleanup/": "/docs/optimizations/094-generated-typed-output-liveness/",
+    "/docs/optimizations/mechanisms/A110-expected-set-ids/": "/docs/design/implementation/expectation-sets/",
+    "/docs/optimizations/mechanisms/E020-value-free-rule-twins/": "/docs/design/implementation/value-free-twins/",
+    "/docs/optimizations/mechanisms/E040-recognition-lowering/": "/docs/design/implementation/recognition-lowering/",
+    "/docs/optimizations/mechanisms/G030-constructor-dependency-analysis/": "/docs/design/implementation/sample-constructor-dependencies/",
+    "/docs/optimizations/mechanisms/G040-copy-on-change-attribute-normalization/": "/docs/design/implementation/attribute-normalization/",
+    "/docs/optimizations/mechanisms/G050-generated-budget-control-specialization/": "/docs/design/implementation/limit-control-forms/",
+    "/docs/optimizations/mechanisms/G060-ordinary-typed-direct-rules/": "/docs/design/implementation/typed-go-printing/",
+    "/docs/optimizations/mechanisms/G080-equal-capture-type-reuse/": "/docs/design/implementation/capture-types/",
+    "/docs/optimizations/mechanisms/G085-action-free-positional-items/": "/docs/design/implementation/capture-types/",
+    "/docs/optimizations/mechanisms/G090-variable-read-components/": "/docs/design/implementation/variable-read-components/",
+    "/docs/optimizations/mechanisms/G100-generated-node-body-inlining/": "/docs/design/implementation/go-node-bodies/",
+    "/docs/optimizations/mechanisms/G120-lsp-position-checkpoints/": "/docs/design/implementation/lsp-position-checkpoints/",
+    "/docs/optimizations/mechanisms/G125-bounded-diagnostic-prefixes/": "/docs/design/implementation/lint-prefix-bounds/",
+    "/docs/optimizations/mechanisms/G140-typed-local-cuts/": "/docs/design/implementation/typed-go-printing/",
+    "/docs/optimizations/mechanisms/G150-typed-left-recursion-bodies/": "/docs/design/implementation/typed-go-printing/",
+    "/docs/optimizations/mechanisms/G160-typed-operators-line-bodies/": "/docs/design/implementation/typed-go-printing/",
+    "/docs/optimizations/mechanisms/G170-typed-framed-cuts/": "/docs/design/implementation/typed-go-printing/",
+    "/docs/optimizations/mechanisms/G180-typed-frame-layouts/": "/docs/design/implementation/typed-go-printing/",
+    "/docs/optimizations/mechanisms/G190-typed-recovery-bodies/": "/docs/design/implementation/typed-go-printing/",
+    "/docs/optimizations/mechanisms/G200-typed-local-capture-layouts/": "/docs/design/implementation/typed-go-printing/",
+    "/docs/optimizations/mechanisms/G210-typescript-from-flow-ir/": "/docs/design/implementation/typescript-printing/",
+    "/docs/optimizations/mechanisms/R010-per-position-memo-chains/": "/docs/design/implementation/memo-chains/",
+    "/docs/optimizations/mechanisms/R020-deferred-memoization/": "/docs/design/implementation/deferred-memoization/",
+    "/docs/optimizations/mechanisms/R040-memo-entry-retirement/": "/docs/design/implementation/memo-entry-retirement/",
+    "/docs/optimizations/mechanisms/R050-bounded-variable-bindings/": "/docs/design/implementation/variable-environments/",
+    "/docs/optimizations/mechanisms/R100-document-repetition-resumption/": "/docs/design/implementation/document-repetition-records/",
+    "/docs/optimizations/mechanisms/R110-document-run-record-retention/": "/docs/design/implementation/document-repetition-records/",
+    "/docs/optimizations/mechanisms/R120-transient-rule-memo-policy/": "/docs/design/implementation/transient-rule-memo-policy/",
+    "/docs/optimizations/mechanisms/R170-left-recursion-member-memo/": "/docs/design/implementation/left-recursion-member-memo/",
+    "/docs/optimizations/mechanisms/R180-skip-run-records/": "/docs/design/implementation/skip-run-records/",
     "/spec/pratt/": "/spec/language/operators-rule/",
     "/spec/core-ir/terms/": "/spec/core-ir/actions/",
     "/spec/flow-ir/statements/": "/spec/flow-ir/operations/",

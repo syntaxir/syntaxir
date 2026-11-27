@@ -40,6 +40,8 @@ Source owners: [`Generator.Method`](../../../internal/backend/codegen/golang/pri
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [G130](G130-generated-literal-sharing.md), [G100](G100-generated-node-body-inlining.md).
+Related mechanisms: [G130](G130-generated-literal-sharing.md).
+
+Related designs: [Go Node Bodies](../../design/implementation/go-node-bodies.md).
 
 [Optimization Catalog](../README.md)

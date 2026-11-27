@@ -1,7 +1,7 @@
 // Package optcatalog generates the tables of the optimization catalog (docs/optimizations/README.md)
 // and the flag table of the code-generation guide from the registry of optimizations (package pass),
-// the profiles (package driver), the optimization records and the file of measurement runs, as
-// design record 080 says. The generated tables sit between marker comments in hand-written pages; a
+// the profiles (package driver), the optimization records, the markers of the design pages and the
+// file of measurement runs, as design record 080 says. The generated tables sit between marker comments in hand-written pages; a
 // test regenerates them and fails on any difference.
 //
 // The package links every part of the compiler that registers flags, so its registry is the
@@ -35,6 +35,7 @@ const (
 	MeasuredPath  = "docs/optimizations/measured.json"
 	RecordsDir    = "docs/optimizations"
 	MechanismsDir = "docs/optimizations/mechanisms"
+	DesignDir     = "docs/design"
 )
 
 // State is the lifecycle state of a registered flag.
@@ -68,20 +69,33 @@ func StateOf(f pass.Flag) (State, []string, error) {
 	return OptIn, nil, nil
 }
 
-// Record is what the catalog reads of an optimization record: its number, file, status, and the
-// states it decides for flags (its "Decides" header line).
+// Record is what the catalog reads of an optimization record: its number, file, title and status,
+// the states it decides for flags (its "Decides" header line), the mechanisms it is about (its
+// "Mechanisms" header line), and for a rejected attempt its result and the condition to revisit it.
 type Record struct {
-	Number  int
-	File    string
-	Status  string
-	Decides map[string]State
+	Number     int
+	File       string
+	Title      string
+	Status     string
+	Decides    map[string]State
+	Mechanisms []string
+	Result     string
+	Revisit    string
 }
 
+// Rejected is the status of a record whose attempt was rejected.
+const Rejected = "Rejected"
+
 var (
-	recordFile  = regexp.MustCompile(`^(\d{3})-.+\.md$`)
-	statusLine  = regexp.MustCompile(`^(?:- )?\*\*Status\*\*:?\s*:?\s*(.*)$`)
-	decidesLine = regexp.MustCompile("^- \\*\\*Decides\\*\\*: (.*)$")
-	decidesItem = regexp.MustCompile("^`([a-z0-9-]+)` (adopted|opt-in|experiment)$")
+	recordFile     = regexp.MustCompile(`^(\d{3})-.+\.md$`)
+	titleLine      = regexp.MustCompile(`^# \d{3}\. (.+)$`)
+	statusLine     = regexp.MustCompile(`^(?:- )?\*\*Status\*\*:?\s*:?\s*(.*)$`)
+	decidesLine    = regexp.MustCompile("^- \\*\\*Decides\\*\\*: (.*)$")
+	decidesItem    = regexp.MustCompile("^`([a-z0-9-]+)` (adopted|opt-in|experiment)$")
+	mechanismsLine = regexp.MustCompile(`^- \*\*Mechanisms\*\*: (.*)$`)
+	mechanismID    = regexp.MustCompile(`\b[EMRAG]\d{3}\b`)
+	resultLine     = regexp.MustCompile(`^- \*\*Result\*\*: (.+)$`)
+	revisitLine    = regexp.MustCompile(`^- \*\*Revisit when\*\*: (.+)$`)
 )
 
 // ReadRecords reads the header of every numbered optimization record under root.
@@ -124,8 +138,30 @@ func readRecord(path string) (Record, error) {
 		if strings.HasPrefix(line, "## ") {
 			break
 		}
+		if m := titleLine.FindStringSubmatch(line); m != nil && r.Title == "" {
+			r.Title = m[1]
+		}
 		if m := statusLine.FindStringSubmatch(line); m != nil && r.Status == "" {
 			r.Status = strings.TrimSpace(m[1])
+		}
+		// The Mechanisms line names mechanism IDs, possibly as links or with
+		// prose; a line that begins with "none" names no mechanism.
+		if m := mechanismsLine.FindStringSubmatch(line); m != nil && !strings.HasPrefix(m[1], "none") {
+			ids := mechanismID.FindAllString(m[1], -1)
+			if len(ids) == 0 {
+				return Record{}, fmt.Errorf("%s: the Mechanisms line %q names no mechanism ID and is not \"none\"", filepath.Base(path), m[1])
+			}
+			for _, id := range ids {
+				if !slices.Contains(r.Mechanisms, id) {
+					r.Mechanisms = append(r.Mechanisms, id)
+				}
+			}
+		}
+		if m := resultLine.FindStringSubmatch(line); m != nil {
+			r.Result = m[1]
+		}
+		if m := revisitLine.FindStringSubmatch(line); m != nil {
+			r.Revisit = m[1]
 		}
 		if m := decidesLine.FindStringSubmatch(line); m != nil {
 			for _, item := range strings.Split(m[1], ", ") {
@@ -137,7 +173,67 @@ func readRecord(path string) (Record, error) {
 			}
 		}
 	}
-	return r, sc.Err()
+	if err := sc.Err(); err != nil {
+		return Record{}, err
+	}
+	if r.Status == Rejected && (r.Result == "" || r.Revisit == "") {
+		return Record{}, fmt.Errorf("%s: a rejected record needs the header lines Result and Revisit when", filepath.Base(path))
+	}
+	return r, nil
+}
+
+// A FormerPage is a design page that carries a former mechanism ID: an implementation design that
+// left the catalog, or a retired mechanism whose page says why no mechanism is left.
+type FormerPage struct {
+	ID string
+	// Page is the page's path relative to the root of the repository, and Title its heading.
+	Page, Title string
+	// Reason says why the ID is no longer a mechanism.
+	Reason string
+}
+
+var (
+	formerMarker = regexp.MustCompile(`^<!-- former-mechanism ([EMRAG]\d{3}): (.+) -->$`)
+	pageTitle    = regexp.MustCompile(`^# (.+)$`)
+)
+
+// ReadFormer reads the markers of former mechanism IDs on the design pages under root, by ID. A marker
+// is a line "<!-- former-mechanism ID: reason -->"; an ID that two markers carry is an error.
+func ReadFormer(root string) (map[string]FormerPage, error) {
+	out := map[string]FormerPage{}
+	err := filepath.WalkDir(filepath.Join(root, DesignDir), func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".md") {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		var title string
+		for _, line := range strings.Split(string(data), "\n") {
+			if m := pageTitle.FindStringSubmatch(line); m != nil && title == "" {
+				title = m[1]
+			}
+			m := formerMarker.FindStringSubmatch(line)
+			if m == nil {
+				continue
+			}
+			if prev, dup := out[m[1]]; dup {
+				return fmt.Errorf("%s and %s both carry the former mechanism %s", prev.Page, rel, m[1])
+			}
+			if title == "" {
+				return fmt.Errorf("%s carries the former mechanism %s before its title", rel, m[1])
+			}
+			out[m[1]] = FormerPage{ID: m[1], Page: rel, Title: title, Reason: m[2]}
+		}
+		return nil
+	})
+	return out, err
 }
 
 // ReadMeasured reads the file that maps each flag to the timed measurement run that last covered it.
@@ -164,7 +260,11 @@ func Generate(root string) (map[string][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	catalog, err := catalogRegions(records, measured)
+	former, err := ReadFormer(root)
+	if err != nil {
+		return nil, err
+	}
+	catalog, err := catalogRegions(records, measured, former)
 	if err != nil {
 		return nil, err
 	}
@@ -234,16 +334,20 @@ func stateText(f pass.Flag) (string, error) {
 }
 
 // catalogRegions returns the regions of the catalog: the counts of the release criterion, the index of
-// the classified mechanisms, the settings, and the reference controls.
-func catalogRegions(records map[int]Record, measured map[string]string) (map[string]string, error) {
+// the classified mechanisms, the settings, the reference controls, the map of the former IDs and the
+// rejected attempts.
+func catalogRegions(records map[int]Record, measured map[string]string, former map[string]FormerPage) (map[string]string, error) {
 	flags := pass.Flags()
-	var none int
+	var none, partly int
 	for _, m := range pass.Mechanisms() {
-		if pass.ControlOf(m.ID, flags) == pass.ControlNone {
+		switch {
+		case pass.ControlOf(m.ID, flags) == pass.ControlNone:
 			none++
+		case pass.Uncontrolled(m, flags) != 0:
+			partly++
 		}
 	}
-	counts := fmt.Sprintf("Unclassified mechanisms: %d. Optimization mechanisms without a control: %d. Both are 0 at a release.\n", len(pass.Unclassified()), none)
+	counts := fmt.Sprintf("Unclassified mechanisms: %d. Optimization mechanisms without a control: %d. Optimization mechanisms with backends that no control reaches: %d. All are 0 at a release.\n", len(pass.Unclassified()), none, partly)
 
 	var index strings.Builder
 	index.WriteString("| ID | Mechanism | Path scope |")
@@ -308,7 +412,77 @@ func catalogRegions(records map[int]Record, measured map[string]string) (map[str
 		}
 		refs = b.String()
 	}
-	return map[string]string{"counts": counts, "index": index.String(), "settings": settings.String(), "reference-controls": refs}, nil
+	formerMap, rejected, err := formerRegions(records, former)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]string{"counts": counts, "index": index.String(), "settings": settings.String(),
+		"reference-controls": refs, "former": formerMap, "rejected": rejected}, nil
+}
+
+// recordNumbers returns the numbers of the records in order.
+func recordNumbers(records map[int]Record) []int {
+	var ns []int
+	for n := range records {
+		ns = append(ns, n)
+	}
+	slices.Sort(ns)
+	return ns
+}
+
+// formerRegions returns the map of the former IDs, to the design page that carries each or the
+// rejected record that names it, and the table of the rejected attempts. Every former ID of the
+// registry is carried by exactly one design page or rejected record, and nothing else is.
+func formerRegions(records map[int]Record, former map[string]FormerPage) (string, string, error) {
+	type row struct{ target, reason string }
+	rows := map[string]row{}
+	for id, p := range former {
+		link, err := filepath.Rel(filepath.Dir(CatalogPath), p.Page)
+		if err != nil {
+			return "", "", err
+		}
+		rows[id] = row{fmt.Sprintf("[%s](%s)", p.Title, filepath.ToSlash(link)), p.Reason}
+	}
+	var rejected strings.Builder
+	rejected.WriteString("| Record | Mechanisms | Result | Revisit when |\n|:--|:--|:--|:--|\n")
+	for _, n := range recordNumbers(records) {
+		r := records[n]
+		if r.Status != Rejected {
+			continue
+		}
+		link := fmt.Sprintf("[%03d. %s](%s)", r.Number, r.Title, r.File)
+		ids := "none"
+		if len(r.Mechanisms) > 0 {
+			ids = strings.Join(r.Mechanisms, ", ")
+		}
+		fmt.Fprintf(&rejected, "| %s | %s | %s | %s |\n", link, ids, r.Result, r.Revisit)
+		for _, id := range r.Mechanisms {
+			if _, ok := pass.LookupMechanism(id); ok || slices.Contains(pass.Unclassified(), id) {
+				continue // a rejected attempt at a mechanism that remains
+			}
+			if _, dup := rows[id]; dup {
+				return "", "", fmt.Errorf("the former mechanism %s is carried by more than one design page or rejected record", id)
+			}
+			rows[id] = row{link, "Rejected attempt; no code remains"}
+		}
+	}
+	want := pass.Former()
+	for id := range rows {
+		if !slices.Contains(want, id) {
+			return "", "", fmt.Errorf("%s is carried as a former mechanism but is not a former ID of the registry", id)
+		}
+	}
+	var b strings.Builder
+	b.WriteString("| ID | Now | Reason |\n|:--|:--|:--|\n")
+	slices.Sort(want)
+	for _, id := range want {
+		r, ok := rows[id]
+		if !ok {
+			return "", "", fmt.Errorf("no design page or rejected record carries the former ID %s", id)
+		}
+		fmt.Fprintf(&b, "| %s | %s | %s |\n", id, r.target, r.reason)
+	}
+	return b.String(), rejected.String(), nil
 }
 
 // profileList writes the names of profiles as the guide does: "`size` profile" or "`a` and `b` profiles".

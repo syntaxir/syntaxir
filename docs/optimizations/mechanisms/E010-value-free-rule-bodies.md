@@ -55,6 +55,8 @@ mode`](../../../internal/backend/codegen/typescript/print/generator.go).
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [E020](E020-value-free-rule-twins.md), [E030](E030-operators-line-value-elision.md), [E040](E040-recognition-lowering.md), [R120](R120-transient-rule-memo-policy.md).
+Related mechanisms: [E030](E030-operators-line-value-elision.md).
+
+Related designs: [Value-Free Twins](../../design/implementation/value-free-twins.md), [Recognition Lowering](../../design/implementation/recognition-lowering.md), [Transient Rule Memo Policy](../../design/implementation/transient-rule-memo-policy.md).
 
 [Optimization Catalog](../README.md)

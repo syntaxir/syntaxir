@@ -41,6 +41,8 @@ emission`](../../../internal/backend/codegen/typescript/print/generator.go).
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [E010](E010-value-free-rule-bodies.md), [G160](G160-typed-operators-line-bodies.md), [A170](A170-operators-attempt-scratch.md).
+Related mechanisms: [E010](E010-value-free-rule-bodies.md), [A170](A170-operators-attempt-scratch.md).
+
+Related designs: [Typed Go Printing](../../design/implementation/typed-go-printing.md).
 
 [Optimization Catalog](../README.md)

@@ -51,6 +51,8 @@ seen pages`](../../../internal/backend/codegen/typescript/lib/lib.ts).
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [R020](R020-deferred-memoization.md), [A160](A160-whole-input-scratch-pooling.md).
+Related mechanisms: [A160](A160-whole-input-scratch-pooling.md).
+
+Related designs: [Deferred Memoization](../../design/implementation/deferred-memoization.md).
 
 [Optimization Catalog](../README.md)

@@ -37,6 +37,8 @@ commit cleanup`](../../../internal/runtime/state/input.go).
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [A050](A050-streaming-state-reuse.md), [A100](A100-document-vm-value-stack.md).
+Related mechanisms: [A100](A100-document-vm-value-stack.md).
+
+Related designs: [Bounded Stream Storage](../../design/implementation/stream-storage.md).
 
 [Optimization Catalog](../README.md)

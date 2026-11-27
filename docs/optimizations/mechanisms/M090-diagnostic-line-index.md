@@ -38,6 +38,8 @@ index`](../../../internal/backend/codegen/typescript/lib/lib.ts).
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [G110](G110-one-pass-code-point-preparation.md), [G120](G120-lsp-position-checkpoints.md).
+Related mechanisms: [G110](G110-one-pass-code-point-preparation.md).
+
+Related designs: [LSP Position Checkpoints](../../design/implementation/lsp-position-checkpoints.md).
 
 [Optimization Catalog](../README.md)

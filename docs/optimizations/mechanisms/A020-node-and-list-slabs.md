@@ -41,6 +41,8 @@ allocation`](../../../pkg/runtime/libgo/lib.go).
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [A010](A010-compact-node-representation.md), [A250](A250-typed-object-slabs.md), [A260](A260-typed-list-slabs.md).
+Related mechanisms: [A250](A250-typed-object-slabs.md), [A260](A260-typed-list-slabs.md).
+
+Related designs: [Node Layout](../../design/implementation/node-layout.md).
 
 [Optimization Catalog](../README.md)

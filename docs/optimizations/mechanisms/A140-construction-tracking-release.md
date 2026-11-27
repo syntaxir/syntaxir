@@ -44,6 +44,8 @@ cleanup`](../../../internal/backend/codegen/typescript/lib/lib.ts).
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [A040](A040-action-operand-scratch.md), [A090](A090-typed-output-liveness-cleanup.md).
+Related mechanisms: [A040](A040-action-operand-scratch.md).
+
+Related rejected attempt: [record 094](../094-generated-typed-output-liveness.md).
 
 [Optimization Catalog](../README.md)

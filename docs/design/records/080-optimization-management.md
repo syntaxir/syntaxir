@@ -138,13 +138,18 @@ The registry also holds:
 - **Mechanisms**: the optimization mechanisms only, declared once in a table of the registry package: ID, title, page,
   path scope, per backend `full`, `partial` or nothing (`partial` means an eligible subset that the page names), and a
   **Control** field: `flag` (it has at least one setting), `reference` (it has a reference control only) or `none`
-  (a transitional state until its setting lands; the release criterion forbids it). A mechanism acts on a backend if
-  and only if one of its controls lists that backend.
+  (a transitional state until its setting lands; the release criterion forbids it). A control lists only backends that
+  its mechanism acts on, and at a release a mechanism acts on a backend if and only if one of its controls lists that
+  backend; before it, a mechanism may act on a backend whose control has not landed yet, a transitional state that the
+  catalog counts.
 - **Reference controls**: the mechanism, the build tag, the backends, the witnesses and the record that says why no
   zero-cost setting exists.
 - **Removed names**: each removed optimization's name with the record that removed it (see "Public Behavior and
   Contracts").
 - **Unclassified mechanisms**: the IDs not yet classified, a transitional list that the release criterion empties.
+- **Former IDs**: the IDs that are no longer mechanisms (implementation designs, retired mechanisms and rejected
+  attempts). Every ID is in exactly one of the mechanisms, the unclassified mechanisms and the former IDs. The list says
+  only which IDs are former; the page and the reason come from the pages (see "Mechanism IDs").
 
 Lifecycle states without code (proposed, rejected, removed) are not flags: they live in records, and a removed flag
 leaves only its name in the list of removed names.
@@ -200,7 +205,7 @@ Optimization records keep the template of `docs/optimizations/000-template.md`, 
 - The status is the record's own lifecycle state: one of Proposed, Experiment, Adopted, Opt-in, Rejected, Removed,
   or Measurement (a record that measures several optimizations, such as record 136).
 - Header lines name the mechanisms (`none` for an attempt that belongs to no mechanism, such as a rejected idea) and
-  the flags the record is about, and, for Rejected, `Revisit when`.
+  the flags the record is about, and, for Rejected, `Result` (one sentence) and `Revisit when`.
 - A record that decides the state of flags says so in a header line, one entry per flag:
   ``- **Decides**: `guards` adopted, `ts-literal-sharing` opt-in``. One record may decide several flags and give
   them different states: record 136 measured every flag of its time and decided their states, adopted for most (for
@@ -293,9 +298,12 @@ is measured by the compiler metrics of `bench/metrics`.
 ### Mechanism IDs
 
 IDs are never renumbered or reused. A design page that describes a former mechanism carries its ID in a marker that
-the generator reads, and the generator writes the map of these IDs to their design pages, with the reason, into the
-catalog, under the same generated-diff test. A test fails for an ID that is both a mechanism and a design, or that no
-page carries.
+the generator reads (a line `<!-- former-mechanism ID: reason -->`), and a rejected attempt is carried by the record
+with status Rejected whose Mechanisms line names it. The generator writes the map of these IDs to their design pages
+or records, with the reason, into the catalog, under the same generated-diff test. The generation fails for an ID that
+is both a mechanism and a former ID, for a former ID of the registry that no page or record carries, for an ID that
+two pages carry, and for a carried ID that the registry does not list as former; the registry's list is what makes a
+dropped marker an error rather than a silently shorter map.
 
 ### Checks
 
@@ -306,8 +314,8 @@ The checks extend the existing tests instead of adding parallel ones.
 - **Generation**: a program in `go generate` writes the mechanism index (with the Go Node and Go recognizer columns
   apart), the guide's flag table, the map of former IDs, the list of reference controls and the table of rejected
   attempts; a test regenerates them in memory and fails on any difference. The hand-written
-  `TestOptimizationsAreInTheGuide` becomes part of it. The index states the counts of unclassified mechanisms and of
-  mechanisms with Control `none`.
+  `TestOptimizationsAreInTheGuide` becomes part of it. The index states the counts of unclassified mechanisms, of
+  mechanisms with Control `none`, and of mechanisms that act on a backend that no control lists.
 - **Catalog**: every mechanism has a page under `docs/optimizations/mechanisms/`, every page is a declared mechanism,
   and every record a flag names exists with a Decides entry that agrees.
 - **Parity.** `TestOptimizationsHaveTests` also checks that each test it names exists. The observable of a backend is
@@ -321,8 +329,8 @@ The checks extend the existing tests instead of adding parallel ones.
 - **Backend claims**: with a flag off, the observable differs from the default on every listed backend for that
   backend's witnesses, and is identical on every unlisted backend over the corpus (the second half in the long tier).
 - **Bisection**: the three invariants above.
-- **Release**: a test behind the build tag `sxir_release`, named like the other test tags (`sxir_long`), fails while any mechanism is unclassified or has Control `none`; the
-  release checklist runs it.
+- **Release**: a test behind the build tag `sxir_release`, named like the other test tags (`sxir_long`), fails while any mechanism is unclassified, has Control `none`, or acts on a backend that none of
+  its controls lists; the release checklist runs it.
 
 ### Public Behavior and Contracts
 
@@ -403,5 +411,120 @@ tests have.
 
 ## Appendix: Classification
 
-To be filled in by step 4: one row per mechanism with the class, the reason, and for an optimization its controls; for
-an implementation design the design page it moves to.
+The catalog held 93 mechanisms when they were classified, the 89 of the Motivation and four added since. 60 are
+optimizations, 16 of which were registered with their settings before the classification and keep their rows; 30 are
+implementation designs, and 3 are retired. The reasons cite the
+criteria above by number. Backends and scopes of the new optimization rows come from the hand-written index they
+replace, with its combined Go Node and recognizer column split by whether the mechanism builds Nodes; the
+backend-claims test of step 5 checks them against their controls.
+
+### Optimizations
+
+Each row is criterion 3 unless it says otherwise: a parser without the mechanism is the plain form of the same
+construct. "None yet" means that step 5 adds the control; where an internal option already selects the plain form, the
+row names it as the starting point.
+
+| ID | Mechanism | Control today |
+|:--|:--|:--|
+| A070, A250, A260, A280, G010, G070, G130, G220, G240, G250, M010, M040, M130, M140, M150, M160 | Registered before the classification | Their settings, in the catalog |
+| A020 | Node and list slabs | None yet |
+| A030 | Iterative VM frame reuse | None yet |
+| A040 | Action operand scratch | None yet |
+| A060 | Direct typed output construction | None yet; the compile option that converts Node output to typed values is the plain form, maintained for Documents and streams |
+| A080 | Generated Node capture scratch | None yet |
+| A100 | Document VM value stack | Reference: `sxir_reference_document_vm_values` (recursive and iterative VM) |
+| A120 | Source token text | None yet |
+| A140 | Construction tracking release | None yet |
+| A150 | VM position chunks | None yet |
+| A160 | Whole-input scratch pooling | None yet |
+| A170 | Operators Rule attempt scratch | None yet |
+| A180 | Typed frame reuse | None yet |
+| A190 | Evaluation context reuse | None yet |
+| A200 | Stream capture frame reuse | Reference: `sxir_reference_stream_frames` (engine) |
+| A210 | Bounded stream text snapshots | Reference: `sxir_reference_stream_text` (engine) |
+| A220 | Stream prefix isolation | Reference: `sxir_reference_stream_prefix` (engine); `sxir_reference_stream_storage` selects A220, A230 and A240 together and is not registered |
+| A230 | Stream undo cleanup | Reference: `sxir_reference_stream_undo` (engine) |
+| A240 | Stream VM stack cleanup | Reference: `sxir_reference_stream_stack` (recursive and iterative VM) |
+| A270 | Shared empty capture frame | None yet |
+| E010 | Value-free rule bodies | None yet; building a body's Node is no unit, so the plain form counts the same |
+| E030 | Operators Rule line value elision | None yet |
+| E050 | Projected repetition values | None yet; the compile option that turns projections off is the plain form |
+| E060 | Concat input fusion | None yet; `concat` charges what it builds, so the plain form counts the same |
+| G020 | Lazy backend preparation | None yet |
+| G110 | One-pass code-point preparation | None yet |
+| M020 | Character-class tests | None yet |
+| M030 | Literal matching | None yet |
+| M050 | Plain rule calls | None yet; the memo policy is unchanged and the call wrapper is no unit |
+| M060 | Left-recursion growth state | None yet |
+| M070 | Predecoded VM match data | None yet |
+| M080 | Direct code-point access | None yet |
+| M090 | Diagnostic line index | None yet |
+| M100 | Absent expectation filter | None yet |
+| M110 | Compact VM backtracking state | None yet |
+| M120 | Unboxed text comparisons | `field-compare` (typed Go); none yet on the other backends |
+| R030 | Sparse seen-position storage | `sparse-memo` (TypeScript); reference `sxir_reference_sparse_memo` (engine); none yet in generated Go |
+| R060 | Chunked Document input | Reference: `sxir_reference_document_pieces` (engine); none yet in generated Go |
+| R070 | Document memo edits | None yet; the Document contract lets a backend apply an edit to an entry at once or when a lookup finds it |
+| R080 | Lazy code-point offsets | None yet |
+| R090 | Moving Document trees | None yet; the Document contract lets a backend move a reused value or copy it |
+| R130 | Document snapshot record sharing | Reference: `sxir_snapshot_sharing_reference` (engine); a snapshot may share records |
+| R140 | Document snapshot child run sharing | Reference: `sxir_snapshot_child_chunks_reference` (engine) |
+| R150 | Cached snapshot child descriptors | None yet |
+| R160 | Relative snapshot position overlays | Reference: `sxir_snapshot_position_overlays` (engine), which turns this off-by-default experiment on |
+
+### Implementation Designs
+
+| ID | Mechanism | Reason | Design page |
+|:--|:--|:--|:--|
+| A010 | Compact Node representation | 2: named by this record; the public Node representation every Node-building backend reads | [Node Layout](../implementation/node-layout.md) |
+| A050 | Streaming state reuse | 2: a stream discards input and memo before what it delivered, and its memory count bounds its window | [Bounded Stream Storage](../implementation/stream-storage.md) |
+| A110 | Expected-set IDs | 2: named by this record; the representation of expectations every backend's memo and errors use | [Expectation Sets](../implementation/expectation-sets.md) |
+| E020 | Value-free rule twins | 2: a twin is a rule of its own, with its own memo entries and its own call unit | [Value-Free Twins](../implementation/value-free-twins.md) |
+| E040 | Recognition lowering | 2: recognition builds values only where a predicate can read them, with the same units at every setting | [Recognition Lowering](../implementation/recognition-lowering.md) |
+| R010 | Per-position memo chains | 2: named by this record; the memo structure the complexity bounds rely on | [Memo Chains](../implementation/memo-chains.md) |
+| R020 | Deferred memoization | 2: the exact one-sixteenth rule, the same on every backend, because units depend on which calls the memo answers | [Deferred Memoization](../implementation/deferred-memoization.md) |
+| R040 | Memo entry retirement | 2: a stream returns delivered storage, so its count bounds its window; Documents report retired entries | [Memo Entry Retirement](../implementation/memo-entry-retirement.md) |
+| R050 | Bounded variable bindings | 2: every other piece of work is at most a constant of the grammar for each event, which an append-history environment breaks; its page called it an optimization, which the criteria correct | [Variable Environments](../implementation/variable-environments.md) |
+| R100 | Document repetition resumption | 2: a resumed element neither performs nor counts, and the statistics report resumed elements | [Document Repetition Records](../implementation/document-repetition-records.md) |
+| R110 | Document run record retention | 2: part of the repetition records a Document keeps for its whole text between parses; merged into R100's page | [Document Repetition Records](../implementation/document-repetition-records.md) |
+| R120 | Transient rule memo policy | 2: the specification fixes which rules an ordinary parse does not memoize | [Transient Rule Memo Policy](../implementation/transient-rule-memo-policy.md) |
+| R170 | Left-recursion member memo | 2: the specification defines how the memo answers calls in the context of growths | [Left-Recursion Member Memoization](../implementation/left-recursion-member-memo.md) |
+| R180 | Skip-run records | 2: the specification defines the sites, their records and the units of their walks; the page now covers run and scan sites | [Skip-Run Records](../implementation/skip-run-records.md) |
+| G050 | Budget-control specialization | Not a separable choice: the two forms are the user option `-no-limits`, and a parser generated without limit controls counts no units | [Limit-Control Forms of Generated Go](../implementation/limit-control-forms.md) |
+| G060, G140–G200 | Typed direct rules and their extensions | 2: the only typed Go printing route; a rule the plan leaves out is a generation error. One merged page | [Typed Go Printing](../implementation/typed-go-printing.md) |
+| G100 | Generated Node body inlining | 2: the only Node and recognizer body route; a body that neither form prints is a generation error | [Go Node Bodies](../implementation/go-node-bodies.md) |
+| G210 | TypeScript from Flow IR | 2: the only TypeScript printing route | [TypeScript Printing](../implementation/typescript-printing.md) |
+| G030 | Constructor dependency analysis | 1, by the dependency graph: the generation path imports no sample package | [Sample Constructor Dependencies](../implementation/sample-constructor-dependencies.md) |
+| G040 | Copy-on-change attribute normalization | 1, by the run below: byte-identical output | [Attribute Normalization](../implementation/attribute-normalization.md) |
+| G090 | Variable read components | 1, by reading the code: the result per rule is the sorted set of variables reachable through calls, which the per-rule search it replaced computes too. That search no longer exists, so there is no other code path to switch and a byte-identity run would have nothing to compare | [Variable Read Components](../implementation/variable-read-components.md) |
+| G120 | LSP position checkpoints | 1, by the dependency graph: the generation path imports no language server package | [LSP Position Checkpoints](../implementation/lsp-position-checkpoints.md) |
+| G125 | Bounded lint prefixes | 1, by the dependency graph: the generation path imports no lint package | [Lint Prefix Bounds](../implementation/lint-prefix-bounds.md) |
+
+The dependency graph is `go list -deps ./internal/driver ./internal/backend/...`, which lists no sample, lint or
+language server package.
+
+### Retired
+
+| ID | Mechanism | Reason | Carried by |
+|:--|:--|:--|:--|
+| G080 | Equal capture type reuse | Its separate step is gone; the join of types removes equal types as part of its definition | [Capture Types](../implementation/capture-types.md) |
+| G085 | Action-free positional items | Its code is gone, and the language has no positional items: `$` followed by digits is a token the parser rejects | [Capture Types](../implementation/capture-types.md) |
+| A090 | Typed output liveness cleanup | Rejected, never adopted, and no code remains | Record 094, status Rejected, in the catalog's rejected table |
+
+### The Run of Criterion 1
+
+G040 was checked once on its classifying branch with a temporary switch: the two calls that normalize attributes in the
+front end were patched to pass `true` for the eager-copy option, the script checked that both substitutions applied
+before the run, and restored the file afterwards. A temporary test dumped the outputs of every grammar of
+`testdata/grammars/*/*.sxir` (ten grammars) at the default settings for six targets: Go Node (types, recognition and
+expectations), lean typed Go (typed only, without limit controls), TypeScript (types and recognition), TypeScript
+without limit controls, the disassembled VM bytecode and the printed closure Core IR. `diff -rq` of the 60 dumps with
+and without the switch was empty: the outputs are identical.
+
+### Pending Check for Step 5
+
+The reference builds of A200, A220, A230 and A240 keep more of a stream's storage than the default build. The
+specification bounds a stream's memory count by its window ([Memory Limit](../../../spec/runtime/parsing.md#memory-limit)).
+The parity tests of step 5 assert that, in each reference build, the stream's memory count stays bounded by the window.
+If it does not, the reference build is not a maintained implementation of the same contract, and the mechanism is
+reclassified as an implementation design then.

@@ -2,6 +2,9 @@
 
 - **Status**: Rejected
 - **Date**: 2026-11-26
+- **Mechanisms**: none
+- **Result**: No measurable change in time, allocations or bytes on any workload, for a library protocol change and two removed `Parser` fields
+- **Revisit when**: A later mechanism leaves count sites that are both hot and many, or a workload with heavy counting shows more than 5% overhead of the limits
 
 ## Problem and Mechanism
 

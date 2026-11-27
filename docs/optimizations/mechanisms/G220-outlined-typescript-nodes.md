@@ -32,6 +32,8 @@ form was part of the printer that record [122](../122-typescript-from-flow-ir.md
 
 Source owners: the `flowplan` package of the middle end (the outline pass).
 
-Related mechanisms: [G010](G010-generated-helper-sharing.md), [G210](G210-typescript-from-flow-ir.md).
+Related mechanisms: [G010](G010-generated-helper-sharing.md).
+
+Related designs: [TypeScript Printing](../../design/implementation/typescript-printing.md).
 
 [Optimization Catalog](../README.md)

@@ -12,35 +12,79 @@ latest full-suite analysis.
 
 Each stable ID uses a category letter and a three-digit number: `E` (value elision), `M` (matching and calls), `R` (memo and Document reuse), `A` (allocation and retention), and `G` (generation and compilation). Initial allocations use steps of ten, leaving gaps for related mechanisms. New mechanisms may use those unused numbers; existing IDs are never renumbered or reused. IDs are independent of numbered evidence records and backlog IDs.
 
-The registry of optimizations in the compiler is the source of this index ([design record 080](../design/records/080-optimization-management.md)). The tables between the generated markers are written by `go generate ./internal/optcatalog` from the registry, the profiles, the records and [`measured.json`](measured.json), and a test fails when they differ. Each mechanism is classified either as an optimization, which has a control and is listed under Optimization Mechanisms, or as an implementation design, which is described in the design pages; the mechanisms not classified yet are listed by hand under [Unclassified Mechanisms](#unclassified-mechanisms).
+The registry of optimizations in the compiler is the source of this index ([design record 080](../design/records/080-optimization-management.md)). The tables between the generated markers are written by `go generate ./internal/optcatalog` from the registry, the profiles, the records and [`measured.json`](measured.json), and a test fails when they differ. Each mechanism is classified either as an optimization, which has a control and is listed under Optimization Mechanisms, or as an [implementation design](../design/implementation/README.md), which has no control and is described in the design pages; [Former Mechanism IDs](#former-mechanism-ids) maps the IDs that left the index.
 
 <!-- generated:counts -->
-Unclassified mechanisms: 77. Optimization mechanisms without a control: 0. Both are 0 at a release.
+Unclassified mechanisms: 0. Optimization mechanisms without a control: 32. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
 <!-- /generated:counts -->
 
 ### Optimization Mechanisms
 
-A backend cell is `✓` where the mechanism acts on every parser of the backend, `Partial` where it acts on the eligible subset that its page names, and `—` where it does not act. A mechanism acts on a backend exactly where one of its controls lists that backend. The closure backend builds from the Core IR, the recursive and the iterative VM from the same bytecode, and the Go Node, Go recognizer, typed Go and TypeScript backends are the generated parsers.
+A backend cell is `✓` where the mechanism acts on every parser of the backend, `Partial` where it acts on the eligible subset that its page names, and `—` where it does not act. The controls of a mechanism list only backends that it acts on, and at a release they list every one of them; until then, the counts above include the mechanisms that act on a backend that no control reaches yet, and the settings and the reference controls below show the backends of each control. The closure backend builds from the Core IR, the recursive and the iterative VM from the same bytecode, and the Go Node, Go recognizer, typed Go and TypeScript backends are the generated parsers.
 
 <!-- generated:index -->
 | ID | Mechanism | Path scope | closure | recursive VM | iterative VM | Go Node | Go recognizer | typed Go | TypeScript | Controls |
 |:--|:--|:--|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:--|
+| [A020](mechanisms/A020-node-and-list-slabs.md) | Slab storage for Nodes and child lists | Nodes and child lists of the engine and of generated Go Node parsers | ✓ | ✓ | ✓ | ✓ | — | — | — | none yet |
+| [A030](mechanisms/A030-parser-frame-reuse.md) | Pooled iterative VM frames and plain-call frame | Frames of the iterative VM | — | — | ✓ | — | — | — | — | none yet |
+| [A040](mechanisms/A040-action-operand-scratch.md) | Reusable action operands | Operands of actions | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | none yet |
+| [A060](mechanisms/A060-direct-typed-output-construction.md) | Construct typed output directly | Typed output of the rules the typed plan prints directly | — | — | — | — | — | Partial | — | none yet |
 | [A070](mechanisms/A070-typed-output-bootstrap.md) | Independent initial typed allocations before slab growth | Typed Go output | — | — | — | — | — | ✓ | — | `typed-output-bootstrap` |
+| [A080](mechanisms/A080-generated-node-capture-scratch.md) | Reusable generated Node capture scratch | Capture frames of generated Go Node parsers | — | — | — | ✓ | — | — | — | none yet |
+| [A100](mechanisms/A100-document-vm-value-stack.md) | Reuse a bounded VM value stack for Document parses | Document parses of the VMs | — | ✓ | ✓ | — | — | — | — | `sxir_reference_document_vm_values` (reference) |
+| [A120](mechanisms/A120-source-token-text.md) | Source substring token text | Token text, subject to the input representation | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | none yet |
+| [A140](mechanisms/A140-construction-tracking-release.md) | Release completed construction tracking | Construction of values | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | none yet |
+| [A150](mechanisms/A150-vm-position-chunks.md) | VM boxed positions | Positions of the VMs | — | ✓ | ✓ | — | — | — | — | none yet |
+| [A160](mechanisms/A160-whole-input-scratch-pooling.md) | Pool whole-input scratch across calls | Scratch of a whole-input parse in Go | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | none yet |
+| [A170](mechanisms/A170-operators-attempt-scratch.md) | Reusable Operators Rule candidate storage | Operators Rule attempts in Go | Partial | Partial | Partial | Partial | Partial | Partial | — | none yet |
+| [A180](mechanisms/A180-typed-frame-reuse.md) | Release and reuse typed runtime capture frames | Capture frames of typed Go | — | — | — | — | — | ✓ | — | none yet |
+| [A190](mechanisms/A190-evaluation-context-reuse.md) | Reusable action evaluation context | Evaluation of actions | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | none yet |
+| [A200](mechanisms/A200-stream-capture-frame-reuse.md) | Reuse completed stream capture frames | Streams of the engine | ✓ | ✓ | ✓ | — | — | — | — | `sxir_reference_stream_frames` (reference) |
+| [A210](mechanisms/A210-bounded-stream-text-snapshots.md) | Share bounded immutable stream text | Streams of the engine | ✓ | ✓ | ✓ | — | — | — | — | `sxir_reference_stream_text` (reference) |
+| [A220](mechanisms/A220-stream-prefix-isolation.md) | Isolate live stream prefix ownership | Streams of the engine | ✓ | ✓ | ✓ | — | — | — | — | `sxir_reference_stream_prefix` (reference) |
+| [A230](mechanisms/A230-stream-undo-cleanup.md) | Clear inactive stream undo backing | Streams of the engine | ✓ | ✓ | ✓ | — | — | — | — | `sxir_reference_stream_undo` (reference) |
+| [A240](mechanisms/A240-stream-vm-stack-cleanup.md) | Clear the inactive stream VM value stack | Streams of the VMs | — | ✓ | ✓ | — | — | — | — | `sxir_reference_stream_stack` (reference) |
 | [A250](mechanisms/A250-typed-object-slabs.md) | Typed object/terminal slab growth | Typed Go output | — | — | — | — | — | ✓ | — | `typed-object-slabs` |
 | [A260](mechanisms/A260-typed-list-slabs.md) | Typed list slab growth | Typed Go output | — | — | — | — | — | ✓ | — | `typed-list-slabs` |
+| [A270](mechanisms/A270-shared-empty-capture-frame.md) | Share the immutable capture-free frame | Scopes without captures | Partial | Partial | Partial | Partial | Partial | Partial | Partial | none yet |
 | [A280](mechanisms/A280-typed-chunk-growth.md) | Typed slab and match chunk growth past the fixed limit | Typed Go output | — | — | — | — | — | ✓ | — | `typed-chunk-growth` |
+| [E010](mechanisms/E010-value-free-rule-bodies.md) | Value-free body lowering | Rule bodies whose values no reader needs | Partial | Partial | Partial | Partial | Partial | Partial | Partial | none yet |
+| [E030](mechanisms/E030-operators-line-value-elision.md) | Operators Rule line value elision | Operators Rule lines whose values no reader needs | Partial | Partial | Partial | Partial | Partial | Partial | Partial | none yet |
+| [E050](mechanisms/E050-projected-repetition-values.md) | Projected repetition results | Repetitions whose readers need one projection of the elements | Partial | Partial | Partial | Partial | Partial | Partial | Partial | none yet |
+| [E060](mechanisms/E060-concat-input-fusion.md) | Fuse eligible concat inputs | Eligible inputs of concat | Partial | Partial | Partial | Partial | Partial | Partial | Partial | none yet |
 | [G010](mechanisms/G010-generated-helper-sharing.md) | Share exact generated helper bodies | Generated parsers with exactly equal bodies | — | — | — | Partial | Partial | Partial | Partial | `method-sharing` |
+| [G020](mechanisms/G020-lazy-backend-preparation.md) | Lazy one-time setup of optional engine backends | The engine's recognizer and VM setup on first use | Partial | Partial | Partial | — | — | — | — | none yet |
 | [G070](mechanisms/G070-literal-text-predicates.md) | Pure literal-text disjunction lowering | Predicates that compare a capture's text with literals, without limit controls | — | — | — | Partial | Partial | Partial | Partial | `text-dispatch` |
+| [G110](mechanisms/G110-one-pass-code-point-preparation.md) | Decode, validate and build offsets in one pass | Preparation of code-point input | Partial | Partial | Partial | Partial | Partial | Partial | Partial | none yet |
 | [G130](mechanisms/G130-generated-literal-sharing.md) | Share generated literal tables | Generated parsers with equal literals; TypeScript as an opt-in | — | — | — | Partial | Partial | Partial | Partial | `literal-sharing`, `ts-literal-sharing` |
 | [G220](mechanisms/G220-outlined-typescript-nodes.md) | Outlined TypeScript nodes | Large and repeated nodes of TypeScript Node and recognizer tables | — | — | — | — | — | — | Partial | `outline` |
 | [G240](mechanisms/G240-typescript-exec-forms.md) | Compact TypeScript Exec forms | Expectation merges and tested calls in TypeScript | — | — | — | — | — | — | Partial | `ts-merged-records`, `ts-tested-inits` |
 | [G250](mechanisms/G250-used-library-features.md) | Library of the used features | Generated parsers with an embedded library | — | — | — | Partial | Partial | Partial | Partial | `used-features` |
 | [M010](mechanisms/M010-first-character-dispatch.md) | First-character guards for ordered choices | Choices whose alternatives have known first characters | Partial | Partial | Partial | Partial | Partial | Partial | Partial | `dispatch`, `guards`, `guarded-classes` |
+| [M020](mechanisms/M020-character-class-tests.md) | Backend-specific character-class tests | Character classes | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | none yet |
+| [M030](mechanisms/M030-literal-matching.md) | Loaded-input literal matching | Literals over loaded input | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | none yet |
 | [M040](mechanisms/M040-character-scan-loops.md) | Value-free character repetition scan loops | Value-free repetitions of a class or of any character | Partial | Partial | Partial | Partial | Partial | Partial | Partial | `scans` |
+| [M050](mechanisms/M050-plain-rule-calls.md) | Calls to eligible uncaptured and unmemoized rules | Calls of rules that are neither captured nor memoized | Partial | Partial | Partial | Partial | Partial | Partial | Partial | none yet |
+| [M060](mechanisms/M060-left-recursion-growth.md) | Reuse state during left-recursion growth | Left-recursion seed growth in Go | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | none yet |
+| [M070](mechanisms/M070-vm-predecoded-match-data.md) | Predecoded VM literals and ASCII class masks | Literals and classes of VM programs | — | ✓ | ✓ | — | — | — | — | none yet |
+| [M080](mechanisms/M080-direct-code-point-access.md) | Read decoded code points in direct Go bodies | Direct generated Go bodies over code points | — | — | — | Partial | Partial | Partial | — | none yet |
+| [M090](mechanisms/M090-diagnostic-line-index.md) | Lazy line-start table for diagnostics | Lines and columns of diagnostics | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | none yet |
+| [M100](mechanisms/M100-absent-expectation-filter.md) | Fixed-size absent expectation filter | Expectation sets of the Go backends | Partial | Partial | Partial | Partial | Partial | Partial | — | none yet |
+| [M110](mechanisms/M110-compact-vm-backtracking-state.md) | Compact VM entries and separate label state | Backtracking state of the VMs | — | ✓ | ✓ | — | — | — | — | none yet |
+| [M120](mechanisms/M120-unboxed-text-comparisons.md) | Native text equality without boxing | Comparisons of text | Partial | Partial | Partial | Partial | Partial | Partial | Partial | `field-compare` |
 | [M130](mechanisms/M130-short-literal-comparisons.md) | In-place short literal comparison | Short literals of generated Go | — | — | — | Partial | Partial | Partial | — | `inline-literals` |
 | [M140](mechanisms/M140-terminal-programs.md) | Run large value-free keyword choices as one table-driven program | Lean typed Go; value-free choices of at least 16 literals and classes | — | — | — | — | — | Partial | — | `terminals` |
 | [M150](mechanisms/M150-class-runs.md) | Match consecutive value-free classes as one run | Lean typed Go; two or more consecutive classes | — | — | — | — | — | Partial | — | `class-runs` |
 | [M160](mechanisms/M160-class-tables.md) | Match large classes through a shared membership table | Lean typed Go; classes of at least the configured number of ranges | — | — | — | — | — | Partial | — | `class-tables` |
+| [R030](mechanisms/R030-sparse-seen-position-storage.md) | Sparse deferred-memo seen positions with a dense small-input path | Seen positions of deferred memoization | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | `sparse-memo`, `sxir_reference_sparse_memo` (reference) |
+| [R060](mechanisms/R060-chunked-document-input.md) | Chunked Document text storage | Document text | ✓ | ✓ | ✓ | Partial | — | Partial | — | `sxir_reference_document_pieces` (reference) |
+| [R070](mechanisms/R070-document-memo-edits.md) | Gap-buffer memo splice and lazy advancement | Document memo edits of the engine | ✓ | ✓ | ✓ | — | — | — | — | none yet |
+| [R080](mechanisms/R080-lazy-code-point-offsets.md) | On-demand code-point offsets | Code-point offsets of recognition and Documents | ✓ | ✓ | ✓ | — | — | — | — | none yet |
+| [R090](mechanisms/R090-moving-document-trees.md) | Move reused Document results | Values that a Document reuses | ✓ | ✓ | ✓ | ✓ | — | Partial | — | none yet |
+| [R130](mechanisms/R130-document-snapshot-record-sharing.md) | Share exact immutable records in Document snapshots | Document snapshots of the engine | ✓ | ✓ | ✓ | — | — | — | — | `sxir_snapshot_sharing_reference` (reference) |
+| [R140](mechanisms/R140-share-document-snapshot-child-runs.md) | Share immutable child-run backing between exact Document snapshot records | Child runs of Document snapshots | ✓ | ✓ | ✓ | — | — | — | — | `sxir_snapshot_child_chunks_reference` (reference) |
+| [R150](mechanisms/R150-cache-snapshot-child-run-descriptors.md) | Cache immutable child-run descriptors in snapshot records | Records of Document snapshots | ✓ | ✓ | ✓ | — | — | — | — | none yet |
+| [R160](mechanisms/R160-relative-snapshot-position-overlays.md) | Store per-version relative positions over shared snapshot records | Document snapshots, as an experiment that is off by default | ✓ | ✓ | ✓ | — | — | — | — | `sxir_snapshot_position_overlays` (reference) |
 <!-- /generated:index -->
 
 ### Settings
@@ -79,118 +123,64 @@ The settings are the same-source controls of the optimizations: the flags of `-o
 A reference control is a build tag that builds the parser without the mechanism, for a mechanism that has no zero-cost setting; it compares two builds instead of two settings.
 
 <!-- generated:reference-controls -->
-None.
+| Build tag | Mechanism | Backends | Record |
+|:--|:--|:--|:--|
+| `sxir_reference_document_vm_values` | A100 | recursive VM, iterative VM | [086](086-reuse-document-vm-values.md) |
+| `sxir_reference_stream_frames` | A200 | closure, recursive VM, iterative VM | [085](085-reuse-stream-capture-frames.md) |
+| `sxir_reference_stream_text` | A210 | closure, recursive VM, iterative VM | [088](088-share-bounded-stream-text-snapshots.md) |
+| `sxir_reference_stream_prefix` | A220 | closure, recursive VM, iterative VM | [089](089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
+| `sxir_reference_stream_undo` | A230 | closure, recursive VM, iterative VM | [089](089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
+| `sxir_reference_stream_stack` | A240 | recursive VM, iterative VM | [089](089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
+| `sxir_reference_sparse_memo` | R030 | closure, recursive VM, iterative VM | [087](087-sparse-deferred-memo-seen-pages.md) |
+| `sxir_reference_document_pieces` | R060 | closure, recursive VM, iterative VM | [093](093-chunked-document-input.md) |
+| `sxir_snapshot_sharing_reference` | R130 | closure, recursive VM, iterative VM | [097](097-exact-document-snapshot-record-sharing.md) |
+| `sxir_snapshot_child_chunks_reference` | R140 | closure, recursive VM, iterative VM | [099](099-share-document-snapshot-child-runs.md) |
+| `sxir_snapshot_position_overlays` | R160 | closure, recursive VM, iterative VM | [100](100-relative-snapshot-position-overlays.md) |
 <!-- /generated:reference-controls -->
 
 Records [025](025-discarding-separators-in-the-example-grammars.md) and [055](055-tracing-hook-on-the-call-path.md) remain in the evidence archive but are not optimization mechanisms: the first covers grammar-author output choices and the second measures tracing-instrumentation cost.
 
-## Unclassified Mechanisms
+### Former Mechanism IDs
 
-These mechanisms are not classified yet; a release needs none. Backend cells describe default applicability: `✓` applies; `Partial` applies only to the stated eligible subset; `Private off` marks a private/default-off implementation; `No` means the backend could use the mechanism but does not implement it; and `—` means the mechanism has no corresponding path. Shared compilation, setup and editor mechanisms identify their scope in the Path scope column; they are not runtime matching claims. Backend headers use C for Closure, RVM for recursive VM, IVM for iterative VM, Go Node / Recognize for generated Go Node parsing and recognition, Typed Go for generated `ParseValue`, and TS for generated TypeScript. Path scope abbreviations GN and TG refer to those generated Go paths.
+An ID that is no longer a mechanism stays reserved and is never reused. An implementation design or a retired mechanism is carried by the design page that describes it, in a marker that the generator reads, and a rejected attempt by the record that rejected it.
 
-Each linked mechanism page describes its source, eligibility, interactions, control/reference scope, and evidence. Numbered records remain historical measurement reports and may cover multiple mechanisms. Their results apply only to the workloads, backends, and baselines stated in each record.
-
-### E — Value Elision
-
-| ID | Mechanism | Path scope | C | RVM | IVM | Go Node / Recognize | Typed Go | TS | Default state | Same-source control |
-|:--|:--|:--|:-:|:-:|:-:|:-:|:-:|:-:|:--|:--|
-| [E010](mechanisms/E010-value-free-rule-bodies.md) | Value-free body lowering | C/RVM/IVM/GN/TG/TS; eligibility-based; no universal same-source control | Partial | Partial | Partial | Partial | Partial | Partial | Default | None maintained |
-| [E020](mechanisms/E020-value-free-rule-twins.md) | Value-free CST twins | All six; distinct memo identities, excludes LR cycles | Partial | Partial | Partial | Partial | Partial | Partial | Default | None maintained |
-| [E030](mechanisms/E030-operators-line-value-elision.md) | Operators Rule line value elision | All six; line-specific eligibility | Partial | Partial | Partial | Partial | Partial | Partial | Default | None maintained |
-| [E040](mechanisms/E040-recognition-lowering.md) | Recognition value/capture/action lowering | Core and generated recognition | Partial | Partial | Partial | Partial | — | Partial | Default | None maintained |
-| [E050](mechanisms/E050-projected-repetition-values.md) | Projected repetition results | All six; eligible subset, including TS projection | Partial | Partial | Partial | Partial | Partial | Partial | Default | Compile Options.NoProjections |
-| [E060](mechanisms/E060-concat-input-fusion.md) | Fuse eligible concat inputs | Eligible action inputs | Partial | Partial | Partial | Partial | Partial | Partial | Default | None maintained |
-
-### M — Matching and Calls
-
-| ID | Mechanism | Path scope | C | RVM | IVM | Go Node / Recognize | Typed Go | TS | Default state | Same-source control |
-|:--|:--|:--|:-:|:-:|:-:|:-:|:-:|:-:|:--|:--|
-| [M020](mechanisms/M020-character-class-tests.md) | Backend-specific character-class tests/representations | C/RVM/IVM/GN/TG/TS; distinct implementations by backend | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained |
-| [M030](mechanisms/M030-literal-matching.md) | Loaded-input literal matching | All six; input paths differ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained |
-| [M050](mechanisms/M050-plain-rule-calls.md) | Calls to eligible uncaptured/unmemoized rules | C/RVM/IVM/GN/TG/TS; each backend has separate call route | Partial | Partial | Partial | Partial | Partial | Partial | Default | None maintained |
-| [M060](mechanisms/M060-left-recursion-growth.md) | Reuse state during left-recursion growth | Go seed-growth storage | ✓ | ✓ | ✓ | ✓ | ✓ | — | Default | None maintained |
-| [M070](mechanisms/M070-vm-predecoded-match-data.md) | Predecoded VM literals and ASCII class masks | VM-program setup; predecoded literal/class data is used on RVM/IVM matching paths | — | ✓ | ✓ | — | — | — | Default | None maintained |
-| [M080](mechanisms/M080-direct-code-point-access.md) | Read decoded code points in direct Go bodies | GN/TG direct eligible bodies; CodePoints fast path | — | — | — | Partial | Partial | — | Default | None maintained |
-| [M090](mechanisms/M090-diagnostic-line-index.md) | Lazy line-start table for diagnostics | All six; streams retain committed-position scan | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained |
-| [M100](mechanisms/M100-absent-expectation-filter.md) | Fixed-size absent expectation filter | C/RVM/IVM/GN/TG Go only; TS unchanged | Partial | Partial | Partial | Partial | Partial | — | Default | None maintained |
-| [M110](mechanisms/M110-compact-vm-backtracking-state.md) | Compact VM entries and separate label state | RVM/IVM only | — | ✓ | ✓ | — | — | — | Default | None maintained |
-| [M120](mechanisms/M120-unboxed-text-comparisons.md) | Native text equality without boxing | All six eligible comparison paths | Partial | Partial | Partial | Partial | Partial | Partial | Default | `-no-opt field-compare` (typed Go string fields only) |
-
-### R — Memo and Document Reuse
-
-| ID | Mechanism | Path scope | C | RVM | IVM | Go Node / Recognize | Typed Go | TS | Default state | Same-source control |
-|:--|:--|:--|:-:|:-:|:-:|:-:|:-:|:-:|:--|:--|
-| [R010](mechanisms/R010-per-position-memo-chains.md) | Per-position memo chains and key storage | C/RVM/IVM/GN/TG/TS; exact per-backend route | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained |
-| [R020](mechanisms/R020-deferred-memoization.md) | Defer memo allocation until a second same-position call | C/RVM/IVM/GN/TG/TS; no universal control | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained |
-| [R030](mechanisms/R030-sparse-seen-position-storage.md) | Sparse deferred-memo seen positions with dense small-input path | C/RVM/IVM/GN/TG/TS; core build-tag and generation controls differ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | sxir_reference_sparse_memo; `-no-opt sparse-memo` (TypeScript) |
-| [R040](mechanisms/R040-memo-entry-retirement.md) | Retire obsolete memo entries | C/RVM/IVM only; active seed ownership preserved | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
-| [R050](mechanisms/R050-bounded-variable-bindings.md) | Bound variable binding histories | All six default; slot-indexed persistent vector | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained |
-| [R060](mechanisms/R060-chunked-document-input.md) | Chunked Document text storage | C/RVM/IVM Document pieces; GN/TG Document token text, with code points kept decoded | ✓ | ✓ | ✓ | Partial | Partial | — | Default | sxir_reference_document_pieces (engine only) |
-| [R070](mechanisms/R070-document-memo-edits.md) | Gap-buffer memo splice and lazy advancement | C/RVM/IVM Document only | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
-| [R080](mechanisms/R080-lazy-code-point-offsets.md) | On-demand code-point offsets | Core recognition and Document offset tables | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
-| [R090](mechanisms/R090-moving-document-trees.md) | Move reused Document results | C/RVM/IVM/GN Document; TG basic values only | ✓ | ✓ | ✓ | ✓ | Partial | — | Default | None maintained |
-| [R100](mechanisms/R100-document-repetition-resumption.md) | Resume saved long repetition runs | C/RVM/IVM Document only | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
-| [R110](mechanisms/R110-document-run-record-retention.md) | Retain unchanged-generation repetition records | C/RVM/IVM Document only | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
-| [R120](mechanisms/R120-transient-rule-memo-policy.md) | Avoid ordinary memoization for transient rules | All six; Document remains eager | Partial | Partial | Partial | Partial | Partial | Partial | Default | None maintained |
-| [R130](mechanisms/R130-document-snapshot-record-sharing.md) | Share exact immutable records in Document snapshots | C/RVM/IVM Document snapshots; candidate/reference build tag | ✓ | ✓ | ✓ | — | — | — | Default | sxir_snapshot_sharing_reference |
-| [R140](mechanisms/R140-share-document-snapshot-child-runs.md) | Share immutable child-run backing between exact Document snapshot records | Document snapshot child-run backing; immutable records only | ✓ | ✓ | ✓ | — | — | — | Default | sxir_snapshot_child_chunks_reference |
-| [R150](mechanisms/R150-cache-snapshot-child-run-descriptors.md) | Cache immutable child-run descriptors in SnapshotNode records | Document snapshot record access; caches immutable child-run descriptors | ✓ | ✓ | ✓ | — | — | — | Default | No cache-off control; reference retains this cache |
-| [R160](mechanisms/R160-relative-snapshot-position-overlays.md) | Store per-version relative positions over shared snapshot records | Private Document snapshot comparison; no matching-path change | Private off | Private off | Private off | — | — | — | Private off | `sxir_snapshot_position_overlays` |
-| [R170](mechanisms/R170-left-recursion-member-memo.md) | Memoize left-recursion cycle members, with results that read a growing seed kept per context | All six; Documents store no seed-dependent result | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | `DisableMemo` disables all memoization |
-| [R180](mechanisms/R180-skip-run-records.md) | Record the rest of each recovery-skip walk and reuse it from the third walk over a position | All six; Documents and streams; not with missing-token insertion | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained; tests disable records |
-
-### A — Allocation and Retention
-
-| ID | Mechanism | Path scope | C | RVM | IVM | Go Node / Recognize | Typed Go | TS | Default state | Same-source control |
-|:--|:--|:--|:-:|:-:|:-:|:-:|:-:|:-:|:--|:--|
-| [A010](mechanisms/A010-compact-node-representation.md) | Compact Node fields and interned kinds | C/RVM/IVM/GN; TG/TS do not use these Node layouts | ✓ | ✓ | ✓ | ✓ | — | — | Default | None maintained |
-| [A020](mechanisms/A020-node-and-list-slabs.md) | Slab storage for Nodes and child lists | Go Node storage; typed Go uses typed arenas | ✓ | ✓ | ✓ | ✓ | — | — | Default | None maintained |
-| [A030](mechanisms/A030-parser-frame-reuse.md) | Pooled iterative VM frames and plain-call frame | IVM; distinguish Operators Rule attempts below | — | — | ✓ | — | — | — | Default | None maintained |
-| [A040](mechanisms/A040-action-operand-scratch.md) | Reusable action operands and plumbing | All six by route; no TS cross-call pool | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained |
-| [A050](mechanisms/A050-streaming-state-reuse.md) | Bounded stream input and memo storage | C/RVM/IVM streaming only | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
-| [A060](mechanisms/A060-direct-typed-output-construction.md) | Construct typed output directly | TG eligible direct path; conversion remains fallback | — | — | — | — | Partial | — | Default | None maintained |
-| [A080](mechanisms/A080-generated-node-capture-scratch.md) | Reusable generated Node capture scratch | Generated Go Node capture frames | — | — | — | ✓ | — | — | Default | — |
-| [A090](mechanisms/A090-typed-output-liveness-cleanup.md) | Clear unreachable generated typed output slots | TG measured; not adopted or implemented | — | — | — | — | — | — | — | — |
-| [A100](mechanisms/A100-document-vm-value-stack.md) | Reuse bounded VM value stack for Document parses | RVM/IVM Document paths only | — | ✓ | ✓ | — | — | — | Default | sxir_reference_document_vm_values |
-| [A110](mechanisms/A110-expected-set-ids.md) | Interned expectation IDs and shared windows | All six; backend storage differs | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained |
-| [A120](mechanisms/A120-source-token-text.md) | Source substring token text | All six subject to input representation; stream separately | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained |
-| [A140](mechanisms/A140-construction-tracking-release.md) | Release completed construction tracking | All six default; TS timing unmeasured | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained |
-| [A150](mechanisms/A150-vm-position-chunks.md) | VM boxed positions | RVM/IVM only | — | ✓ | ✓ | — | — | — | Default | None maintained |
-| [A160](mechanisms/A160-whole-input-scratch-pooling.md) | Pool whole-input scratch across calls | C/RVM/IVM/GN/TG; TS N/A | ✓ | ✓ | ✓ | ✓ | ✓ | — | Default | None maintained |
-| [A170](mechanisms/A170-operators-attempt-scratch.md) | Reusable Operators Rule candidate storage | C/RVM/IVM/GN/TG by route; TS does not use Go by-value attempt | Partial | Partial | Partial | Partial | Partial | — | Default | None maintained |
-| [A180](mechanisms/A180-typed-frame-reuse.md) | Release/reuse typed runtime capture frames | TG only | — | — | — | — | ✓ | — | Default | None maintained |
-| [A190](mechanisms/A190-evaluation-context-reuse.md) | Reusable action evaluation context | All six per parser; no TS cross-call pool | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained |
-| [A200](mechanisms/A200-stream-capture-frame-reuse.md) | Reuse completed stream capture frames | C/RVM/IVM; sxir_reference_stream_frames | ✓ | ✓ | ✓ | — | — | — | Default | sxir_reference_stream_frames |
-| [A210](mechanisms/A210-bounded-stream-text-snapshots.md) | Share bounded immutable stream text | C/RVM/IVM; sxir_reference_stream_text | ✓ | ✓ | ✓ | — | — | — | Default | sxir_reference_stream_text |
-| [A220](mechanisms/A220-stream-prefix-isolation.md) | Isolate live stream prefix ownership | C/RVM/IVM; sxir_reference_stream_prefix | ✓ | ✓ | ✓ | — | — | — | Default | sxir_reference_stream_prefix |
-| [A230](mechanisms/A230-stream-undo-cleanup.md) | Clear inactive stream undo backing | C/RVM/IVM; sxir_reference_stream_undo | ✓ | ✓ | ✓ | — | — | — | Default | sxir_reference_stream_undo |
-| [A240](mechanisms/A240-stream-vm-stack-cleanup.md) | Clear inactive stream VM value stack | RVM/IVM; sxir_reference_stream_stack | — | ✓ | ✓ | — | — | — | Default | sxir_reference_stream_stack |
-| [A270](mechanisms/A270-shared-empty-capture-frame.md) | Share immutable capture-free frame | All six; capture-free scopes only | Partial | Partial | Partial | Partial | Partial | Partial | Default | None maintained |
-
-### G — Generation and Compilation
-
-| ID | Mechanism | Path scope | C | RVM | IVM | Go Node / Recognize | Typed Go | TS | Default state | Same-source control |
-|:--|:--|:--|:-:|:-:|:-:|:-:|:-:|:-:|:--|:--|
-| [G020](mechanisms/G020-lazy-backend-preparation.md) | Lazy one-time setup of optional engine recognizer/VM backends | First-use engine setup; closure recognition only, ordinary closure graph is eager | Partial | Partial | Partial | — | — | — | Default on demand | None maintained |
-| [G030](mechanisms/G030-constructor-dependency-analysis.md) | Sample constructor dependency propagation | Shared sampling analysis, runtime cells N/A | — | — | — | — | — | — | Default setup path | None maintained |
-| [G040](mechanisms/G040-copy-on-change-attribute-normalization.md) | Reuse unchanged AST paths during attribute normalization | Shared compile/generation preprocessing only, not runtime matching | — | — | — | — | — | — | Default setup path | Compile Options.EagerAttributeCopies |
-| [G050](mechanisms/G050-generated-budget-control-specialization.md) | Print one form of the generated Go functions per option set | GN/TG only; adopted; effect scope from record 096 | — | — | — | ✓ | ✓ | — | Default | — |
-| [G060](mechanisms/G060-ordinary-typed-direct-rules.md) | Ordinary typed direct bodies | TG eligible default; later extensions separately keyed | — | — | — | — | Partial | — | Default | None maintained |
-| [G080](mechanisms/G080-equal-capture-type-reuse.md) | Reuse structurally equal capture types | Shared type analysis, runtime cells N/A | — | — | — | — | — | — | Default setup path | None maintained |
-| [G085](mechanisms/G085-action-free-positional-items.md) | Skip positional item typing for action-free rules | Shared type analysis, runtime cells N/A | — | — | — | — | — | — | Default setup path | None maintained |
-| [G090](mechanisms/G090-variable-read-components.md) | Variable reads by dependency component | Shared compiler metadata, runtime cells N/A | — | — | — | — | — | — | Default setup path | None maintained |
-| [G100](mechanisms/G100-generated-node-body-inlining.md) | Inline eligible Go Node expressions | GN partial default; separate value-free/node eligibility | — | — | — | Partial | — | — | Default | None maintained |
-| [G110](mechanisms/G110-one-pass-code-point-preparation.md) | Decode/validate/build offsets in one pass | CodePoints input preparation; GN/TG eager, core recognition lazy, TypeScript uses its own decoder | Partial | Partial | Partial | Partial | Partial | Partial | Default by input path | None maintained |
-| [G120](mechanisms/G120-lsp-position-checkpoints.md) | LSP UTF-16/code-point checkpoints | Editor preprocessing only; backend cells N/A | — | — | — | — | — | — | Default editor path | None maintained |
-| [G125](mechanisms/G125-bounded-diagnostic-prefixes.md) | Bound displayed lint expression prefixes | CLI/LSP lint diagnostics only; runtime backend cells N/A | — | — | — | — | — | — | Default lint path | None maintained |
-| [G140](mechanisms/G140-typed-local-cuts.md) | Local cuts in ordinary direct typed rules | TG default eligible | — | — | — | — | Partial | — | Default | None maintained |
-| [G150](mechanisms/G150-typed-left-recursion-bodies.md) | Inline typed LR leader bodies | TG default eligible | — | — | — | — | Partial | — | Default | None maintained |
-| [G160](mechanisms/G160-typed-operators-line-bodies.md) | Inline typed Operators Rule line bodies | TG default eligible | — | — | — | — | Partial | — | Default | None maintained |
-| [G170](mechanisms/G170-typed-framed-cuts.md) | Scoped cuts in unfinished typed bodies | TG default eligible | — | — | — | — | Partial | — | Default | None maintained |
-| [G180](mechanisms/G180-typed-frame-layouts.md) | Match direct framed capture layouts | TG default eligible | — | — | — | — | Partial | — | Default | None maintained |
-| [G190](mechanisms/G190-typed-recovery-bodies.md) | Inline eligible typed recovery bodies | TG default eligible | — | — | — | — | Partial | — | Default | None maintained |
-| [G200](mechanisms/G200-typed-local-capture-layouts.md) | Complete typed Go-local capture layouts | TG default eligible | — | — | — | — | Partial | — | Default | None maintained |
-| [G210](mechanisms/G210-typescript-from-flow-ir.md) | Print generated TypeScript from Flow IR | TS default; Node and recognizer tables | — | — | — | — | — | ✓ | Default | None maintained |
+<!-- generated:former -->
+| ID | Now | Reason |
+|:--|:--|:--|
+| A010 | [Node Layout](../design/implementation/node-layout.md) | Every backend that builds Nodes reads this layout, and it is the public representation of a Node; a parser without it would need a different Node |
+| A050 | [Bounded Stream Storage](../design/implementation/stream-storage.md) | The stream contract bounds what a stream keeps by its window: it discards the input and memo entries before what it delivered, and its Memory count bounds the window, not the length of the input |
+| A090 | [094. Generation-Only Typed-Output Liveness Cleanup](094-generated-typed-output-liveness.md) | Rejected attempt; no code remains |
+| A110 | [Expectation Sets](../design/implementation/expectation-sets.md) | The memo entries, recovery state and diagnostics of every backend store expectations as these IDs and stack windows; a parser without them would need another representation of expectations |
+| E020 | [Value-Free Twins](../design/implementation/value-free-twins.md) | The specification makes a twin a rule of its own, with its own memo entries and its own call unit; compute units and memo identities depend on it |
+| E040 | [Recognition Lowering](../design/implementation/recognition-lowering.md) | The specification makes recognition build values only where a predicate can read them, with the same units at every setting; it is an operation of the contract, not a form that can be switched off |
+| G030 | [Sample Constructor Dependencies](../design/implementation/sample-constructor-dependencies.md) | A technique of the sample generator, off the generation path: no generated parser depends on it, so its output is the same with and without it |
+| G040 | [Attribute Normalization](../design/implementation/attribute-normalization.md) | A compiler technique whose generated output is byte-identical with and without it, checked over the corpus with the eager form forced on |
+| G050 | [Limit-Control Forms of Generated Go](../design/implementation/limit-control-forms.md) | Not a separable choice: the two forms are the user option -no-limits, and the specification states that a parser generated without limit controls counts no units |
+| G060 | [Typed Go Printing](../design/implementation/typed-go-printing.md) | The only route by which typed Go rules are printed; a rule that the plan leaves out is a generation error, so no maintained form exists without it |
+| G080 | [Capture Types](../design/implementation/capture-types.md) | Retired: the join of types removes equal types as part of its definition, so no separable technique is left |
+| G085 | [Capture Types](../design/implementation/capture-types.md) | Retired: the language has no positional items, so nothing is left to skip |
+| G090 | [Variable Read Components](../design/implementation/variable-read-components.md) | A compiler technique whose result, the sorted set of variables each rule reads, is the same as that of the per-rule search it replaced; that search no longer exists, so there is no other code path to compare |
+| G100 | [Go Node Bodies](../design/implementation/go-node-bodies.md) | The only route by which Node and recognizer bodies of generated Go are printed; a body that neither form prints is a generation error |
+| G120 | [LSP Position Checkpoints](../design/implementation/lsp-position-checkpoints.md) | A technique of the language server, off the generation path: no generated parser depends on it, so its output is the same with and without it |
+| G125 | [Lint Prefix Bounds](../design/implementation/lint-prefix-bounds.md) | A technique of the linter, off the generation path: no generated parser depends on it, so its output is the same with and without it |
+| G140 | [Typed Go Printing](../design/implementation/typed-go-printing.md) | Part of the only typed Go printing route: local cuts of flat rules |
+| G150 | [Typed Go Printing](../design/implementation/typed-go-printing.md) | Part of the only typed Go printing route: framed bodies of left-recursion leaders |
+| G160 | [Typed Go Printing](../design/implementation/typed-go-printing.md) | Part of the only typed Go printing route: framed Operators Rule lines |
+| G170 | [Typed Go Printing](../design/implementation/typed-go-printing.md) | Part of the only typed Go printing route: cuts in framed bodies |
+| G180 | [Typed Go Printing](../design/implementation/typed-go-printing.md) | Part of the only typed Go printing route: the capture layouts of framed bodies |
+| G190 | [Typed Go Printing](../design/implementation/typed-go-printing.md) | Part of the only typed Go printing route: framed bodies of rules that recover |
+| G200 | [Typed Go Printing](../design/implementation/typed-go-printing.md) | Part of the only typed Go printing route: the capture layouts of flat rules |
+| G210 | [TypeScript Printing](../design/implementation/typescript-printing.md) | The only route by which TypeScript rules are printed; a rule that Flow IR does not print fails generation, and there is no second printer |
+| R010 | [Memo Chains](../design/implementation/memo-chains.md) | The memo structure that the complexity bounds rely on; every backend's memo, its keys and the Document reuse are built on it |
+| R020 | [Deferred Memoization](../design/implementation/deferred-memoization.md) | The specification fixes exactly which first evaluations leave no result, the same on every backend, because the compute units depend on which calls the memo answers |
+| R040 | [Memo Entry Retirement](../design/implementation/memo-entry-retirement.md) | The stream contract bounds a stream's memory by its window, which needs the storage of dropped entries returned, and Documents report retired entries in their statistics |
+| R050 | [Variable Environments](../design/implementation/variable-environments.md) | The compute units bound every other piece of work by a constant of the grammar for each event; an environment that kept every binding would make a read walk the bindings of a repetition |
+| R100 | [Document Repetition Records](../design/implementation/document-repetition-records.md) | The Document contract makes a resumed element no event, neither performed nor counted, and reports resumed elements in its statistics |
+| R110 | [Document Repetition Records](../design/implementation/document-repetition-records.md) | Part of the repetition records that a Document keeps for its whole text between parses, which the Document contract requires |
+| R120 | [Transient Rule Memo Policy](../design/implementation/transient-rule-memo-policy.md) | The specification fixes which rules an ordinary parse does not memoize, and the compute units depend on which calls the memo answers |
+| R170 | [Left-Recursion Member Memoization](../design/implementation/left-recursion-member-memo.md) | The specification defines how the memo answers and stores the calls of the rules of a left-recursion cycle in the context of growths, on every backend and in Documents |
+| R180 | [Skip-Run Records](../design/implementation/skip-run-records.md) | The specification defines skip-run sites, their records and the units of their walks, the same on every backend; a walk that takes a record neither performs nor counts what it skips |
+<!-- /generated:former -->
 
 ## Optimization History
 
@@ -350,6 +340,17 @@ Each linked mechanism page describes its source, eligibility, interactions, cont
 - [148. Moving reused trees of generated Go Documents](148-moving-reused-trees-of-generated-go-documents.md)
 - [149. Kept child stack of generated Go Documents](149-kept-child-stack-of-generated-go-documents.md)
 - [150. Compact memo entries of generated Go](150-compact-memo-entries-of-generated-go.md)
+
+## Rejected Attempts
+
+The records with status Rejected, with their result and the condition under which they are worth measuring again.
+
+<!-- generated:rejected -->
+| Record | Mechanisms | Result | Revisit when |
+|:--|:--|:--|:--|
+| [094. Generation-Only Typed-Output Liveness Cleanup](094-generated-typed-output-liveness.md) | A090 | Less retained heap on the direct typed path, but material small-input latency and allocation costs, and no reduction of retained heap or peak RSS on the conversion path | A revised design meets the cost limits of the default path while it keeps a meaningful benefit across direct and conversion results, returned matches, both position units, and ordinary and discard-heavy inputs |
+| [140. Compute Units Counted Down as Fuel](140-compute-units-counted-down-as-fuel.md) | none | No measurable change in time, allocations or bytes on any workload, for a library protocol change and two removed `Parser` fields | A later mechanism leaves count sites that are both hot and many, or a workload with heavy counting shows more than 5% overhead of the limits |
+<!-- /generated:rejected -->
 
 ## Experiments That Did Not Pay Off
 

@@ -1,6 +1,6 @@
 # 096. Specialize Generated Go Budget-Control Methods
 
-- **Status**: Superseded by [G050](mechanisms/G050-generated-budget-control-specialization.md): a generated parser has one form of each function, so the branch this record measures is not in the output
+- **Status**: Superseded by the [limit-control forms of generated Go](../design/implementation/limit-control-forms.md): a generated parser has one form of each function, so the branch this record measures is not in the output
 - **Date**: 2026-10-14
 
 ## Problem and Mechanism

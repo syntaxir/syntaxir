@@ -40,6 +40,8 @@ design`](../../design/records/012-typed-values.md).
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.
 
-Related mechanisms: [G060](G060-ordinary-typed-direct-rules.md), [A070](A070-typed-output-bootstrap.md), [A250](A250-typed-object-slabs.md), [A260](A260-typed-list-slabs.md).
+Related mechanisms: [A070](A070-typed-output-bootstrap.md), [A250](A250-typed-object-slabs.md), [A260](A260-typed-list-slabs.md).
+
+Related designs: [Typed Go Printing](../../design/implementation/typed-go-printing.md).
 
 [Optimization Catalog](../README.md)
