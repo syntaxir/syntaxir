@@ -125,7 +125,7 @@ var mechanisms = []Mechanism{
 	{ID: "R150", Title: "Cached Snapshot Child Descriptors", Page: "R150-cache-snapshot-child-run-descriptors.md",
 		Scope: "Records of Document snapshots", Full: Engines},
 	{ID: "R160", Title: "Relative Snapshot Position Overlays", Page: "R160-relative-snapshot-position-overlays.md",
-		Scope: "Document snapshots, as an experiment that is off by default", Full: Engines},
+		Scope: "Document snapshots, when the tag is on", Partial: Engines, Experiment: "sxir_snapshot_position_overlays"},
 }
 
 var referenceControls = []ReferenceControl{

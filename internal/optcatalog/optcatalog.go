@@ -314,9 +314,12 @@ func Replace(data []byte, regions map[string]string) ([]byte, error) {
 	return []byte(s), nil
 }
 
-// cell is the text of a backend cell of the index.
+// cell is the text of a backend cell of the index. An experiment acts on no parser of the default
+// build, so the backends its switch reaches say so instead of claiming the mechanism acts there.
 func cell(m pass.Mechanism, b pass.Backend) string {
 	switch {
+	case m.Experiment != "" && m.Reaches().Has(b):
+		return "Experiment"
 	case m.Full.Has(b):
 		return "✓"
 	case m.Partial.Has(b):
@@ -343,16 +346,18 @@ func stateText(f pass.Flag) (string, error) {
 // rejected attempts.
 func catalogRegions(records map[int]Record, former map[string]FormerPage) (map[string]string, error) {
 	flags := pass.Flags()
-	var none, partly int
+	var experiments, none, partly int
 	for _, m := range pass.Mechanisms() {
 		switch {
+		case m.Experiment != "":
+			experiments++
 		case pass.ControlOf(m.ID, flags) == pass.ControlNone:
 			none++
 		case pass.Uncontrolled(m, flags) != 0:
 			partly++
 		}
 	}
-	counts := fmt.Sprintf("Unclassified mechanisms: %d. Optimization mechanisms without a control: %d. Optimization mechanisms with backends that no control reaches: %d. All are 0 at a release.\n", len(pass.Unclassified()), none, partly)
+	counts := fmt.Sprintf("Unclassified mechanisms: %d. Experiment mechanisms, off by default: %d. Optimization mechanisms without a control: %d. Optimization mechanisms with backends that no control reaches: %d. All are 0 at a release.\n", len(pass.Unclassified()), experiments, none, partly)
 
 	var index strings.Builder
 	index.WriteString("| ID | Mechanism | Path scope |")
@@ -380,7 +385,10 @@ func catalogRegions(records map[int]Record, former map[string]FormerPage) (map[s
 				controls = append(controls, "`"+r.Tag+"` (reference)")
 			}
 		}
-		if len(controls) == 0 {
+		switch {
+		case m.Experiment != "":
+			controls = []string{"experiment (off by default): `" + m.Experiment + "` turns it on"}
+		case len(controls) == 0:
 			controls = []string{"none yet"}
 		}
 		index.WriteString(" " + strings.Join(controls, ", ") + " |\n")

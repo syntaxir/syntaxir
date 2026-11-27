@@ -80,6 +80,12 @@ func factsRegion(m pass.Mechanism, records map[int]Record) (string, error) {
 	fmt.Fprintf(&b, "# %s: %s\n\n", m.ID, m.Title)
 	b.WriteString("- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))\n")
 	fmt.Fprintf(&b, "- **Path scope**: %s\n", m.Scope)
+	if m.Experiment != "" {
+		fmt.Fprintf(&b, "- **State**: experiment (off by default); the build tag `%s` turns it on\n", m.Experiment)
+		fmt.Fprintf(&b, "- **With the tag, an eligible subset, named under Scope, of**: %s\n", m.Partial)
+		b.WriteString("- **Controls**: none; an experiment gets a control when it is adopted\n")
+		return b.String(), nil
+	}
 	if m.Full != 0 {
 		fmt.Fprintf(&b, "- **Every parser of**: %s\n", m.Full)
 	}

@@ -15,12 +15,12 @@ Each stable ID uses a category letter and a three-digit number: `E` (value elisi
 The registry of optimizations in the compiler is the source of this index ([design record 080](../design/records/080-optimization-management.md)). The tables between the generated markers are written by `go generate ./internal/optcatalog` from the registry, the profiles and the records, and a test fails when they differ. Each mechanism is classified either as an optimization, which has a control and is listed under Optimization Mechanisms, or as an [implementation design](../design/implementation/README.md), which has no control and is described in the design pages; [Former Mechanism IDs](#former-mechanism-ids) maps the IDs that left the index.
 
 <!-- generated:counts -->
-Unclassified mechanisms: 0. Optimization mechanisms without a control: 33. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
+Unclassified mechanisms: 0. Experiment mechanisms, off by default: 1. Optimization mechanisms without a control: 32. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
 <!-- /generated:counts -->
 
 ### Optimization Mechanisms
 
-A backend cell is `✓` where the mechanism acts on every parser of the backend, `Partial` where it acts on the eligible subset that its page names, and `—` where it does not act. The controls of a mechanism list only backends that it acts on, and at a release they list every one of them; until then, the counts above include the mechanisms that act on a backend that no control reaches yet, and the settings and the reference controls below show the backends of each control. The closure backend builds from the Core IR, the recursive and the iterative VM from the same bytecode, and the Go Node, Go recognizer, typed Go and TypeScript backends are the generated parsers.
+A backend cell is `✓` where the mechanism acts on every parser of the backend, `Partial` where it acts on the eligible subset that its page names, `Experiment` where an unadopted candidate, off by default, would act when its switch turns it on, and `—` where it does not act. The controls of a mechanism list only backends that it acts on, and at a release they list every one of them; until then, the counts above include the mechanisms that act on a backend that no control reaches yet, and the settings and the reference controls below show the backends of each control. The closure backend builds from the Core IR, the recursive and the iterative VM from the same bytecode, and the Go Node, Go recognizer, typed Go and TypeScript backends are the generated parsers.
 
 <!-- generated:index -->
 | ID | Mechanism | Path scope | closure | recursive VM | iterative VM | Go Node | Go recognizer | typed Go | TypeScript | Controls |
@@ -84,7 +84,7 @@ A backend cell is `✓` where the mechanism acts on every parser of the backend,
 | [R130](mechanisms/R130-document-snapshot-record-sharing.md) | Document Snapshot Record Sharing | Document snapshots of the engine | ✓ | ✓ | ✓ | — | — | — | — | `sxir_snapshot_sharing_reference` (reference) |
 | [R140](mechanisms/R140-share-document-snapshot-child-runs.md) | Document Snapshot Child Run Sharing | Child runs of Document snapshots | ✓ | ✓ | ✓ | — | — | — | — | `sxir_snapshot_child_chunks_reference` (reference) |
 | [R150](mechanisms/R150-cache-snapshot-child-run-descriptors.md) | Cached Snapshot Child Descriptors | Records of Document snapshots | ✓ | ✓ | ✓ | — | — | — | — | none yet |
-| [R160](mechanisms/R160-relative-snapshot-position-overlays.md) | Relative Snapshot Position Overlays | Document snapshots, as an experiment that is off by default | ✓ | ✓ | ✓ | — | — | — | — | none yet |
+| [R160](mechanisms/R160-relative-snapshot-position-overlays.md) | Relative Snapshot Position Overlays | Document snapshots, when the tag is on | Experiment | Experiment | Experiment | — | — | — | — | experiment (off by default): `sxir_snapshot_position_overlays` turns it on |
 <!-- /generated:index -->
 
 ### Settings

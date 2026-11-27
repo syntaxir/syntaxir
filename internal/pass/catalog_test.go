@@ -67,10 +67,15 @@ func TestControlOf(t *testing.T) {
 	}
 }
 
-// The check of the declarations: a flag may name a mechanism that is not classified yet, and an ID
-// belongs to one list only.
+// The check of the declarations: a flag may name a mechanism that is not classified yet, an ID
+// belongs to one list only, and an experiment reaches some backends partly, none fully, and has no
+// reference control.
 func TestCheckCatalogDeclarations(t *testing.T) {
 	m := Mechanism{ID: "M140", Title: "t", Page: "M140-t.md", Scope: "s", Partial: On(BackendTypedGo)}
+	exp := Mechanism{ID: "R160", Title: "t", Page: "R160-t.md", Scope: "s", Partial: Engines, Experiment: "tag"}
+	expFull, expNone := exp, exp
+	expFull.Full, expFull.Partial = Engines, 0
+	expNone.Partial = 0
 	f := catalogFlag()
 	for _, c := range []struct {
 		name string
@@ -86,6 +91,11 @@ func TestCheckCatalogDeclarations(t *testing.T) {
 		{"former twice", catalog{mechanisms: []Mechanism{m}, former: []string{"R010", "R010"}}, f, "former ID R010 is declared twice"},
 		{"reference control of a former ID", catalog{mechanisms: []Mechanism{m}, former: []string{"R010"},
 			refs: []ReferenceControl{{Mechanism: "R010", Tag: "t", Backends: Engines, Record: 1}}}, f, "neither declared nor unclassified"},
+		{"experiment", catalog{mechanisms: []Mechanism{m, exp}}, f, ""},
+		{"experiment with full reach", catalog{mechanisms: []Mechanism{m, expFull}}, f, "acts fully on no parser"},
+		{"experiment without reach", catalog{mechanisms: []Mechanism{m, expNone}}, f, "names no backend"},
+		{"reference control of an experiment", catalog{mechanisms: []Mechanism{m, exp},
+			refs: []ReferenceControl{{Mechanism: "R160", Tag: "t", Backends: Engines, Record: 1}}}, f, "names the experiment R160"},
 	} {
 		err := c.cat.check([]Flag{c.flag})
 		if c.want == "" && err != nil || c.want != "" && (err == nil || !strings.Contains(err.Error(), c.want)) {

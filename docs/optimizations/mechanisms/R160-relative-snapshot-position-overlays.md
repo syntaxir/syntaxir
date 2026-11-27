@@ -2,9 +2,10 @@
 # R160: Relative Snapshot Position Overlays
 
 - **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
-- **Path scope**: Document snapshots, as an experiment that is off by default
-- **Every parser of**: closure, recursive VM, iterative VM
-- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+- **Path scope**: Document snapshots, when the tag is on
+- **State**: experiment (off by default); the build tag `sxir_snapshot_position_overlays` turns it on
+- **With the tag, an eligible subset, named under Scope, of**: closure, recursive VM, iterative VM
+- **Controls**: none; an experiment gets a control when it is adopted
 <!-- /generated:facts -->
 
 Shifted immutable records can share payload storage when version-specific

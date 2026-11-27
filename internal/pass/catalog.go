@@ -116,6 +116,12 @@ type Mechanism struct {
 	// acts on an eligible subset that the page names. A control lists only backends that the
 	// mechanism acts on, and at a release every backend it acts on is listed by one of its controls.
 	Full, Partial Backends
+	// Experiment, when not empty, names the switch (a build tag) that turns the mechanism on: it is an
+	// unadopted candidate, off in the default build, so it acts on no parser there. Its Partial
+	// backends are those the switch reaches, and it has no Full backends and no reference control: a
+	// reference control selects the reference form of an adopted mechanism. A release has no
+	// experiment mechanism; each is adopted with a control or removed.
+	Experiment string
 }
 
 // Reaches returns the backends the mechanism acts on.
@@ -273,6 +279,10 @@ func (c catalog) check(flags []Flag) error {
 			return fmt.Errorf("mechanism %q has no ID, title, page or scope", m.ID)
 		case m.Full&m.Partial != 0:
 			return fmt.Errorf("mechanism %s acts both fully and partly on %s", m.ID, m.Full&m.Partial)
+		case m.Experiment != "" && m.Full != 0:
+			return fmt.Errorf("mechanism %s is an experiment behind %s, so it acts fully on no parser, but it claims %s", m.ID, m.Experiment, m.Full)
+		case m.Experiment != "" && m.Partial == 0:
+			return fmt.Errorf("mechanism %s is an experiment behind %s but names no backend that the switch reaches", m.ID, m.Experiment)
 		}
 		if err := claim(m.ID, "mechanism"); err != nil {
 			return err
@@ -313,6 +323,9 @@ func (c catalog) check(flags []Flag) error {
 			return fmt.Errorf("reference control %s names the mechanism %s, which is neither declared nor unclassified", r.Tag, r.Mechanism)
 		case r.Tag == "" || r.Record <= 0 || r.Backends == 0:
 			return fmt.Errorf("reference control of %s has no tag, record or backends", r.Mechanism)
+		}
+		if i := slices.IndexFunc(c.mechanisms, func(m Mechanism) bool { return m.ID == r.Mechanism }); i >= 0 && c.mechanisms[i].Experiment != "" {
+			return fmt.Errorf("reference control %s names the experiment %s: a reference control selects the reference form of an adopted mechanism", r.Tag, r.Mechanism)
 		}
 	}
 	for _, m := range c.mechanisms {

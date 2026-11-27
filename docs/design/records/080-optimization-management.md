@@ -154,7 +154,8 @@ The registry also holds:
 - **Mechanisms**: the optimization mechanisms only, declared once in a table of the registry package: ID, title, page,
   path scope, per backend `full`, `partial` or nothing (`partial` means an eligible subset that the page names), and a
   **Control** field: `flag` (it has at least one setting), `reference` (it has a reference control only) or `none`
-  (a transitional state until its setting lands; the release criterion forbids it). A control lists only backends that
+  (a transitional state until its setting lands; the release criterion forbids it), and for an experiment mechanism
+  the build tag that turns it on (see "Lifecycle"). A control lists only backends that
   its mechanism acts on, and at a release a mechanism acts on a backend if and only if one of its controls lists that
   backend; before it, a mechanism may act on a backend whose control has not landed yet, a transitional state that the
   catalog counts.
@@ -202,7 +203,13 @@ The state named OptIn in the diagram is Opt-in below and in the records.
 
 - **Proposed**: an idea with a record (status Proposed) or an entry in the performance milestone's plan; no code.
 - **Experiment**: code on main, off in every profile, with its parity tests. It exists so that the measurement and the
-  parity tests run from main instead of a branch. It is listed with its status in the milestone plan.
+  parity tests run from main instead of a branch. It is listed with its status in the milestone plan. An experiment is
+  usually a flag (an experiment setting). A mechanism whose only switch is a build tag that turns an unadopted
+  candidate on, because no setting can select it at no cost, is an **experiment mechanism**: the registry names the
+  tag, and the mechanism acts on no parser of the default build. Its reach is `partial` on the backends the tag
+  reaches, never `full`, and it has no reference control, which selects the reference form of an adopted mechanism. The
+  index and its page show it as an experiment, off by default, not as acting; the counts list experiment mechanisms
+  apart, and the release criterion fails on any, naming the reason: it is adopted with a control or removed.
 - **Adopted**: `speed` or a profile turns it on. The record names the axes measured, the objective it serves, and why
   each profile has the value it has.
 - **Opt-in**: off in every profile, kept because it serves some users (a smaller parser, a different memory shape). The
@@ -333,7 +340,8 @@ The checks extend the existing tests instead of adding parallel ones.
   attempts, and the facts region of every mechanism page; a test regenerates them in memory and fails on any
   difference. The hand-written
   `TestOptimizationsAreInTheGuide` becomes part of it. The index states the counts of unclassified mechanisms, of
-  mechanisms with Control `none`, and of mechanisms that act on a backend that no control lists.
+  experiment mechanisms, of mechanisms with Control `none`, and of mechanisms that act on a backend that no control
+  lists.
 - **Catalog**: every mechanism has a page under `docs/optimizations/mechanisms/`, every page is a declared mechanism,
   every page's hand-written summary and sections are present and not empty, and every record a flag names exists
   with a Decides entry that agrees.
@@ -348,8 +356,8 @@ The checks extend the existing tests instead of adding parallel ones.
 - **Backend claims**: with a flag off, the observable differs from the default on every listed backend for that
   backend's witnesses, and is identical on every unlisted backend over the corpus (the second half in the long tier).
 - **Bisection**: the three invariants above.
-- **Release**: a test behind the build tag `sxir_release`, named like the other test tags (`sxir_long`), fails while any mechanism is unclassified, has Control `none`, or acts on a backend that none of
-  its controls lists; the release checklist runs it.
+- **Release**: a test behind the build tag `sxir_release`, named like the other test tags (`sxir_long`), fails while any mechanism is unclassified, is an experiment mechanism (with that reason), has Control `none`,
+  or acts on a backend that none of its controls lists; the release checklist runs it.
 
 ### Public Behavior and Contracts
 
@@ -489,7 +497,7 @@ row names it as the starting point.
 | R130 | Document snapshot record sharing | Reference: `sxir_snapshot_sharing_reference` (engine); a snapshot may share records |
 | R140 | Document snapshot child run sharing | Reference: `sxir_snapshot_child_chunks_reference` (engine) |
 | R150 | Cached snapshot child descriptors | None yet |
-| R160 | Relative snapshot position overlays | None yet; the build tag `sxir_snapshot_position_overlays` turns this unadopted candidate on, so it is an experiment switch, not a reference control |
+| R160 | Relative snapshot position overlays | None: an experiment mechanism, off by default; the build tag `sxir_snapshot_position_overlays` turns it on for Document snapshots of the engine backends (partial reach) |
 
 ### Implementation Designs
 
