@@ -76,7 +76,7 @@ the same structure in `internal/runtime/state/alloc.go` and `memo.go`):
 | Nodes | `NewNode`, `NewTerminal`, `NewBranch` (slab of 256) | one step per node (`Spend`) | 104 |
 | Child lists | `Nodes(n)` (pointer slab of 1,024; larger lists alone) | `copySpend` from `Kids`, one unit per element | 8 |
 | Field lists | `fields(n)` (slab of 256) | one unit per field copied | 32 |
-| Memo entries | `memoTable.alloc` (slab of 256) | the rule call that stores the entry, one step | 112 |
+| Memo entries | `memoTable.alloc` (slab of 256) | the rule call that stores the entry, one step | 96 |
 | Memo slots | `memoTable.put` (doubling array by position) | the input inspected to reach the position | ≤ 16 amortized |
 | First-call bit sets | `memoTable.markSeen`, `sparsePage` | the input inspected to reach the position | ≤ rules / 8 |
 | Decoded input (`CodePoints`) | `setSource` (rune array and offsets) | `setControlledSource`, one unit per byte | ≤ 8 |
@@ -84,14 +84,14 @@ the same structure in `internal/runtime/state/alloc.go` and `memo.go`):
 | Typed values | generated slabs, `tarena` chunks | one step per value | the size of the value type |
 
 So for a batch parse, allocated bytes ≤ k · compute, where k is the largest bytes-per-unit ratio over the sites:
-112 for memo entries, or rules / 8 for a grammar with more than about a thousand rules. That bound fails or degrades in
+96 for memo entries, or rules / 8 for a grammar with more than about a thousand rules. That bound fails or degrades in
 three ways:
 
 1. **It is loose.** The prototype measured charged bytes against compute spent on the bundled benchmark grammars: 3.5
-   to 7.2 bytes per unit (table in [Performance and Results](#performance-and-results)). The worst case is 112 bytes per
-   unit, so to guarantee M bytes through compute, a caller must allow M / 112 units, 16 to 32 times fewer than
-   typical parses of the same memory need. A 1 MiB memory guarantee through compute alone admits 9,362 units. At the
-   measured 3.5 to 26 units per input byte, that is 360 to 2,700 bytes of input.
+   to 7.2 bytes per unit (table in [Performance and Results](#performance-and-results)). The worst case is 96 bytes per
+   unit, so to guarantee M bytes through compute, a caller must allow M / 96 units, 13 to 27 times fewer than
+   typical parses of the same memory need. A 1 MiB memory guarantee through compute alone admits 10,922 units. At the
+   measured 3.5 to 26 units per input byte, that is 420 to 3,100 bytes of input.
 2. **Documents retain storage that a parse does not pay for.** A `Document` keeps memo entries, repetition records and
    input pieces between parses. A parse after a small edit spends little compute and reuses that storage without
    charging it. Its compute bounds only what it allocates now, not the Document's footprint.

@@ -538,8 +538,11 @@ func goTarget(s goSpec) *print.Target {
 			return "len(" + a[0] + ")"
 		case "exp.keptAt":
 			return a[0] + "[" + a[1] + "]"
-		case "memo.far", "memo.ok", "memo.end", "memo.silent":
+		case "memo.ok", "memo.silent":
 			return a[0] + "." + strings.TrimPrefix(c.Callee, "memo.")
+		case "memo.far", "memo.end":
+			// An entry keeps its positions as int32: no input is longer than the largest int32.
+			return "int(" + a[0] + "." + strings.TrimPrefix(c.Callee, "memo.") + ")"
 		case "memo.expected":
 			// An entry keeps its slices as pointers and lengths (memoSide).
 			return a[0] + ".exps()"
@@ -548,7 +551,7 @@ func goTarget(s goSpec) *print.Target {
 		case "memo.value":
 			return a[0] + "." + valueField
 		case "memo.setExpected":
-			return fmt.Sprintf("%s.far = %s\n%s.setExps(%s)", a[0], a[1], a[0], a[2])
+			return fmt.Sprintf("%s.far = int32(%s)\n%s.setExps(%s)", a[0], a[1], a[0], a[2])
 		case "obs.memoHit":
 			return "p.Observation.memoHit()"
 		case "obs.enter":
@@ -574,7 +577,7 @@ func goTarget(s goSpec) *print.Target {
 			return "p.documentMove(" + a[0] + ")"
 		case "memo.before":
 			// The entry's position is the call's (reuse): a lookup applied the edits to the entry.
-			return a[0] + ".from < start"
+			return "int(" + a[0] + ".from) < start"
 		case "memo.pin":
 			return a[0] + ".pinned = true"
 		// The edits that a lookup applies to an entry (memoAdvance), the same in both libraries.
@@ -582,7 +585,7 @@ func goTarget(s goSpec) *print.Target {
 			// The library keeps no seed of a growth in the memo.
 			return "false"
 		case "memo.from":
-			return a[0] + ".from"
+			return "int(" + a[0] + ".from)"
 		case "memo.pinned":
 			return a[0] + ".pinned"
 		case "memo.shifted":
@@ -595,7 +598,7 @@ func goTarget(s goSpec) *print.Target {
 		case "memo.applied":
 			return "int(" + a[0] + ".vgen)"
 		case "memo.advance":
-			s := fmt.Sprintf("%[1]s.end += %[4]s\n%[1]s.from, %[1]s.examined = %[2]s, %[3]s\n%[1]s.far += %[4]s\n%[1]s.shift += int32(%[4]s)\n%[1]s.vgen = uint32(%[5]s)",
+			s := fmt.Sprintf("%[1]s.end += int32(%[4]s)\n%[1]s.from, %[1]s.examined = int32(%[2]s), int32(%[3]s)\n%[1]s.far += int32(%[4]s)\n%[1]s.shift += int32(%[4]s)\n%[1]s.vgen = uint32(%[5]s)",
 				a[0], a[1], a[2], a[3], a[5])
 			if typed {
 				// The shifted flag of the typed library is the shift's (memo.shifted): it does not record it.
@@ -621,7 +624,7 @@ func goTarget(s goSpec) *print.Target {
 		case "doc.examined":
 			return "p.docExamined"
 		case "memo.examined":
-			return a[0] + ".examined"
+			return "int(" + a[0] + ".examined)"
 		case "doc.evaluated":
 			return "p.Document.stats.Evaluated++"
 		case "doc.reused":
@@ -630,7 +633,7 @@ func goTarget(s goSpec) *print.Target {
 			// The library records the start of the examined input, the low end that before compares with
 			// the position: a call examines at most the unit before its position, so the start is the
 			// position or the unit before it, as in the engine.
-			return fmt.Sprintf("%s.examined, %[1]s.from, %[1]s.pinned = %s, p.docLow, false", a[0], a[2])
+			return fmt.Sprintf("%s.examined, %[1]s.from, %[1]s.pinned = int32(%s), int32(p.docLow), false", a[0], a[2])
 		case "ctx.found":
 			return a[0] + " != nil"
 		case "ctx.ok":
@@ -768,7 +771,7 @@ p.lastKept = p.arena[off:len(p.arena):len(p.arena)]
 			return fmt.Sprintf("%s, %s%sp.docExamined, p.docLow\np.docExamined, p.docLow = %s, %s", dst[0], dst[1], op, a[0], a[0]), true
 		case "memo.store":
 			e := dst[0]
-			fields := fmt.Sprintf("%s: %s, ok: %s, end: %s, silent: %s", valueField, a[7], a[4], a[5], a[6])
+			fields := fmt.Sprintf("%s: %s, ok: %s, end: int32(%s), silent: %s", valueField, a[7], a[4], a[5], a[6])
 			fields += ", vgen: p.gen"
 			if !typed {
 				// The nodes of the value hold positions of the current text (documentMove).

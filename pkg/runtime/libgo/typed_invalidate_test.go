@@ -49,7 +49,7 @@ func lazyRecords(d *typedDocumentState, log []documentEdit) []typedRecord {
 		}
 		for e := head; e != nil; e = e.next {
 			if advanceTEntry(e, log) {
-				out = append(out, typedRecord{int(e.rule), pos, e.from, e.examined, e.end, int(e.shift)})
+				out = append(out, typedRecord{int(e.rule), pos, int(e.from), int(e.examined), int(e.end), int(e.shift)})
 			}
 		}
 	}
@@ -79,7 +79,7 @@ func TestTypedSpliceMatchesEagerReference(t *testing.T) {
 				if pos > 0 && rng.Intn(3) == 0 {
 					r.from--
 				}
-				e := &tmemoEntry{rule: int32(id), from: r.from, examined: r.examined, end: r.end, pinned: rng.Intn(6) == 0}
+				e := &tmemoEntry{rule: int32(id), from: int32(r.from), examined: int32(r.examined), end: int32(r.end), pinned: rng.Intn(6) == 0}
 				if rng.Intn(8) == 0 {
 					e.setRecs(recEntry{err: &sxirvalue.SyntaxError{}})
 				}

@@ -200,9 +200,9 @@ func TestGeneratedDocumentLeftRecursionMemberReparseControl(t *testing.T) {
 			"\t\t\t\tp.memoPut(rule, start, " + minExpr + ", env, false, e)\n" +
 			"\t\t\t})\n\t\t}\n\t\t"
 	}
-	nodeKeep := keep("p.Document", "min", "memoEntry{node: v, ok: ok, end: p.Pos, examined: p.docExamined, from: p.docLow, vgen: p.gen, present: ^uint32(0), far: far}", "p.memo.alloc()")
+	nodeKeep := keep("p.Document", "min", "memoEntry{node: v, ok: ok, end: int32(p.Pos), examined: int32(p.docExamined), from: int32(p.docLow), vgen: p.gen, present: ^uint32(0), far: int32(far)}", "p.memo.alloc()")
 	typedKeep := func(minExpr string) string {
-		return keep("p.TypedDocument", minExpr, "tmemoEntry{val: v, ok: ok, end: p.Pos, examined: p.docExamined, from: p.docLow, vgen: p.gen, present: ^uint32(0), far: far}", "p.memoSlab.one()")
+		return keep("p.TypedDocument", minExpr, "tmemoEntry{val: v, ok: ok, end: int32(p.Pos), examined: int32(p.docExamined), from: int32(p.docLow), vgen: p.gen, present: ^uint32(0), far: int32(far)}", "p.memoSlab.one()")
 	}
 	// Each anchor is the ctxKeep of a call, which the mutation prefixes, and the number of times it
 	// occurs in the file.

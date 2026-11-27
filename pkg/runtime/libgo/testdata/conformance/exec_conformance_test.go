@@ -278,7 +278,7 @@ func (m *rtMachine) Call(o *code.Op, args []any) (res []any) {
 		// Every entry the call protocol stores has a record of the input it examined. An entry here
 		// stands for one without a record until memo.examine: it examined everything (unrecorded), so
 		// every edit drops it.
-		*e = memoEntry{ok: args[4].(bool), end: i(5), silent: args[6].(bool), vgen: p.gen}
+		*e = memoEntry{ok: args[4].(bool), end: int32(i(5)), silent: args[6].(bool), vgen: p.gen}
 		e.setRecs(recoveredErrors(args[8]))
 		e.from, e.examined = unrecorded()
 		return []any{p.memoPut(rule, pos, level, env, false, e)}
@@ -292,7 +292,7 @@ func (m *rtMachine) Call(o *code.Op, args []any) (res []any) {
 		// The call records the low end of its examined input (memo.examine in the library): its position,
 		// or the unit before it.
 		e := args[0].(*memoEntry)
-		e.from, e.examined, e.pinned = m.posOf(e), i(2), false
+		e.from, e.examined, e.pinned = int32(m.posOf(e)), int32(i(2)), false
 		if args[1].(bool) {
 			e.from--
 		}
@@ -305,7 +305,7 @@ func (m *rtMachine) Call(o *code.Op, args []any) (res []any) {
 		return []any{int64(e.examined)}
 	case "memo.before":
 		e := args[0].(*memoEntry)
-		return []any{!isUnrecorded(e) && e.from < m.posOf(e)}
+		return []any{!isUnrecorded(e) && int(e.from) < m.posOf(e)}
 	case "memo.pin":
 		args[0].(*memoEntry).pinned = true
 		return nil
@@ -331,10 +331,10 @@ func (m *rtMachine) Call(o *code.Op, args []any) (res []any) {
 
 // unrecorded returns the examined input of an entry without a record of memo.examine: all of it, so
 // that every edit drops the entry, as the reference does.
-func unrecorded() (from, examined int) { return -1, math.MaxInt }
+func unrecorded() (from, examined int32) { return -1, math.MaxInt32 }
 
 // isUnrecorded reports whether e has no record of memo.examine (unrecorded).
-func isUnrecorded(e *memoEntry) bool { return e.examined == math.MaxInt }
+func isUnrecorded(e *memoEntry) bool { return e.examined == math.MaxInt32 }
 
 // posOf returns the position of the entry e in the memo: the position of the slot that holds it.
 func (m *rtMachine) posOf(e *memoEntry) int {
@@ -547,7 +547,7 @@ func (m *typedMachine) Call(o *code.Op, args []any) (res []any) {
 	case "memo.store":
 		e := p.memoSlab.one()
 		// As in the node binding, an entry stands for one without a record until memo.examine.
-		*e = tmemoEntry{ok: args[4].(bool), end: i(5), silent: args[6].(bool), vgen: p.gen}
+		*e = tmemoEntry{ok: args[4].(bool), end: int32(i(5)), silent: args[6].(bool), vgen: p.gen}
 		e.setRecs(recoveredErrors(args[8]))
 		e.from, e.examined = unrecorded()
 		return []any{p.memoPut(i(0), i(1), i(2), m.vals[args[3].(int64)], false, e)}
@@ -559,20 +559,20 @@ func (m *typedMachine) Call(o *code.Op, args []any) (res []any) {
 		return []any{args[0].(*tmemoEntry).silent}
 	case "memo.examine":
 		e := args[0].(*tmemoEntry)
-		e.from, e.examined, e.pinned = m.posOf(e), i(2), false
+		e.from, e.examined, e.pinned = int32(m.posOf(e)), int32(i(2)), false
 		if args[1].(bool) {
 			e.from--
 		}
 		return nil
 	case "memo.examined":
 		e := args[0].(*tmemoEntry)
-		if e.examined == math.MaxInt {
+		if e.examined == math.MaxInt32 {
 			return []any{int64(0)}
 		}
 		return []any{int64(e.examined)}
 	case "memo.before":
 		e := args[0].(*tmemoEntry)
-		return []any{e.examined != math.MaxInt && e.from < m.posOf(e)}
+		return []any{e.examined != math.MaxInt32 && int(e.from) < m.posOf(e)}
 	case "memo.pin":
 		args[0].(*tmemoEntry).pinned = true
 		return nil
@@ -812,7 +812,7 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 			t := &m.p.memo
 			pos := int(args[1].(int64))
 			e := t.alloc()
-			*e = memoEntry{ok: args[4].(bool), end: int(args[5].(int64)), rule: int32(args[0].(int64)), min: int32(args[2].(int64))}
+			*e = memoEntry{ok: args[4].(bool), end: int32(args[5].(int64)), rule: int32(args[0].(int64)), min: int32(args[2].(int64))}
 			e.setKey(m.vals[args[3].(int64)])
 			for pos >= len(t.slots) {
 				t.slots = append(t.slots, nil)
@@ -860,7 +860,7 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 		"store below the floor is kept": {op: "memo.store", stream: true, want: "model false, implementation true", call: func(m *rtMachine, args []any) []any {
 			rule, pos, level, env := int(args[0].(int64)), int(args[1].(int64)), int(args[2].(int64)), m.vals[args[3].(int64)]
 			e := m.p.memo.alloc()
-			*e = memoEntry{ok: args[4].(bool), end: int(args[5].(int64)), silent: args[6].(bool)}
+			*e = memoEntry{ok: args[4].(bool), end: int32(args[5].(int64)), silent: args[6].(bool)}
 			return []any{m.p.memoPut(rule, max(pos, m.p.Stream.memoBase), level, env, false, e)}
 		}},
 		// A splice that reads an empty examined input as no record: it drops an entry that examined no
@@ -868,7 +868,7 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 		"splice drops an entry that examined nothing": {op: "memo.splice", document: true, call: func(m *rtMachine, args []any) []any {
 			for _, head := range m.p.memo.slots {
 				for e := head; e != nil; e = e.next {
-					if pos := m.posOf(e); e.vgen == m.p.gen && e.from == pos && e.examined == pos {
+					if pos := m.posOf(e); e.vgen == m.p.gen && int(e.from) == pos && int(e.examined) == pos {
 						e.from, e.examined = unrecorded()
 					}
 				}
@@ -887,7 +887,7 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 			for _, head := range m.p.memo.slots {
 				for e := head; e != nil; e = e.next {
 					if e.vgen == m.p.gen && !isUnrecorded(e) {
-						e.from = max(e.from, m.posOf(e))
+						e.from = max(e.from, int32(m.posOf(e)))
 					}
 				}
 			}

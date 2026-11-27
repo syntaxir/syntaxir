@@ -262,8 +262,8 @@ func observedLib(t *testing.T) string {
 			// The node store records the examined input in a Document and in an observed parse from
 			// scratch alike; the hook keeps the Document's. The typed store is the one of the Document
 			// call, the only typed call that records a positional rule's entry as pinned.
-			stores := []string{"if p.Document != nil {\n\t\t\t\t\tentry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false\n",
-				"\t\t\tentry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false\n\t\t\tif r.Positional"}
+			stores := []string{"if p.Document != nil {\n\t\t\t\t\tentry.examined, entry.from, entry.pinned = int32(p.docExamined), int32(p.docLow), false\n",
+				"\t\t\tentry.examined, entry.from, entry.pinned = int32(p.docExamined), int32(p.docLow), false\n\t\t\tif r.Positional"}
 			// The node runtime's hit is the one that moves the entry in a Document (documentMove); the typed
 			// runtime's is the one that moves its value (typedMove).
 			hits := []string{"p.documentMove(e)) && !p.insertsRule(r) {\n\t\tp.Observation.memoHit()\n\t\tif p.track {\n\t\t\t", "typedMove(e) && !p.insertsRule(r.Rule) {\n\t\tp.Observation.memoHit()\n\t\t"}
@@ -273,8 +273,8 @@ func observedLib(t *testing.T) string {
 				src = replace(src, old, old[:at]+keep+old[at:], 1)
 			}
 			for _, before := range hits {
-				old := before + "p.documentTouch(e.examined)\n"
-				src = replace(src, old, old+"ExaminedHook(r.Name, start, min, e.examined, true)\n", 1)
+				old := before + "p.documentTouch(int(e.examined))\n"
+				src = replace(src, old, old+"ExaminedHook(r.Name, start, min, int(e.examined), true)\n", 1)
 			}
 		}
 		return src
