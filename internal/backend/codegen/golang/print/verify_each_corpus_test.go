@@ -8,11 +8,17 @@ import (
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
-// TestCorpusVerifiesEveryPass generates a Go parser for every grammar of the corpus, in every option set of
-// codegentest.VerifyVariants, with the verification after every pass (Debug.VerifyEach), without building or
-// running it. The bulk tests generate without it (codegentest.GenerateRaw), so this is the default-tier coverage
+// TestCorpusVerifiesEveryPass generates a Go parser for every grammar of the corpus, in the default-tier option
+// sets of codegentest.VerifyVariants, with the verification after every pass (Debug.VerifyEach), without building
+// or running it. The bulk tests generate without it (codegentest.GenerateRaw), so this is the default-tier coverage
 // of the per-pass verification: a pass that breaks the IR of the corpus fails here at the pass that broke it.
+// The other option sets run in TestCorpusVerifiesEveryPassLong (build tag sxir_long).
 func TestCorpusVerifiesEveryPass(t *testing.T) {
+	verifyCorpus(t, func(v codegentest.VerifyVariant) bool { return !v.Long })
+}
+
+// verifyCorpus generates every corpus grammar in the option sets that keep returns true for.
+func verifyCorpus(t *testing.T, keep func(codegentest.VerifyVariant) bool) {
 	codegentest.PinOrdinary(t)
 	for _, c := range codegentest.CorpusWithParsers(t) {
 		g, err := compiletest.Parse(c.Src)
@@ -20,7 +26,7 @@ func TestCorpusVerifiesEveryPass(t *testing.T) {
 			t.Fatalf("%s: %v", c.Name, err)
 		}
 		for _, v := range codegentest.VerifyVariants() {
-			if v.Stream && !strings.Contains(c.Src, "#stream") {
+			if !keep(v) || (v.Stream && !strings.Contains(c.Src, "#stream")) {
 				continue
 			}
 			opts := v.Opts
