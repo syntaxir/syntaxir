@@ -69,12 +69,15 @@ func askExpectations(files []common.GeneratedFile) []common.GeneratedFile {
 	return out
 }
 
-// GenerateRaw is Generate with the options as given.
+// GenerateRaw is Generate with the options as given. It does not verify after every pass (Debug.VerifyEach
+// is off unless the options set it): the verification at the stage boundaries runs as in production,
+// which verifies only where the optional passes before it did (record 074). The per-pass verification of
+// the whole corpus is TestCorpusVerifiesEveryPass in the golang/print and typescript/print packages, in
+// the default tier; a test that needs a pass named on failure sets Debug.VerifyEach itself.
 func GenerateRaw(t testing.TB, g *ast.Grammar, opts common.GenOptions) ([]common.GeneratedFile, error) {
 	if Compile == nil {
 		t.Fatal("codegentest.Compile is not set: the test package must set it before generating")
 	}
-	opts.Debug.VerifyEach = true
 	opts.FeatureWitness = true
 	opts = WithLib(opts)
 	return generate.GoWith(Compile, g, opts, driver.Options{}, testGenHooks(t))
@@ -103,12 +106,13 @@ func askTSExpectations(files []common.GeneratedFile) []common.GeneratedFile {
 	return out
 }
 
-// GenerateTSRaw is GenerateTS with the options as given.
+// GenerateTSRaw is GenerateTS with the options as given. Like GenerateRaw, it verifies only at the stage
+// boundaries unless the options set Debug.VerifyEach; TestCorpusVerifiesEveryPass in typescript/print
+// verifies the corpus after every pass.
 func GenerateTSRaw(g *ast.Grammar, opts common.GenOptions) ([]common.GeneratedFile, error) {
 	if Compile == nil {
 		panic("codegentest.Compile is not set: the test package must set it before generating")
 	}
-	opts.Debug.VerifyEach = true
 	opts = WithLib(opts)
 	return generate.TypeScriptWith(Compile, g, opts, driver.Options{}, nil)
 }
@@ -119,7 +123,6 @@ func GenerateTSStream(g *ast.Grammar, opts common.GenOptions) ([]common.Generate
 	if Compile == nil {
 		panic("codegentest.Compile is not set: the test package must set it before generating")
 	}
-	opts.Debug.VerifyEach = true
 	opts = WithLib(opts)
 	return generate.TypeScriptWith(Compile, g, opts, driver.Options{}, &print.Hooks{Stream: true})
 }
