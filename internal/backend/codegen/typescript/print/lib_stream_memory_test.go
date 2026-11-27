@@ -67,6 +67,8 @@ func TestStreamMemoryHeldMutants(t *testing.T) {
 		{"record over a record", "return made + (old === undefined ? skipRecordBytes() : 0);", "return made + skipRecordBytes();", "skip:"},
 		{"record beside one with values", "values records it, and never after.\n      return made;", "values records it, and never after.\n      return made + skipRecordBytes();", "skip:"},
 		{"map of a hash", "        if (recs.size === 0) {\n          s.recs.delete(h);\n          freed += mapBytes;\n        }\n", "", "skip:"},
+		{"map of a shared hash", "          if (more.size === 0) {\n            s.more.delete(h);\n            freed += mapBytes;\n          }\n", "", "shared:"},
+		{"uncounted map of a shared hash", "      this.more.set(h, m);\n      made += mapBytes;\n", "      this.more.set(h, m);\n", "shared:"},
 		{"emptied slots", "(drop === slots.length ? 0 : arrayBytes(slots.length - drop))", "arrayBytes(slots.length - drop)", "slots:"},
 	}
 	for _, m := range mutants {
@@ -257,6 +259,27 @@ for (const limit of [0, 4]) {
   p.streamDropRecords(2000);
   const table = objectBytes(3) + arrayBytes(0) + mapBytes;
   if (c.mem !== before + table) fail("skip", "dropping the records leaves " + (c.mem - before) + " bytes counted, want the " + table + " of the table");
+}
+
+// shared: records whose keys share a hash are counted with the map of that hash, and dropping them
+// returns the records and the map, leaving only the map of the records of shared hashes.
+{
+  const p = stream(0);
+  const c = p.control!;
+  p.streamStart();
+  const rec = (): SkipRecord => ({ end: 1600, far: 0, exp: [], from: 0, examined: 0, list: false, key: null, bind: null, kids: null, ki: 0, errs: null });
+  p.skips[p.skipN++] = { table: 0, slots: undefined } as any;
+  const before = c.mem;
+  p.skipSlot(1500, { vals: [1], h: 7 }, rec());
+  const one = c.mem;
+  p.skipSlot(1500, { vals: [2], h: 7 }, rec());
+  p.skipSlot(1500, { vals: [3], h: 7 }, rec());
+  p.skipN--;
+  const shared = 2 * mapBytes + 2 * skipRecordBytes();
+  if (c.mem - one !== shared) fail("shared", "two records of a shared hash add " + (c.mem - one) + " bytes, want " + shared);
+  p.streamDropRecords(2000);
+  const table = objectBytes(3) + arrayBytes(0) + mapBytes;
+  if (c.mem !== before + table + mapBytes) fail("shared", "dropping the records leaves " + (c.mem - before) + " bytes counted, want the " + (table + mapBytes) + " of the table and of its map of shared hashes");
 }
 
 // slots: a prune that empties the memo slots returns them whole, as the store after it makes them anew.

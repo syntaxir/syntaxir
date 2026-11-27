@@ -2665,13 +2665,19 @@ class SkipSlots {
 
   // putMore stores r in the records of the hash h at pos whose key shares the hash of the one in
   // recs, keeping a record with values over one without, as put does, and returns the bytes of the
-  // record it added, none if r takes the place of a record or one with values stays.
+  // storage it added: the map of more and that of the hash when it makes them, and the record it
+  // added, none if r takes the place of a record or one with values stays.
   putMore(pos: number, h: number, r: SkipRecord): number {
-    this.more ??= new Map();
+    let made = 0;
+    if (this.more === null) {
+      this.more = new Map();
+      made += mapBytes;
+    }
     let m = this.more.get(h);
     if (m === undefined) {
       m = new Map();
       this.more.set(h, m);
+      made += mapBytes;
     }
     const rs = m.get(pos) ?? [];
     for (let i = 0; i < rs.length; i++) {
@@ -2679,12 +2685,12 @@ class SkipSlots {
         if (!rs[i]!.list || r.list) {
           rs[i] = r;
         }
-        return 0;
+        return made;
       }
     }
     rs.push(r);
     m.set(pos, rs);
-    return skipRecordBytes();
+    return made + skipRecordBytes();
   }
 }
 
@@ -7228,12 +7234,16 @@ export class StreamParser extends Parser {
         }
       }
       if (s.more !== null) {
-        for (const more of s.more.values()) {
+        for (const [h, more] of s.more) {
           for (const [at, rs] of more) {
             if (at < pos) {
               more.delete(at);
               freed += rs.length * skipRecordBytes();
             }
+          }
+          if (more.size === 0) {
+            s.more.delete(h);
+            freed += mapBytes;
           }
         }
       }
