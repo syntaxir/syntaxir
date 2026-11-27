@@ -449,6 +449,9 @@ func insertionProblem(parse func(string) (*ast.Grammar, error), src []rune, off 
 	if raw != 1 {
 		return fmt.Sprintf("kept as %d raw comment tokens", raw)
 	}
+	if problem := invalidCommentAccepted(g); problem != "" {
+		return problem
+	}
 	if err := checkSpans(text, g); err != nil {
 		return err.Error()
 	}
@@ -468,6 +471,28 @@ func insertionProblem(parse func(string) (*ast.Grammar, error), src []rune, off 
 	}
 	if format.Format(again) != out {
 		return "formatting is not idempotent"
+	}
+	return ""
+}
+
+// invalidCommentAccepted checks that validation reaches the raw comment that holds the label
+// wherever the parser keeps it: with a byte that is not valid UTF-8 added to its text, g must
+// fail validation for that byte. It returns "" when g is invalid to begin with.
+func invalidCommentAccepted(g *ast.Grammar) string {
+	if ast.Validate(g) != nil {
+		return ""
+	}
+	for _, c := range g.AllComments() {
+		if !strings.Contains(c.Text, insertionLabel) {
+			continue
+		}
+		text := c.Text
+		c.Text = strings.Replace(text, insertionLabel, insertionLabel+"\xff", 1)
+		err := ast.Validate(g)
+		c.Text = text
+		if err == nil || !strings.Contains(err.Error(), "not valid UTF-8") {
+			return fmt.Sprintf("a comment that is not valid UTF-8 passes validation: %v", err)
+		}
 	}
 	return ""
 }

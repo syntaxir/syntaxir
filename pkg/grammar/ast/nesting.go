@@ -328,7 +328,7 @@ func tooDeepComment(node any, control *validationControl) string {
 // commentField returns the field of the first comment string of node for which bad, given the text
 // and whether Format writes it as a block comment, is true, or "". The comment strings are those
 // of the node's SourceInfo (leading, leading detached and trailing comments) and its keyword,
-// keyword detached and header comments.
+// keyword detached and header comments; those of a Grammar are those of its File and its Pkg.
 func commentField(node any, bad func(text string, block bool) bool) string {
 	ends := endsLine
 	indexed := func(name string, i int) string { return name + "[" + strconv.Itoa(i) + "]" }
@@ -365,6 +365,9 @@ func commentField(node any, bad func(text string, block bool) bool) string {
 		return ""
 	}
 	if g, ok := node.(*Grammar); ok {
+		if field := source("file.", &g.File.SourceInfo); field != "" {
+			return field
+		}
 		pkg := &g.File.Pkg
 		if field := source("file.pkg.", &pkg.SourceInfo); field != "" {
 			return field

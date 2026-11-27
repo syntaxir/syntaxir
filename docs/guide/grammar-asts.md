@@ -110,9 +110,9 @@ compilation and generation. Remove unreachable surrogate exclusions from
 older grammars and recompile AST-bearing saved parsers that contain them.
 
 Every string of the AST is valid UTF-8: literal values, string constants, string arguments of
-attributes and comments. JSON and grammar text cannot hold anything else, so validation rejects a
-Go string such as `"\xc3"`, at the path of the string, and both round trips are exact for every
-valid AST. To match an invalid input byte, write the literal `"\uFFFD"` (`"�"`): it matches each
+attributes and comments, including the comment tokens of the source layout. JSON and grammar
+text cannot hold anything else, so validation rejects a Go string such as `"\xc3"`, at the path
+of the string, and both round trips are exact for every valid AST. To match an invalid input byte, write the literal `"\uFFFD"` (`"�"`): it matches each
 invalid byte of the input, in both position units and every backend. String constants in actions
 are separate from matching literals.
 
@@ -122,9 +122,9 @@ an invalid input byte, but byte-mode `text($capture)` distinguishes their spelli
 
 This is structural validation. It does not resolve names, check action types,
 validate attributes or enforce Operators Rule semantics; compile the grammar for those
-checks. It also does not validate source comments/layout or impose size or
-depth limits. `grammar.Format` and `ast.MarshalJSON` expect structurally valid
-input; call `Validate` or `ValidateContext` first for ASTs your tool constructs.
+checks. It also does not check source layout, except that every string in it must be
+valid UTF-8, or impose size limits. `grammar.Format` and `ast.MarshalJSON` expect structurally
+valid input; call `Validate` or `ValidateContext` first for ASTs your tool constructs.
 Both validation functions walk iteratively, though later formatting,
 serialization and compilation have their own nesting costs. Do not mutate the
 AST concurrently with these calls.

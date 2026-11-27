@@ -11,8 +11,10 @@ import (
 )
 
 // ValidationError describes a structural defect in a grammar AST. Path uses
-// JSON field names and zero-based array indexes. Pos is the closest known
-// diagnostic position, when the AST carries source information.
+// JSON field names and zero-based array indexes; a field kept out of JSON, such
+// as a line break of the source layout, is named by its Go field name with a
+// lower-case first letter. Pos is the closest known diagnostic position, when
+// the AST carries source information.
 type ValidationError struct {
 	Path string
 	Pos  Pos
@@ -55,7 +57,8 @@ type validationFrame struct {
 // one is "nesting too deep", as the reference parser reports for its text. So
 // is the error of a tree with a node deeper than MaxNestingDepth, which the
 // parser rejects too. Every string of a valid AST (each literal value, string constant, string
-// argument of an attribute and comment string) is valid UTF-8, so that its JSON and its text read back to the same tree.
+// argument of an attribute and comment string, those of the source layout included) is valid
+// UTF-8, so that its JSON and its text read back to the same tree.
 // Validation imposes no size limit.
 func Validate(g *Grammar) error {
 	return validate(g, nil)
@@ -984,10 +987,11 @@ var binaryOperators = map[string]struct{}{
 const msgInvalidUTF8 = "string is not valid UTF-8: JSON and grammar text hold only valid UTF-8"
 
 // invalidUTF8 returns the field of the first string of node that is not valid UTF-8, or "": the
-// value of a literal or a string constant, or a comment string. Validation checks the string
-// arguments of an attribute with the other attribute values. Neither JSON nor grammar text can
-// hold such a string: encoding it as JSON, or formatting it and parsing the text, replaces each
-// invalid byte with U+FFFD, so neither round trip would be exact. The parser never produces one.
+// value of a literal or a string constant, or a comment string, including the text and content of
+// each comment of the source layout. Validation checks the string arguments of an attribute with
+// the other attribute values. Neither JSON nor grammar text can hold such a string: encoding it
+// as JSON, or formatting it and parsing the text, replaces each invalid byte with U+FFFD, so
+// neither round trip would be exact. The parser never produces one.
 // Identifiers, operators and the other names are ASCII, which their own checks require.
 func invalidUTF8(node any) string {
 	switch n := node.(type) {
@@ -1000,5 +1004,8 @@ func invalidUTF8(node any) string {
 			return "value"
 		}
 	}
-	return commentField(node, func(text string, _ bool) bool { return !utf8.ValidString(text) })
+	if field := commentField(node, func(text string, _ bool) bool { return !utf8.ValidString(text) }); field != "" {
+		return field
+	}
+	return invalidLayoutComment(node)
 }

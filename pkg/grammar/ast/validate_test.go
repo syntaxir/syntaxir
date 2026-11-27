@@ -265,6 +265,21 @@ func TestValidateInvalidUTF8(t *testing.T) {
 		{"keyword comment", rule(&RuleDef{KeywordComments: bad}), "$.file.decls[0].keywordComments"},
 		{"keyword detached comment", rule(&RuleDef{KeywordDetachedComments: []string{bad}}), "$.file.decls[0].keywordDetachedComments[0]"},
 		{"header comment", rule(&RuleDef{HeaderComments: []string{bad}}), "$.file.decls[0].headerComments[0]"},
+		{"file leading comment", &Grammar{File: File{SourceInfo: SourceInfo{LeadingComments: "// " + bad + "\n"}}}, "$.file.source.leadingComments"},
+		{"file trailing comment", &Grammar{File: File{SourceInfo: SourceInfo{TrailingComments: []string{"// " + bad + "\n"}}}}, "$.file.source.trailingComments[0]"},
+		{"file detached comment", &Grammar{File: File{SourceInfo: SourceInfo{LeadingDetachedComments: []string{"// " + bad + "\n"}}}}, "$.file.source.leadingDetachedComments[0]"},
+		{"package comment", &Grammar{File: File{Pkg: Pkg{Name: "p", SourceInfo: SourceInfo{LeadingComments: bad}}}}, "$.file.pkg.source.leadingComments"},
+		{"file end comment text", &Grammar{File: File{EndBreak: &LineBreak{Comments: []*Comment{{Text: "//" + bad, Content: "ok"}}}}}, "$.file.endBreak.comments[0].text"},
+		{"file end comment content", &Grammar{File: File{EndBreak: &LineBreak{Comments: []*Comment{{Text: "// ok", Content: bad}}}}}, "$.file.endBreak.comments[0].content"},
+		{"file header comment", &Grammar{File: File{HeaderComments: []*Comment{{Text: "/*" + bad + "*/"}}}}, "$.file.headerComments[0].text"},
+		{"package break", &Grammar{File: File{Pkg: Pkg{Name: "p", Break: &LineBreak{Trailing: &Comment{Text: "//" + bad}}}}}, "$.file.pkg.break.trailing.text"},
+		{"rule break", rule(&RuleDef{Break: &LineBreak{Comments: []*Comment{{Text: "// ok"}, {Text: "//" + bad}}}}), "$.file.decls[0].break.comments[1].text"},
+		{"comment run", rule(&RuleDef{CloseBreak: &LineBreak{Trailing: &Comment{Text: "/* a */ // b", Run: []*Comment{{Text: "/* a */"}, {Text: "//" + bad}}}}}), "$.file.decls[0].closeBreak.trailing.run[1].text"},
+		{"group close break", expressionGrammar(&Group{Expr: &Top{}, CloseBreak: &LineBreak{Last: &Comment{Text: "//" + bad}}}), "$.file.decls[0].expr.closeBreak.last.text"},
+		{"sequence break", expressionGrammar(&Seq{Items: []Expr{&Top{}, &Top{}}, Breaks: []*LineBreak{nil, {Comments: []*Comment{{Text: "//" + bad}}}}}), "$.file.decls[0].expr.breaks[1].comments[0].text"},
+		{"layout gap", expressionGrammar(&Literal{Value: "a", SourceInfo: SourceInfo{Layout: &SourceLayout{Close: &Gap{Comments: []*Comment{{Text: "/*" + bad + "*/"}}}}}}), "$.file.decls[0].expr.source.layout.close.comments[0].text"},
+		{"repeat gap", expressionGrammar(&Repeat{Expr: &Top{}, Min: 1, Max: 2, Spelling: &RepeatSpelling{HasMin: true, Gaps: []RepeatGap{{}, {Comments: []*Comment{{Text: "/*" + bad + "*/"}}}}}}), "$.file.decls[0].expr.spelling.gaps[1].comments[0].text"},
+		{"operators open comment", rule(&RuleDef{Expr: &OperatorsRule{Operands: []*OperatorsRuleOperand{{Expr: &Literal{Value: "a"}}}, OpenComments: []*Comment{{Text: "//" + bad}}}}), "$.file.decls[0].expr.openComments[0].text"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			err := Validate(tc.g)

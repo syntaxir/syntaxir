@@ -552,7 +552,41 @@ func (g *astGen) grammar(d int) *ast.Grammar {
 		rule.LeadingComments = "c" + g.str()
 	}
 	out.File.Decls = append(out.File.Decls, rule)
+	if g.wide {
+		g.fileComments(out, rule)
+	}
 	return out
+}
+
+// fileComments sets random comments of the file of out, which Format does not write, and random
+// comments of its source layout before rule and at the end of the file, which it does. Each may
+// hold a string that is not valid UTF-8, which validation must reject.
+func (g *astGen) fileComments(out *ast.Grammar, rule *ast.RuleDef) {
+	f := &out.File
+	if g.r.IntN(8) == 0 {
+		f.LeadingComments = "c" + g.str()
+	}
+	if g.r.IntN(8) == 0 {
+		f.LeadingDetachedComments = []string{"d" + g.str()}
+	}
+	if g.r.IntN(8) == 0 {
+		f.TrailingComments = []string{"t" + g.str()}
+	}
+	// A line comment of the layout holds no line terminator.
+	line := func() *ast.Comment {
+		content := strings.NewReplacer("\n", "", "\r", "").Replace(g.str())
+		c := &ast.Comment{Text: "//" + content, Content: content}
+		if g.r.IntN(4) == 0 {
+			c.Content = g.str()
+		}
+		return c
+	}
+	if g.r.IntN(8) == 0 {
+		rule.Break = &ast.LineBreak{Comments: []*ast.Comment{line()}}
+	}
+	if g.r.IntN(8) == 0 {
+		f.EndBreak = &ast.LineBreak{Comments: []*ast.Comment{line()}}
+	}
 }
 
 // normalTree returns the JSON tree of g without source positions and with the differences that
