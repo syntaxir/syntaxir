@@ -196,11 +196,11 @@ Automatic builds on push are on, limited by build watch paths (Settings, Build, 
 to `main` are frequent and each build counts against the Workers Builds allowance. The watch paths are set only in
 the dashboard; Wrangler's configuration file has no setting for them.
 
-The watch paths are `docs/**`, `spec/**`, `site/**` and `README.md`. A push that changes only other files does not
-build: the API reference, the playground and the Go import pages follow the code, and `SECURITY.md`,
-`examples/README.md` and `wrangler.jsonc` take effect, at the next build that one of those paths starts. A maintainer
-deploys the head of `main` from the dashboard (or with `npx wrangler deploy` after a local build) when they should
-change sooner.
+The watch paths are `docs/**`, `spec/**`, `site/**`, `README.md`, `SECURITY.md` and `wrangler.jsonc`. A directory
+needs the `**` glob: a bare `docs/` matches no changed file, so no push starts a build. A push that changes only
+other files does not build: the API reference, the playground and the Go import pages follow the code, and
+`examples/README.md` takes effect, at the next build that one of those paths starts. A maintainer deploys the head
+of `main` from the dashboard (or with `npx wrangler deploy` after a local build) when they should change sooner.
 
 The build image has Node, so `npx` fetches Wrangler on demand. With preview builds enabled, branches other than
 the production branch run the preview command, which defaults to `npx wrangler preview`; it creates or updates a
