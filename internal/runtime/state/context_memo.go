@@ -1,10 +1,6 @@
 package state
 
-import (
-	"syntaxir.dev/sxir/internal/runtime/nodes"
-	"syntaxir.dev/sxir/internal/runtime/program"
-	"syntaxir.dev/sxir/pkg/runtime/value"
-)
+import "syntaxir.dev/sxir/internal/runtime/program"
 
 // The dependency memo of left recursion (see "Evaluations of Rules" in spec/runtime/parsing.md
 // and spec/proofs/memoization.md).
@@ -213,8 +209,3 @@ func (p *Parser) examRange() (examined, from int) { return p.Hw, p.lw }
 
 // setExamRange sets the examined range of the current evaluation.
 func (p *Parser) setExamRange(examined, from int) { p.Hw, p.lw = examined, from }
-
-// samePositionBasis reports whether the positions of the nodes a and b account for the same edits
-// of a Document (Data.Mark), so that equal positions are the same positions: the engine moves the
-// nodes of a reused result lazily (MoveTree), and a node holds the positions of the text of its Mark.
-func (p *Parser) samePositionBasis(a, b *value.Node) bool { return nodes.D(a).Mark == nodes.D(b).Mark }

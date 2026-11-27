@@ -789,8 +789,9 @@ func (p *Parser) canonicalSeed(pos, gp int, g growKey, e *ctxRes) (*ctxRes, uint
 // nodesEqual reports whether two trees are equal, comparing at most *budget pairs of distinct nodes
 // (false beyond: two results that are not shown equal get different identities, which costs only
 // reuse). Trees are equal by their values: kinds, positions, text, the terminal and labeled flags,
-// children and fields; a box node equals only itself. Positions compare only on the same basis
-// (samePositionBasis). Fresh, which says who may modify a node, is no part of its value.
+// children and fields; a box node equals only itself. Positions are those of the current text:
+// a parse moves the nodes of a reused result before it holds them, so a node's generation
+// (Data.Mark) is no part of its value. Nor is Fresh, which says who may modify a node.
 func (p *Parser) nodesEqual(a, b *sxirvalue.Node, budget *int) bool {
 	if a == b {
 		return true
@@ -805,7 +806,7 @@ func (p *Parser) nodesEqual(a, b *sxirvalue.Node, budget *int) bool {
 	da, db := D(a), D(b)
 	if da.Kind != db.Kind || da.Start != db.Start || da.End != db.End || da.Text != db.Text ||
 		da.Terminal != db.Terminal || da.Labeled != db.Labeled || da.Box != nil || db.Box != nil ||
-		len(da.Children) != len(db.Children) || len(da.Fields) != len(db.Fields) || !p.samePositionBasis(a, b) {
+		len(da.Children) != len(db.Children) || len(da.Fields) != len(db.Fields) {
 		return false
 	}
 	for i := range da.Children {
