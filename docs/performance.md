@@ -218,6 +218,44 @@ Notes:
   just a binary built from the old code. Generated parsers embed their grammar.
 - The numbers in the optimization catalog are for the closure backend with code-point positions unless stated otherwise.
 
+### Per-Setting Timing
+
+The time that each optimization flag costs or saves is measured in measurement windows, by the `settings` part of
+`go run ./cmd/timed` of syntaxir/bench, which only `-parts settings` runs. For each profile it runs `cmd/profilematrix`
+on every row of the matrix (the language grammars and the CSV incremental and stream uses) with the profile's own parsers
+as the baseline, their control copy, and a variant per flag that reaches the generated Go parsers and keeps their
+output, set against the profile as the `settings` part of `bench/metrics` sets it; the workload manifest of this
+repository's `bench` package lists the variants. The rows on which a flag leaves the Go parser byte-identical are not
+measured. The results of each profile are saved with their provenance, under the A/A rejection of the timed method, and
+the repository's `SETTINGS.md` shows, for each profile and flag, the time and allocation ratios, the claims per row, and
+the window and commit of the run that last covered it.
+
+The timing runs:
+
+- **At each performance milestone and before a release**, over every flag and profile, in a window of its own: it
+  takes hours (each variant of each row is built and timed in every round).
+- **For a proposed change of a flag's state** (adopting, dropping or removing it), over that flag, before the record
+  that decides it. A decision that rests on time follows the claim rules of the timed method; where the timing does
+  not separate from the control, the decision rests on the deterministic metrics.
+
+At the milestone review, `stale` lists the adopted and opt-in flags whose last window is older than the start of the
+milestone, or that no window has timed; the review times them, and reads the table against the flags' states: an
+adopted flag that no longer moves any measure, or an opt-in whose users' measure no longer improves, gets a record that
+keeps it with the new numbers or removes it.
+
+```bash
+# In a checkout of syntaxir/bench, with this repository at ../syntaxir:
+../syntaxir/.agents/scripts/benchwindow.sh open -m 600 "per-setting timing"
+../syntaxir/.agents/scripts/benchlock.sh settings go run ./cmd/timed -main ../syntaxir -parts settings -rounds 20
+../syntaxir/.agents/scripts/benchwindow.sh close
+
+# One flag, for a proposed state change
+../syntaxir/.agents/scripts/benchlock.sh settings go run ./cmd/timed -main ../syntaxir -parts settings -settings guards -rounds 20
+
+# The milestone review
+go run ./cmd/timed stale -main ../syntaxir -since 2026-12-01
+```
+
 ### The Reference Machine
 
 The reference machine is an Apple M3 Max (darwin/arm64, 16 cores, `GOMAXPROCS=16`), the machine of the snapshot above
@@ -266,12 +304,39 @@ are not committed: any commit regenerates its own.
 | Typed allocation growth | `parse-value-allocs <workload> 1/4\|1/2`, `parse-value-doubling-allocs <workload>` | The objects that a typed `ParseValue` of the generated Go parser allocates on a quarter and a half of the input (the whole input is `allocs <workload> generated-go/parse-value`), and the ratio of the increments from a quarter to a half and from a half to all, (c(1) − c(1/2)) / (c(1/2) − c(1/4)), scaled to an exact doubling of the input: about 1000 when the count grows with the logarithm of the input, about 2000 when it grows linearly | exact; the ratio with a ceiling |
 | Compiler scaling | `compile-allocs`, `compile-alloc-bytes`, `compile-steps synthetic-<series> n=<n>`; `compile-doubling-allocs`, `compile-doubling-steps synthetic-<series>` | The allocations and the steps of the generation of a Go parser, for seeded synthetic grammars (`internal/bench/synth`) at n, 2n and 4n of one dimension: rules, alternatives per rule, or the nesting depth of groups, with every fourth rule left-recursive; and the doubling ratio of the increments, (c(4n) − c(2n)) / (c(2n) − c(n)), which the compiler's fixed cost does not dilute, scaled to an exact doubling of the grammar's text as the doubling ratios of the workloads are. The steps are the compiler's unit of work: the elements that the check, the analyses, the lowerings and the printers visit, once per visit, fixed-point rounds included, counted by a meter in the context of the generation (design record 042, "Compiler Poll Stride"). The meter counts the work that the generation does, so a step whose result a later use reuses counts once; `-stats` instead gives each use the steps of the run it reuses. A quadratic stretch of code that polls once per element it visits shows in them whether it allocates or not; a loop that does not poll takes no steps, so its growth shows only in the allocations | 0.001% of the objects and 0.3% of the bytes; steps exact; ratios exact with a ceiling |
 | Generation determinism | `nondeterministic-files <grammar> go\|ts` | The files that differ between two generations of the parser, in separate processes with `GOMAXPROCS=1` and with more, or that only one of them has | 0, a ceiling |
+| Settings | `setting <profile> <flag>=<value> <metric> <grammar> [<api>]`; `setting-identical-grammars <profile> <flag>=<value> go\|ts` | For each profile and each registered flag, what the flag set against the profile does to the generated parsers of the grammars of `testdata/grammars`, as the change from the profile's own parsers (the `settings` part, below): the steps of the generation (`compile-steps`), the size of the generated Go (`go-source`) and TypeScript (`ts-source`) parsers and, where the Go parser differs, of a stripped binary that calls it (`go-binary`), the objects and bytes that a call of each generated API allocates (`allocs`, `alloc-bytes`, with `parse`, `parse-value` and `recognize`), summed over the inputs of the grammar, and the live heap that the typed values of the inputs keep (`retained-bytes`, `retained-objects`); and the grammars whose Go or TypeScript parser the setting leaves byte-identical | info |
 | Input size | `input <workload> bytes` | The length of the workload's input; when it changes, every other metric of the workload changes with it | equal |
 
 A ceiling (`,max=N`) fails the metric above N whatever the base, the ceiling of the base's policy or of the
 head's: a nondeterministic generation fails against a base that was nondeterministic too. The ceiling of a doubling ratio is the band of the
 growth order by which the complexity tests (`internal/testing/complexitytest`) classify a series: 2^1.15 (2219) for a
 linear cost, 2^(k+0.2) for a polynomial of degree k. A linear workload doubles at about 2000.
+
+The `settings` part measures each optimization flag where its effect is reproducible ([design record
+080](design/records/080-optimization-management.md#re-measurement)); its time is measured in measurement windows instead
+(see [Per-Setting Timing](#per-setting-timing)). For each profile it generates the grammars of `testdata/grammars`
+with the profile alone and, for each registered flag, with the flag set against it: off where the profile turns it on,
+otherwise on, at 1 or, for a flag with a count, at the largest count that its default or a profile gives it (the key
+names the value, as `guards=0` or `class-tables=5`). The generation takes the options of
+`testdata/grammars/generate.txt` with `-lib embed`, so that a flag that changes what the generated parser needs of the
+library shows in the sizes, and runs in the process, where a meter counts its steps as the compiler-scaling metrics do;
+a test checks that it writes what `sxir gen` writes. The compiler's allocations are not recorded per setting: they vary
+with the hash seeds of its maps. Where the Go parser differs from the profile's, one program built with the parser in
+place of the profile's measures its APIs on the inputs of the language-grammar matrix (the `*.txt` files of the
+grammar's directory, the ones that it rejects on purpose included, and the scaled input), with the method of the allocation counts below; a setting that changes the
+APIs' errors on an input fails the collection, since no setting may change a parser's results. A flag that changes the
+output (`ChangesOutput`) gets only the steps, sizes and identity counts. Units are not recorded per setting: their
+equality on every route is a parity test. The values are `info`: a change of a setting's effect is not a regression of
+the product, and `compare` lists it so that a landing that erases or reverses an optimization's effect shows it; such a
+landing updates the flag's record. A flag whose `setting-identical-grammars` equals the number of grammars changes
+none of them, and is a candidate for removal or for a grammar that reaches it.
+
+The part is not collected unless `-parts` names it (`go run ./bench/metrics collect -parts settings -o head.txt`): it
+generates every grammar once per profile and once per flag and profile, about 700 generations, and builds and runs a
+measuring program for each of the about 400 whose Go parser differs, which took 6.6 minutes of wall time (31 minutes of
+CPU) on the reference machine. Collect it for the base and the head of a change to
+a pass, a lowering, a printer or the registry, which may change what a setting does, and at each milestone review with
+the per-setting timing.
 
 The allocation count of a parse is the least of five measurements taken after twenty warm parses. Each measurement
 runs the parse once more, collects the garbage, and counts one parse with the collector off and `GOMAXPROCS=1`. The

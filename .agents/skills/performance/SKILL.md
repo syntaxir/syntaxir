@@ -31,6 +31,10 @@ description: Maintain SyntaxIR's optimization method and reproducible performanc
   `go run ./cmd/timed` of syntaxir/bench applies; do not restate or vary it here. A performance-sensitive
   change lands with `-base` and `-rounds 20` or more, citing only rows whose verdict in
   `results-compare.txt` is faster or slower.
+- A landing whose `bench/metrics compare` lists changed `setting` rows updates the flag's
+  record. A proposed state change of a flag is timed with the `settings` part of syntaxir/bench
+  (`-parts settings -settings FLAG`); the milestone review times every setting and reads `stale`
+  ("Per-Setting Timing" of `docs/performance.md`).
 - New structural or feature work lands reasonably optimized. Profile it before landing and
   fix egregious regressions (tens of percent on any path, size blow-ups) and cheap wins in
   the same unit. File the remaining tuning, with the measured gap, for the performance

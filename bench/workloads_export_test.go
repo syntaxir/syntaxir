@@ -10,6 +10,8 @@ import (
 
 	"syntaxir.dev/sxir/internal/bench/inputs"
 	"syntaxir.dev/sxir/internal/bench/probe"
+	"syntaxir.dev/sxir/internal/optcatalog"
+	"syntaxir.dev/sxir/internal/pass"
 )
 
 // The timed measurements outside this repository (the harness of github.com/syntaxir/bench) drive
@@ -32,6 +34,26 @@ type workloadManifest struct {
 	// with the options of testdata/grammars/generate.txt (Gen), with Extra added, and measured by
 	// Program on its inputs.
 	Matrix []matrixRowSpec `json:"matrix"`
+	// Settings are the per-setting variants (design record 080, "Re-Measurement"): each registered
+	// flag set against each profile, as the settings part of bench/metrics measures them. A
+	// measurement window times every variant whose Go is true on the parse rows of the matrix, against
+	// the profile's own parser.
+	Settings []settingSpec `json:"settings"`
+}
+
+type settingSpec struct {
+	Profile string `json:"profile"`
+	Flag    string `json:"flag"`
+	// Value is 0 where the profile turns the flag on, and otherwise the value that turns it on.
+	Value int `json:"value"`
+	// State is the flag's state in the catalog: adopted, opt-in or experiment.
+	State string `json:"state"`
+	// Args are the options of sxir gen, added after Gen and Extra of a row, that build the variant;
+	// the profile's own parser is built with only the -optimize option of Args.
+	Args []string `json:"args"`
+	// Go says whether the flag reaches the generated Go parsers and keeps their output, so that a
+	// timing of them measures it.
+	Go bool `json:"go"`
 }
 
 type tsWorkloadSpec struct {
@@ -121,6 +143,18 @@ func exportWorkloads(root, dir string) (*workloadManifest, error) {
 		m.Matrix = append(m.Matrix, matrixRowSpec{Name: r.name, Grammar: "testdata/grammars/csv/csv.sxir",
 			Gen: slices.Clone(gen), Extra: []string{r.flag}, Program: r.program, Inputs: []string{long}})
 	}
+	variants, err := probe.SettingVariants()
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range variants {
+		state, _, err := optcatalog.StateOf(v.Flag)
+		if err != nil {
+			return nil, err
+		}
+		m.Settings = append(m.Settings, settingSpec{Profile: v.Profile, Flag: v.Flag.Name, Value: v.Value,
+			State: string(state), Args: v.Args(), Go: v.Flag.Backends&pass.GeneratedGo != 0 && !v.Flag.ChangesOutput})
+	}
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return nil, err
@@ -159,6 +193,18 @@ func TestExportWorkloads(t *testing.T) {
 		if fi, err := os.Stat(filepath.Join(dir, filepath.FromSlash(f))); err != nil || fi.Size() == 0 {
 			t.Errorf("input %s: %v", f, err)
 		}
+	}
+	timed := 0
+	for _, v := range m.Settings {
+		if v.Go {
+			timed++
+		}
+		if len(v.Args) < 2 || v.Args[0] != "-optimize" || v.Args[1] != v.Profile {
+			t.Errorf("setting %s of %s: args %v do not start with the profile", v.Flag, v.Profile, v.Args)
+		}
+	}
+	if timed == 0 {
+		t.Errorf("no setting of the %d is timed on the Go parsers", len(m.Settings))
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
 	if err != nil {

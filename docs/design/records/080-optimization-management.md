@@ -250,22 +250,27 @@ Decides line names is registered.
 
 The effect of an optimization is measured where its axis is reproducible.
 
-- **Deterministic axes.** `bench/metrics collect` gains a part `settings`. For each registered flag and each profile,
-  it generates the grammars of `testdata/grammars` with the flag set against `speed` (off for a flag on in `speed`, its
-  measured value for an opt-in or experiment), and records against the `speed` build: whether the generated parser is
-  byte-identical, the size of `parser.go` and of the stripped binary, the compiler steps and allocations of the
-  generation, the allocations and bytes of the typed `ParseValue`, `Parse` and `Recognize` of the benchmark workloads,
-  and the typed output retention. The keys are `setting <flag>=<value> <metric> <subject>` with policy `info`: a change
-  of an effect is not a regression of the product, and `compare` lists it so that a landing that erases an
+- **Deterministic axes.** `bench/metrics collect` gains a part `settings`. For each profile and each registered flag,
+  it generates the grammars of `testdata/grammars` with the flag set against the profile (off for a flag that the
+  profile turns on; otherwise on, at 1 or, for a flag with a count, at the largest count that its default or a profile
+  gives it), and records the change from the profile's own build: the size of the generated Go and TypeScript
+  parsers and of the stripped binary, the compiler steps of the generation, the allocations and bytes of the typed
+  `ParseValue`, `Parse` and `Recognize` on the inputs of the language-grammar matrix, and the typed output retention.
+  The Go parser is generated with `-lib embed`, so that a flag that changes what the parser needs of the library shows
+  in its size. The compiler's allocations are left out: they vary with the hash seeds of its maps, and its steps
+  measure its work exactly. The keys are `setting <profile> <flag>=<value> <metric> <subject>` with policy `info`: a
+  change of an effect is not a regression of the product, and `compare` lists it so that a landing that erases an
   optimization's effect shows it. `setting-identical-grammars` counts the grammars on which the setting changes
   nothing; a flag at the count of grammars is a candidate for removal or for a corpus case. Units are not recorded
   per setting: their equality is a parity test, not a measurement.
-- **Time, in measurement windows.** The per-setting timing table is the `profilematrix` run (`bench/profilematrix`)
-  over every flag and profile, with its A/A control, taken in an exclusive window by the timed measurement method of
-  [docs/performance.md](../../performance.md). It runs at each performance milestone, before a release, and for any
-  change that proposes a state change. Its results are published from `syntaxir/bench` with the other timed results,
-  whose provenance names the run that covered each flag. A state change justified by time follows the A/A rules of
-  the timed method; where the timing does not separate from the control, the decision rests on the deterministic axes.
+- **Time, in measurement windows.** The per-setting timing table is the `settings` part of the timed harness of
+  `syntaxir/bench`, which runs its `cmd/profilematrix` with every flag set against every profile, as the deterministic
+  part sets it, against the profile's own parsers and their A/A control, in an exclusive window by the timed
+  measurement method of [docs/performance.md](../../performance.md). The workload manifest that this repository
+  exports lists the variants. It runs at each performance milestone, before a release, and for any change that
+  proposes a state change. Its results are published from `syntaxir/bench` with the other timed results, whose
+  provenance names the run that covered each flag. A state change justified by time follows the A/A rules of the
+  timed method; where the timing does not separate from the control, the decision rests on the deterministic axes.
 - **Ownership.** A landing whose `compare` shows that it changes a setting's effect updates that flag's record (or
   adds one) in the same landing. The milestone review belongs to the project's maintainer: the standing table is read
   against the states, an adopted flag that no longer moves any axis or an opt-in whose users' axis no longer improves
@@ -451,10 +456,11 @@ tests have.
 
 ## Limitations and Open Questions
 
-- **Cost of the `settings` part.** About 27 flags and 3 profiles over ten grammars is several hundred generations and
-  builds; byte-identical generations are not built twice. Its cost is measured when the part is built: if it is small
-  beside the rest of `collect`, every collection runs it; otherwise `collect` runs it only when asked, and every
-  measurement window runs it.
+- **Cost of the `settings` part.** Measured when the part was built: 3 profiles and 22 flags over ten grammars are
+  about 700 generations and about 400 measured builds (a byte-identical Go parser is not built), 6.6 minutes of wall
+  time and 31 minutes of CPU on the reference machine, too much to add to every collection. `collect` therefore runs it
+  only when `-parts` names it: for a change that may change what a setting does, and at each milestone review with the
+  per-setting timing.
 
 ## Appendix: Classification
 

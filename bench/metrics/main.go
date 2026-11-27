@@ -11,7 +11,7 @@
 // synthetic grammars, the doubling ratios of these counts, generated and built sizes, and whether
 // generation is byte-identical across runs. No metric is a time. The report format is that of package internal/bench/metrics.
 //
-// collect runs these parts (-parts selects some, comma-separated):
+// collect runs these parts (-parts selects some, comma-separated; settings only when named):
 //
 //	workloads    TestMetrics of package bench: units, allocations, profile counts and doubling
 //	             ratios of the benchmark workloads and of the complexity controls
@@ -24,6 +24,10 @@
 //	             with GOGC=off and GOMAXPROCS=1
 //	determinism  the files that differ between two generations of each parser, one with
 //	             GOMAXPROCS=1 and one with more; any is a regression whatever the base
+//	settings     only when -parts names it (settings.go): for each profile and each registered
+//	             flag set against it, the change of the compiler steps, sizes, allocations and
+//	             retention of the generated parsers from the profile's own, and the grammars
+//	             whose parsers the setting leaves byte-identical; all info
 //
 // The workloads part runs the generated TypeScript parsers, so it needs Node.js 22.18 or later on the
 // PATH; collect refuses to start it without one.
@@ -57,7 +61,7 @@ import (
 )
 
 const usage = `usage:
-  go run ./bench/metrics collect [-o FILE] [-parts workloads,sizes,wasm,retained,determinism]
+  go run ./bench/metrics collect [-o FILE] [-parts workloads,sizes,wasm,retained,determinism,settings]
   go run ./bench/metrics compare [-all] BASE HEAD`
 
 func main() {
@@ -120,12 +124,16 @@ func readReport(path string) (metrics.Report, error) {
 	return r, nil
 }
 
-var allParts = []string{"workloads", "sizes", "wasm", "retained", "determinism"}
+// allParts are the parts that -parts selects from; defaultParts are those that collect runs without it.
+var (
+	allParts     = []string{"workloads", "sizes", "wasm", "retained", "determinism", "settings"}
+	defaultParts = []string{"workloads", "sizes", "wasm", "retained", "determinism"}
+)
 
 func collectCmd(args []string) error {
 	fl := flag.NewFlagSet("collect", flag.ExitOnError)
 	out := fl.String("o", "", "write the report to this file (default: standard output)")
-	partsFlag := fl.String("parts", strings.Join(allParts, ","), "parts to collect, comma-separated")
+	partsFlag := fl.String("parts", strings.Join(defaultParts, ","), "parts to collect, comma-separated: "+strings.Join(allParts, ", "))
 	fl.Parse(args)
 	parts := map[string]bool{}
 	for _, p := range strings.Split(*partsFlag, ",") {
@@ -187,6 +195,13 @@ func collectCmd(args []string) error {
 	}
 	if parts["determinism"] {
 		m, err := collectDeterminism(root, sxirBin, work)
+		if err != nil {
+			return err
+		}
+		ms = append(ms, m...)
+	}
+	if parts["settings"] {
+		m, err := collectSettings(root, work)
 		if err != nil {
 			return err
 		}
