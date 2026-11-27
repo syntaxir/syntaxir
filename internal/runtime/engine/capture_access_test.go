@@ -11,6 +11,7 @@ import (
 	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // TestCaptureAccessAcrossBackends checks that every backend returns the values that the specification
@@ -122,5 +123,32 @@ func TestCaptureAccessCompiledFile(t *testing.T) {
 	binary.LittleEndian.PutUint32(data[len(data)-4:], crc32.ChecksumIEEE(data[:len(data)-4]))
 	if _, _, err := LoadProgram(data); err == nil || !strings.Contains(err.Error(), "compile the grammar again") {
 		t.Fatalf("under-declared capture access ISA accepted: %v", err)
+	}
+}
+
+// TestStreamOutsideCapturedSequences requires #stream to stand outside every captured sequence. A
+// stream parse releases the capture trail at each commit, while a captured sequence attaches the
+// captures that its elements wrote on the trail since it began; a capture holds only the stream
+// repetition itself, which is no sequence and carries no captures.
+func TestStreamOutsideCapturedSequences(t *testing.T) {
+	t.Parallel()
+	for _, src := range []string{
+		`rule main = "h" x:(y:"a" item* #stream) $$`,
+		`rule main = "h" x:(y:"a" (z:item)* #stream) $$`,
+		`rule main = x:("h" (y:"a" item* #stream)) $$`,
+		`rule main = x:(y:"h" w:(y:"a" item* #stream)) $$`,
+	} {
+		_, err := Compile(mustParse(src+"\nrule item = [0-9]"), checkpkg.Options{})
+		if err == nil || !strings.Contains(err.Error(), "#stream is only allowed at the top level of a rule body") {
+			t.Errorf("%s: got %v; want the #stream placement error", src, err)
+		}
+	}
+	prog := mustCompile(t, "rule main = x:(y:item* #stream) $$\nrule item = [0-9]")
+	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		n := 0
+		err := prog.ParseStreamWith("main", strings.NewReader(strings.Repeat("1", 5000)), func(*sxirvalue.Node) error { n++; return nil }, ParseOptions{Backend: backend})
+		if err != nil || n != 5000 {
+			t.Errorf("%s: %d elements, %v; want 5000", backend, n, err)
+		}
 	}
 }

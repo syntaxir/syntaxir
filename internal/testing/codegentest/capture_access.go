@@ -14,6 +14,7 @@ func CaptureAccessCases() []Case {
 		{Name: "nested sequence capture", Src: `rule main = x:(y:(z:"a" "b") "c") $$ => list($x.$y, $x.$z, $x.$y.$z)`, Inputs: []string{"abc", "ab"}},
 		{Name: "sequence capture after a capture of the same name", Src: `rule main = y:"q" x:((y:"a" / "b") "c") $$ => list($y, $x.$y)`, Inputs: []string{"qac", "qbc", "qc"}},
 		{Name: "sequence capture before a capture of the same name", Src: `rule main = x:(y:"a" "b") y:"c" $$ => list($x.$y, $y)`, Inputs: []string{"abc", "ab"}},
+		{Name: "capture undone in a sequence capture", Src: `rule main = x:(("a" y:"b" "z" / "a" "b") "c") $$ => list($x.$y)`, Inputs: []string{"abc", "abzc", "ac"}},
 		{Name: "struct list", Src: "type Out = { Ys []node[string] }\nrule main = xs:(-\",\" y:[a-z])* $$ => Out{Ys: map($xs, (i) => i.$y)}", Inputs: []string{",a,b", "", ",a,"}},
 	}
 }
@@ -78,6 +79,11 @@ func CaptureAccessResults() map[string][]string {
 		"sequence capture before a capture of the same name": {
 			`{"node":[{"start":0,"end":1,"value":"a"},{"start":2,"end":3,"value":"c"}]}`,
 			`{"err":"1:3: syntax error","node":null}`,
+		},
+		"capture undone in a sequence capture": {
+			`{"node":[null]}`,
+			`{"node":[{"start":1,"end":2,"value":"b"}]}`,
+			`{"err":"1:2: syntax error","node":null}`,
 		},
 		"struct list": {
 			`{"node":{"type":"Out","start":0,"end":4,"fields":{"Ys":[{"start":1,"end":2,"value":"a"},{"start":3,"end":4,"value":"b"}]}}}`,

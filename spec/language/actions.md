@@ -289,7 +289,10 @@ has no range members: `.Start` on a struct is a compile-time error.
 capture reads as `nil`. A struct value has no captures, so `x.$y` on one is a
 compile-time error, or a runtime action error for a receiver of the [type
 that is not known](type-checking.md#types-that-are-not-known). A captured sequence carries the captures inside it, so `$x.$y` for
-`x:(y:a b)` reads the same node as `$y`.
+`x:(y:a b)` reads the same node as `$y`. The captures in the elements of a
+repetition inside it are those of each element, not of the sequence: for
+`x:(ys:(z:a)* c)`, `$x.$ys[0].$z` reads the first `z`, and `$x` carries `ys`
+but no `z`.
 
 Field names begin with an uppercase letter, so `x.y` with any other name, except
 the `expected` and `message` fields of `missing`, is an
