@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # M150: Class Runs
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Lean typed Go; two or more consecutive classes
+- **An eligible subset, named under Scope, of**: typed Go
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `class-runs` | setting (flow pass) | on | speed on, memory on, size on | adopted (speed, memory, size) | typed Go | [136](../logs/136-measured-effect-of-the-generation-flags.md) |
+<!-- /generated:facts -->
 
 The classes of a keyword, written one after another, repeat a read, a range test and an
 expectation record for each letter. Matching the run through one table of steps removes that
@@ -12,17 +22,16 @@ same input and records the same expectations as the classes it replaces. It leav
 first class of an alternative whose guard has already read the character (see
 [M010](M010-first-character-dispatch.md)), and the inside of a terminal program.
 
-## Scope and State
+## Scope
 
-Default in typed Go parsers that have no budget controls and no Documents, because the pass is
+In typed Go parsers that have no budget controls and no Documents, because the pass is
 sound only where reading and testing a character charges no budget. The pass never runs
 elsewhere, whatever the flag says. The engine backends, generated Go Node parsers and
 TypeScript keep the individual classes.
 
-## Reference Control
+## Controls and Measurements
 
-`-no-opt class-runs` generates the same grammar with the classes one by one, from the same
-generator. Over the five grammars where it changes the parser, parse time with the flag off is
+With the setting off, the same generator matches the classes one by one. Over the five grammars where it changes the parser, parse time with the flag off is
 1.005 times that of the default, within the noise of an identical copy, and `parser.go` is
 1.024 times the size (record 136).
 

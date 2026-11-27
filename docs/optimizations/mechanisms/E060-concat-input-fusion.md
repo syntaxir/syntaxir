@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # E060: Concat Input Fusion
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Eligible inputs of concat
+- **An eligible subset, named under Scope, of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Nested `list`, `map` and `concat` calls can build lists only for an outer concat
 to copy their elements. Fusion appends those elements directly to the final
@@ -12,13 +19,13 @@ and generated emitters push elements directly; VM expression instructions use
 list begin/push/map/end operations. The final published list still owns its
 copied-out storage.
 
-## Scope and State
+## Scope
 
-Default eligible action expressions in closure, both VMs, generated Go Node,
+Eligible action expressions in closure, both VMs, generated Go Node,
 typed Go and TypeScript. It does not suppress map lambdas or arbitrary
 list-producing actions.
 
-## Reference Control
+## Controls and Measurements
 
 No independent universal fusion-disable reference control exists. Repetition
 projection is a separate analysis with its own control.

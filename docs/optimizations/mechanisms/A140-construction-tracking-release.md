@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # A140: Construction Tracking Release
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Construction of values
+- **Every parser of**: closure, recursive VM, iterative VM, Go Node, typed Go, TypeScript
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Temporary constructor tracking must not retain structs after an action returns
 nil or rejects its result. Cleanup releases those scratch references at the
@@ -12,13 +19,13 @@ length; TypeScript uses finalization cleanup. Returned values and
 environment-held values retain their identity and ownership. Clearing
 bookkeeping cannot clear the actual returned object.
 
-## Scope and State
+## Scope
 
-Default closure, VM, generated Go Node/typed direct/conversion and TypeScript
+Closure, VM, generated Go Node/typed direct/conversion and TypeScript
 evaluation paths. Generated parsers have no stream API, but still need
 evaluation cleanup.
 
-## Reference Control
+## Controls and Measurements
 
 No maintained same-source cleanup-disable comparator exists.
 

@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # E010: Value-Free Rule Bodies
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Rule bodies whose values no reader needs
+- **An eligible subset, named under Scope, of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 A rule can consume input without retaining the intermediate tree used to match
 its body. This removes Node and child-list construction when an action needs
@@ -25,13 +32,13 @@ still evaluates it: an unused call result does not authorize skipping the
 callee's action. CST twins, Operators Rule line elision and recognition are
 separately analyzed mechanisms.
 
-## Scope and State
+## Scope
 
-Applied by default to eligible bodies in closure, both VMs, generated Go Node,
+Eligible bodies in closure, both VMs, generated Go Node,
 typed Go and TypeScript. It does not mean that every value inside a lean body is
 discarded.
 
-## Reference Control
+## Controls and Measurements
 
 No body-elision-only same-source control is maintained across all backends.
 Comparing recognition with a valued parse changes the requested operation and

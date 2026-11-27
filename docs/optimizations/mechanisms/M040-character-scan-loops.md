@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # M040: Character Scan Loops
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Value-free repetitions of a class or of any character
+- **An eligible subset, named under Scope, of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `scans` | setting (pass) | on | speed on, memory on, size on | adopted (speed, memory, size) | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [136](../logs/136-measured-effect-of-the-generation-flags.md) |
+<!-- /generated:facts -->
 
 A value-free repetition of one character need not build an element value or
 create a full backtracking mark for every iteration. A scan loop performs the
@@ -13,19 +23,17 @@ actions or compound expressions that require per-element state remain on the
 general repetition path. The bytecode compiler emits `SCAN`; generated emitters
 produce an equivalent loop. Stream scans must retain reader loading behavior.
 
-## Scope and State
+## Scope
 
-Applied by default to eligible value-free repetitions in closure, both VMs,
+Eligible value-free repetitions in closure, both VMs,
 generated Go Node/recognition, typed Go and TypeScript. Value-building
 repetitions are outside this specialization.
 
-## Reference Control
+## Controls and Measurements
 
-For generated Go and TypeScript parsers, `-no-opt scans` generates the same grammar
-with these repetitions as ordinary loops; with it off, parse time over the ten
-language grammars is 1.029 times that of the default (record 136). The closure
-backend and the VMs have no scan-disable control. A value-building parse
-changes the operation and is not an isolated reference.
+With the setting off, every backend runs these repetitions as ordinary loops. Over the ten language grammars,
+parse time with it off is 1.029 times that of the default (record 136). A value-building parse changes the
+operation and is not an isolated reference.
 
 ## Evidence and Implementation
 

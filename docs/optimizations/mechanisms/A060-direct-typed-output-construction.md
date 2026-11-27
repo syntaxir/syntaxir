@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # A060: Direct Typed Output Construction
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Typed output of the rules the typed plan prints directly
+- **An eligible subset, named under Scope, of**: typed Go
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Generated Go can construct the requested typed structs while parsing, avoiding
 an intermediate Node tree and a later conversion walk.
@@ -11,13 +18,13 @@ return the same value as Node conversion. Unsupported typed result shapes keep
 conversion fallback. Result spans, sharing and freshness follow the typed
 contract; direct body inlining and output allocators are separate optimizations.
 
-## Scope and State
+## Scope
 
-Default eligible generated Go typed entry points. Node parsing remains available
+Eligible generated Go typed entry points. Node parsing remains available
 and TypeScript typed exports use their own Node-conversion implementation.
 Closure and VMs do not produce these generated Go structs directly.
 
-## Reference Control
+## Controls and Measurements
 
 No universal public direct-versus-conversion implementation selector exists.
 Internal conversion fixtures compare selected result shapes; they are not an

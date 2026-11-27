@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # R150: Cached Snapshot Child Descriptors
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Records of Document snapshots
+- **Every parser of**: closure, recursive VM, iterative VM
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Indexed snapshot child access can avoid a sidecar lookup for every edge by
 caching immutable record and child-run descriptor pointers in the opaque node
@@ -13,12 +20,12 @@ versions. Materialize expands runs directly. The descriptor remains immutable
 and belongs to the graph. Handles grow from 16 to 24 bytes on measured arm64;
 caller-owned collections and node-valued Fields pay that cost.
 
-## Scope and State
+## Scope
 
-Default Document snapshot handles for all three engine backends, including flat
+Document snapshot handles for all three engine backends, including flat
 and shared-run graphs. Generated Go/TypeScript have no SnapshotNode path.
 
-## Reference Control
+## Controls and Measurements
 
 No cache-off same-source control is maintained.
 `sxir_snapshot_child_chunks_reference` disables run sharing while retaining

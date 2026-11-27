@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # A100: Document VM Value Stack
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Document parses of the VMs
+- **Every parser of**: recursive VM, iterative VM
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `sxir_reference_document_vm_values` | reference build tag | — | — | — | recursive VM, iterative VM | [086](../logs/086-reuse-document-vm-values.md) |
+<!-- /generated:facts -->
 
 VM-backed Document reparses can reuse the value stack's cleared capacity instead
 of allocating a new array on each parse that evaluates rules.
@@ -16,15 +26,14 @@ division avoids integer overflow. Trimming occurs at parse boundaries, not
 immediately on Edit. Returned result storage does not live in this scratch
 array.
 
-## Scope and State
+## Scope
 
-Applied by default to recursive and iterative VM Document parsing only. Closure
+Recursive and iterative VM Document parsing only. Closure
 Documents, ordinary batch parsing, generated Go and TypeScript are unchanged.
 
-## Reference Control
+## Controls and Measurements
 
-Build tag `sxir_reference_document_vm_values` restores fresh-stack allocation.
-Both same-source builds keep the Document's backend-state slot, so the
+The build tag restores fresh-stack allocation. Both same-source builds keep the Document's backend-state slot, so the
 comparison does not measure that layout or construction footprint.
 
 ## Evidence and Implementation

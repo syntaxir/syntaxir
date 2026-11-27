@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # A040: Action Operand Scratch
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Operands of actions
+- **Every parser of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Actions and predicates need evaluation contexts, operand storage and
 constructor field lists. Reusing invocation-local scratch avoids allocating
@@ -14,14 +21,14 @@ constructors cannot retain registers; published values receive separate
 ownership. Cleanup on failed predicates must drop any gathered children and
 construction tracking.
 
-## Scope and State
+## Scope
 
-Default reusable action plumbing in closure, both VMs and generated Go
+Reusable action plumbing in closure, both VMs and generated Go
 Node/typed Go. TypeScript reuses a per-parser action context and evaluation
 storage where its runtime permits; it does not pool a parser across separate
 calls. Direct typed code can eliminate some context use entirely.
 
-## Reference Control
+## Controls and Measurements
 
 No common same-source scratch-off control isolates all action buffers.
 Whole-input parser pooling and concat fusion are separate mechanisms with

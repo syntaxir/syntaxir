@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # M030: Literal Matching
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Literals over loaded input
+- **Every parser of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Comparing a fully loaded literal in one loop avoids repeated input-loading
 checks and examined-position bookkeeping for each character.
@@ -15,13 +22,13 @@ whole-input path: generated runtimes match them rune by rune through `Peek`
 (`MatchLiteralFold`), and the VMs use the folded string instruction `STRF`. See record
 119.
 
-## Scope and State
+## Scope
 
-Default loaded-input matching in closure, both VMs, generated Go Node/typed Go
+Loaded-input matching in closure, both VMs, generated Go Node/typed Go
 and TypeScript, with representation-specific implementations. Stream fallback
 remains necessary.
 
-## Reference Control
+## Controls and Measurements
 
 No universal same-source per-character-bookkeeping reference control exists.
 

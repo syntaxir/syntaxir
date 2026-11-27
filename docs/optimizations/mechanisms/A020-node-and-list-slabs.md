@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # A020: Node and List Slabs
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Nodes and child lists of the engine and of generated Go Node parsers
+- **Every parser of**: closure, recursive VM, iterative VM, Go Node
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Allocating each Node and child list individually creates many small heap
 objects. Parser-owned chunks amortize those allocations and collect repetition
@@ -13,13 +20,13 @@ published child slices, whose capacity is constrained to avoid appends
 overwriting a neighbor. Slab ownership trades fewer allocation objects for
 possible retention of unused siblings.
 
-## Scope and State
+## Scope
 
-Default in closure, both VMs and generated Go Node construction. Typed Go uses a
+In closure, both VMs and generated Go Node construction. Typed Go uses a
 distinct typed allocation policy. TypeScript arrays/objects do not implement
 these Go slabs.
 
-## Reference Control
+## Controls and Measurements
 
 No independent same-source Node/list slab-disable control is maintained. Typed
 object/list controls operate on typed output and do not disable Node chunks.

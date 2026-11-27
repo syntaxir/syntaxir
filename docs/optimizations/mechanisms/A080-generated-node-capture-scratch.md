@@ -1,4 +1,12 @@
+<!-- generated:facts -->
 # A080: Generated Node Capture Scratch
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Capture frames of generated Go Node parsers and recognizers
+- **Every parser of**: Go Node
+- **An eligible subset, named under Scope, of**: Go recognizer
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Generated Node parsing creates temporary capture frames and slot arrays that
 need to live through parsing but not with the returned result. Separate reusable
@@ -13,13 +21,13 @@ combined bound of `1<<20` native words; unusually large scopes use exact
 unretained allocations. Published Nodes remain in independent result slabs. The
 limit bounds retained reusable scratch, not peak parsing memory.
 
-## Scope and State
+## Scope
 
-Default generated Go Node parsing and capture-dependent recognition only. Typed
-AST captures, engine/VM execution and TypeScript retain their separate
-allocators.
+Generated Go Node parsing, and recognition where a rule has captures: the recognizer takes its
+frames from the same parser. Typed Go frames come from the typed parser's own pool, and engine/VM
+execution and TypeScript retain their separate allocators.
 
-## Reference Control
+## Controls and Measurements
 
 None. The shared generated runtime always reuses the scratch; the former
 allocator is reproducible only from the revisions of record 092.

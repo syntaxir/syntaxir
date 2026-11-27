@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # R070: Document Memo Edits
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Document memo edits of the engine
+- **Every parser of**: closure, recursive VM, iterative VM
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 An edit should not walk and reposition every memo entry. A gap-buffer position
 index moves the nearby slot region, and lazy entry advancement defers
@@ -12,13 +19,13 @@ looked up, invalidating examined-overlap results or shifting eligible positions.
 Positional results, recovered errors and unfinished seed dependencies retain
 conservative invalidation. Unused entries need no immediate result-tree walk.
 
-## Scope and State
+## Scope
 
-Default Document memo management in closure and both VMs. Generated
+Document memo management in closure and both VMs. Generated
 Go/TypeScript have no editable memo API. Ordinary parse/stream lookups share
 core machinery but not Document edits.
 
-## Reference Control
+## Controls and Measurements
 
 No maintained same-source eager-walk reference control exists. Historical source
 comparisons are the available evidence.

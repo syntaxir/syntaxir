@@ -1,4 +1,16 @@
+<!-- generated:facts -->
 # M120: Unboxed Text Comparisons
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Comparisons of text
+- **An eligible subset, named under Scope, of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `field-compare` | setting (action pass) | on | speed on, memory on, size on | adopted (speed, memory, size) | typed Go | [136](../logs/136-measured-effect-of-the-generation-flags.md) |
+
+No control reaches it yet on: closure, recursive VM, iterative VM, Go Node, Go recognizer, TypeScript.
+<!-- /generated:facts -->
 
 Comparing two `text` results through generic interface values can allocate
 string headers. Native string equality avoids those boxes.
@@ -11,17 +23,16 @@ expression instructions; generators emit native comparisons. This changes
 comparison plumbing, not substring ownership or arbitrary string-valued action
 results.
 
-## Scope and State
+## Scope
 
-Default eligible comparisons in closure, both VMs, generated Go Node/typed Go
+Eligible comparisons in closure, both VMs, generated Go Node/typed Go
 and TypeScript. JavaScript strings do not have Go interface-header allocations,
 though its emitter also uses native string comparison.
 
-## Reference Control
+## Controls and Measurements
 
-`-no-opt field-compare` makes the action lowering of typed Go compare string fields in
-actions and predicates through boxed values again, from the same generator. No
-control covers the other comparisons. Literal-text disjunction specialization is
+With the setting off, the action lowering of typed Go compares string fields in actions and predicates through
+boxed values again, from the same generator. No control covers the other comparisons. Literal-text disjunction specialization is
 independently controlled by `text-dispatch` ([G070](G070-literal-text-predicates.md)). None of the ten
 language grammars has a comparison of that form, so record 136 shows no effect of the flag.
 

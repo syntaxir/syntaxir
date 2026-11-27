@@ -1,4 +1,12 @@
+<!-- generated:facts -->
 # R090: Moving Document Trees
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Values that a Document reuses
+- **Every parser of**: closure, recursive VM, iterative VM, Go Node
+- **An eligible subset, named under Scope, of**: typed Go
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 After an edit shifts reused results, copying every descendant defeats
 incremental reuse. Generation-aware in-place movement updates positions of
@@ -14,15 +22,15 @@ Length-preserving edits need no position movement. Earlier mutable trees can
 change on later Document parses; Clone or owned snapshots preserve older
 versions.
 
-## Scope and State
+## Scope
 
-Default engine Document result reuse in closure and both VMs, and generated Go
+Engine Document result reuse in closure and both VMs, and generated Go
 Node Documents (`-document`), which move with the same generations and edit
 replay. Generated typed Go Documents move basic values and copy typed values
 that hold nodes. Generated TypeScript Documents copy a reused value at each
 reuse.
 
-## Reference Control
+## Controls and Measurements
 
 No maintained current-source copy-every-tree control exists. Snapshot sharing
 compares immutable record storage and does not disable mutable tree movement.

@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # M090: Diagnostic Line Index
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Lines and columns of diagnostics
+- **Every parser of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Repeated errors should not rescan the whole source to compute line and column. A
 lazily built line-start index makes location lookup a binary search plus bounded
@@ -11,13 +18,13 @@ interpretation and the selected position unit remain exact. Streams, whose
 prefix is discarded, scan from committed positions instead. Recovered errors use
 the same lookup, avoiding quadratic prefix scans on error-heavy input.
 
-## Scope and State
+## Scope
 
-Default diagnostic location indexing in closure, both VMs, generated Go
+Diagnostic location indexing in closure, both VMs, generated Go
 Node/typed Go and TypeScript. Stream diagnostics retain their separate
 committed-prefix route.
 
-## Reference Control
+## Controls and Measurements
 
 No maintained same-source scan-from-start comparator exists.
 

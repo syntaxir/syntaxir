@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # A170: Operators Rule Attempt Scratch
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Operators Rule attempts in Go
+- **An eligible subset, named under Scope, of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Trying every operator candidate should not allocate a fresh attempt object and
 capture-save slice for each try.
@@ -11,13 +18,13 @@ declaration-order ties. Iterative execution passes the attempt through dedicated
 parser/frame state instead of enlarging every generic step result. Scratch
 cannot alias the winning published value or erase live captures.
 
-## Scope and State
+## Scope
 
-Default Go Operators Rule routes in closure, both VMs and generated Node/typed
+Go Operators Rule routes in closure, both VMs and generated Node/typed
 Go. TypeScript uses its own JavaScript candidate objects; Go by-value attempt
 allocation is not applied there.
 
-## Reference Control
+## Controls and Measurements
 
 No independent maintained same-source per-candidate allocation control exists.
 

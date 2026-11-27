@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # E050: Projected Repetition Values
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Repetitions whose readers need one projection of the elements
+- **An eligible subset, named under Scope, of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 A captured repetition often builds an element record only so an action can
 extract one field. Projection collects that field while matching, avoiding
@@ -14,13 +21,13 @@ Operators Rule bodies are excluded. The VM lowers collection through `NEXT` mode
 3; Go and TypeScript emit equivalent collection and action rewrites. Matching
 and capture rollback still run normally.
 
-## Scope and State
+## Scope
 
-Applied by default to eligible repetitions in closure, recursive VM, iterative
+Eligible repetitions in closure, recursive VM, iterative
 VM, generated Go Node, typed Go and TypeScript. It does not make arbitrary `map`
 calls into fused operations.
 
-## Reference Control
+## Controls and Measurements
 
 Internal compilation option `NoProjections` constructs a same-source general
 route for differential tests. Corpus comparisons use that engine reference to

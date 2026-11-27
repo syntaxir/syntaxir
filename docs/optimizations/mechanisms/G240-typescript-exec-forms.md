@@ -1,4 +1,15 @@
+<!-- generated:facts -->
 # G240: Compact TypeScript Exec Forms
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Expectation merges and tested calls in TypeScript
+- **An eligible subset, named under Scope, of**: TypeScript
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `ts-merged-records` | setting (exec pass) | on | speed on, memory on, size on | adopted (speed, memory, size) | TypeScript | [143](../logs/143-compact-typescript-exec-forms.md) |
+| `ts-tested-inits` | setting (exec pass) | on | speed on, memory on, size on | adopted (speed, memory, size) | TypeScript | [143](../logs/143-compact-typescript-exec-forms.md) |
+<!-- /generated:facts -->
 
 Some sequences of Exec IR operations have a shorter form in the TypeScript library than the operations
 print as one by one. Replacing them before printing makes the parser smaller and saves locals and
@@ -19,15 +30,15 @@ The printer also prints the operations each pass replaces, so each flag turns it
 prints a parser. Each replacement ends the parse as the operations it replaces do, with the same
 results, expectations and charges.
 
-## Scope and State
+## Scope
 
-Adopted for generated TypeScript. Go prints the operations of the Exec IR directly and the engine
+Generated TypeScript. Go prints the operations of the Exec IR directly and the engine
 backends do not print.
 
-## Reference Control
+## Controls and Measurements
 
-`-no-opt ts-merged-records` and `-no-opt ts-tested-inits` print the replaced operations from the same
-generator.
+With either setting off, the same generator prints the replaced operations one by one; the two are
+independent, so each form's share of the size is measured on its own.
 
 ## Evidence and Implementation
 

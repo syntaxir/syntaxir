@@ -91,6 +91,18 @@ A **mechanism** is the catalog's unit: a stable ID (`M140`), a title, a page, an
 fully or on an eligible subset. Several flags may implement one mechanism (`guards`, `guarded-classes` and `dispatch`
 all belong to first-character dispatch); a flag implements one mechanism.
 
+A mechanism's **page** is hybrid. Its title and every fact the registry owns are a generated region at its top: the
+classification, the path scope, the backends where it acts fully and those where it acts on an eligible subset, and
+each control with its kind, default, value in each profile, state, backends and deciding record; and, while the
+catalog is transitional, the backends no control reaches yet. The prose below it is written by hand in fixed
+sections: a summary; Mechanism and Invariants, which is also the argument that a parser with the mechanism returns
+what one without it returns; Scope, which names the eligible subset of each partial backend and says why; Controls and
+Measurements, which says what the controls compare and do not isolate and what the measurements mean, or why no
+existing switch isolates the mechanism; and Evidence and Implementation, with the records, the packages and related
+mechanisms. Prose does not restate a generated fact, so a fact has one source. Registering a mechanism without a page
+makes the generator write a stub with the facts and empty sections, which the catalog check rejects until they are
+written; the stub's form lives in the generator, so no template file can drift from it.
+
 A **control** turns an optimization off (or an opt-in on) for a comparison: a **setting** (a registered flag, part of
 the command line and of `compiler.Optimize`) or a **reference control** (a registered build tag, for the cases under
 "Runtime Mechanisms").
@@ -317,12 +329,14 @@ The checks extend the existing tests instead of adding parallel ones.
 - **Registration** (`CheckFlags`): the metadata is present, the mechanism is a declared optimization mechanism, an
   experiment is off in `speed`. `CheckRegistry` of the driver adds the profile rules: no profile sets an experiment.
 - **Generation**: a program in `go generate` writes the mechanism index (with the Go Node and Go recognizer columns
-  apart), the guide's flag table, the map of former IDs, the list of reference controls and the table of rejected
-  attempts; a test regenerates them in memory and fails on any difference. The hand-written
+  apart), the guide's flag table, the map of former IDs, the list of reference controls, the table of rejected
+  attempts, and the facts region of every mechanism page; a test regenerates them in memory and fails on any
+  difference. The hand-written
   `TestOptimizationsAreInTheGuide` becomes part of it. The index states the counts of unclassified mechanisms, of
   mechanisms with Control `none`, and of mechanisms that act on a backend that no control lists.
 - **Catalog**: every mechanism has a page under `docs/optimizations/mechanisms/`, every page is a declared mechanism,
-  and every record a flag names exists with a Decides entry that agrees.
+  every page's hand-written summary and sections are present and not empty, and every record a flag names exists
+  with a Decides entry that agrees.
 - **Parity.** `TestOptimizationsHaveTests` also checks that each test it names exists. The observable of a backend is
   what it builds: the generated source for the generated backends (Go Node, Go recognizer, typed Go, TypeScript), the
   printed Core IR that the closure engine builds from, and the marshalled bytecode for the recursive and iterative

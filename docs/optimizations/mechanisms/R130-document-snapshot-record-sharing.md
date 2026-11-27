@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # R130: Document Snapshot Record Sharing
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Document snapshots of the engine
+- **Every parser of**: closure, recursive VM, iterative VM
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `sxir_snapshot_sharing_reference` | reference build tag | — | — | — | closure, recursive VM, iterative VM | [097](../logs/097-exact-document-snapshot-record-sharing.md) |
+<!-- /generated:facts -->
 
 Retaining several immutable Document snapshots need not duplicate records that
 are exactly equal. Reuse lowers retained version storage while preserving
@@ -14,16 +24,15 @@ reuse keeps a contiguous copy fallback. A weak previous-graph reference avoids
 retaining an old snapshot solely through the Document. Text is still copied for
 owned snapshot storage; shifted positions can make records ineligible.
 
-## Scope and State
+## Scope
 
-Default Document snapshot capture in closure and both VMs. Generated parsers and
+Document snapshot capture in closure and both VMs. Generated parsers and
 TypeScript do not expose the Document snapshot API. Public mutable Nodes are not
 shared by this immutable-record policy.
 
-## Reference Control
+## Controls and Measurements
 
-Build tag `sxir_snapshot_sharing_reference` selects copied records at the same
-source. It controls record sharing, not parsing, text ownership or
+The build tag selects copied records at the same source. It controls record sharing, not parsing, text ownership or
 materialization behavior.
 
 ## Evidence and Implementation

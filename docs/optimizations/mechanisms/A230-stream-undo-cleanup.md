@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # A230: Stream Undo Cleanup
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Streams of the engine
+- **Every parser of**: closure, recursive VM, iterative VM
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `sxir_reference_stream_undo` | reference build tag | — | — | — | closure, recursive VM, iterative VM | [089](../logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
+<!-- /generated:facts -->
 
 Resetting undo length can leave old capture references in its backing array.
 Clearing inactive backing releases those obsolete owners after stream commits.
@@ -11,15 +21,15 @@ pruning. Until that boundary inactive references can remain, and scratch
 capacity itself stays retained. Live frame/capture values and published results
 remain untouched.
 
-## Scope and State
+## Scope
 
-Default closure and both VM stream cleanup. Generated Go/TypeScript have no
+Closure and both VM stream cleanup. Generated Go/TypeScript have no
 stream API.
 
-## Reference Control
+## Controls and Measurements
 
-Build tag `sxir_reference_stream_undo` keeps the former backing references.
-Combined `sxir_reference_stream_storage` changes prefix and stack policy too; it
+The build tag keeps the former backing references. The combined tag
+`sxir_reference_stream_storage`, which is not a registered control, changes prefix and stack policy too; it
 cannot attribute an undo-only effect.
 
 ## Evidence and Implementation

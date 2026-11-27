@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # M140: Terminal Programs
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Lean typed Go; value-free choices of at least 16 literals and classes
+- **An eligible subset, named under Scope, of**: typed Go
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `terminals` | setting (flow pass) | on | speed on, memory on, size on | adopted (speed, memory, size) | typed Go | [136](../logs/136-measured-effect-of-the-generation-flags.md) |
+<!-- /generated:facts -->
 
 A value-free choice made of many literals and classes, such as a keyword list spelled as a
 trie, can run as one table-driven program instead of straight-line code per alternative.
@@ -13,16 +23,15 @@ same input and records the same expectations at the same positions as the straig
 A choice with at least four guarded alternatives gets an ASCII dispatch table that is built once
 from the same class tests that the guards use.
 
-## Scope and State
+## Scope
 
-Default in typed Go parsers that have no budget controls, no Documents and no observability,
+In typed Go parsers that have no budget controls, no Documents and no observability,
 for rules lowered to Go-local code. Case-insensitive literals, frame bodies, the engine
 backends, generated Go Node parsers and TypeScript keep their ordinary form.
 
-## Reference Control
+## Controls and Measurements
 
-`-no-opt terminals` generates the same grammar with straight-line code, from the same
-generator. Over the five grammars where it changes the parser, parse time with the flag off is
+With the setting off, the same generator prints straight-line code. Over the five grammars where it changes the parser, parse time with the flag off is
 1.007 times that of the default, with the same noise as an identical copy, and `parser.go` is
 1.036 times the size (record 136).
 

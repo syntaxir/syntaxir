@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # M080: Direct Code-Point Access
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Direct generated Go bodies over code points
+- **An eligible subset, named under Scope, of**: Go Node, Go recognizer, typed Go
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Eligible generated Go bodies can read an already-decoded character directly
 instead of calling the general `peek` helper for every test.
@@ -10,13 +17,13 @@ decoded input bounds. Otherwise they call `peek`, preserving EOF and Bytes UTF-8
 decoding. Bytes parsing explicitly keeps the rune input empty even with pooled
 state, preventing accidental use of stale CodePoints data.
 
-## Scope and State
+## Scope
 
-Default eligible generated Go Node and typed direct bodies. The fast read is
+Eligible generated Go Node and typed direct bodies. The fast read is
 CodePoints-only; Bytes retains the fallback. Closure, VMs and TypeScript do not
 use this Go direct-emitter access route.
 
-## Reference Control
+## Controls and Measurements
 
 No independent same-source direct-read control exists. Body-lowering controls
 remove a broader route.

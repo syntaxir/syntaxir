@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # A190: Evaluation Context Reuse
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Evaluation of actions
+- **Every parser of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Every action and predicate needs an evaluation context, but its scratch identity
 is not part of the grammar result. Reusing one per parser avoids allocating a
@@ -11,13 +18,13 @@ evaluation. Nested lambda calls use their own preserved context when required.
 No context reference may outlive its allowed evaluation scope; values returned
 by constructors retain separate ownership.
 
-## Scope and State
+## Scope
 
-Default per-parser context reuse in closure, both VMs, generated Go Node/typed
+Per-parser context reuse in closure, both VMs, generated Go Node/typed
 Go and TypeScript. TypeScript reuses within one invocation, not across parser
 calls.
 
-## Reference Control
+## Controls and Measurements
 
 No maintained same-source fresh-context-only control exists.
 

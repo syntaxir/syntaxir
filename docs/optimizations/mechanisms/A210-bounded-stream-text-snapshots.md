@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # A210: Bounded Stream Text Snapshots
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Streams of the engine
+- **Every parser of**: closure, recursive VM, iterative VM
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `sxir_reference_stream_text` | reference build tag | — | — | — | closure, recursive VM, iterative VM | [088](../logs/088-share-bounded-stream-text-snapshots.md) |
+<!-- /generated:facts -->
 
 Many small stream tokens can share one immutable snapshot of loaded text instead
 of creating a string copy for each token.
@@ -12,14 +22,14 @@ normalization and offset mapping; Bytes preserves raw bytes. Returned strings
 remain valid after compaction and retain at most one bounded snapshot, up to
 4,096 bytes.
 
-## Scope and State
+## Scope
 
-Default eligible stream text in closure and both VMs only. Batch substring
+Eligible stream text in closure and both VMs only. Batch substring
 sharing is a different input path.
 
-## Reference Control
+## Controls and Measurements
 
-Build tag `sxir_reference_stream_text` selects copying. Both same-source
+The build tag selects copying. Both same-source
 variants retain the input cache fields, so parent comparisons also include their
 layout cost.
 

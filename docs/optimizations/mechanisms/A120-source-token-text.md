@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # A120: Source Token Text
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Token text, subject to the input representation
+- **Every parser of**: closure, recursive VM, iterative VM, Go Node, typed Go, TypeScript
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Matched text can often reference the original input range instead of re-encoding
 decoded characters into a new string.
@@ -13,12 +20,12 @@ source owner alive; zero-copy does not mean zero retained input. TypeScript's
 text route respects string/byte input normalization but has JavaScript ownership
 costs.
 
-## Scope and State
+## Scope
 
-Default eligible token text in closure, both VMs, generated Go Node/typed Go and
+Eligible token text in closure, both VMs, generated Go Node/typed Go and
 TypeScript. Exact copying depends on input representation and unit.
 
-## Reference Control
+## Controls and Measurements
 
 No universal substring/copy reference control exists.
 `sxir_reference_stream_text` controls bounded stream snapshots only.

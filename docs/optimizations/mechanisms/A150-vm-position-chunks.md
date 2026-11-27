@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # A150: VM Position Chunks
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Positions of the VMs
+- **Every parser of**: recursive VM, iterative VM
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Putting an integer position in a generic operand can allocate a boxed value.
 VM-owned chunks amortize the cells. Action code evaluates lambdas in place, so the
@@ -11,12 +18,12 @@ and repetition consumers dereference it. These cells stay valid for their
 evaluation lifetime; the change does not alter logical positions or public
 results.
 
-## Scope and State
+## Scope
 
-Default recursive and iterative VM execution. Closure and generated
+Recursive and iterative VM execution. Closure and generated
 Go/TypeScript use their own expression representations.
 
-## Reference Control
+## Controls and Measurements
 
 No maintained same-source per-box allocation reference exists.
 

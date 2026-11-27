@@ -250,7 +250,8 @@ func ReadFormer(root string) (map[string]FormerPage, error) {
 }
 
 // Generate returns the files with generated regions under root, each with its regions as the
-// registry, the profiles and the records make them. Nothing in them depends on a measurement, so
+// registry, the profiles and the records make them: the catalog, the guide and every mechanism page
+// (a stub for a mechanism that has none). Nothing in them depends on a measurement, so
 // the files are reproducible offline from the repository alone.
 func Generate(root string) (map[string][]byte, error) {
 	records, err := ReadRecords(root)
@@ -279,6 +280,13 @@ func Generate(root string) (map[string][]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", path, err)
 		}
+		out[path] = data
+	}
+	pages, err := mechanismPages(root, records)
+	if err != nil {
+		return nil, err
+	}
+	for path, data := range pages {
 		out[path] = data
 	}
 	return out, nil

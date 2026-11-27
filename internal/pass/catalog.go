@@ -105,9 +105,10 @@ func (s Backends) String() string {
 type Mechanism struct {
 	// ID is the stable ID of the catalog: a category letter and three digits, as "M010".
 	ID string
-	// Title names the mechanism in the catalog's index.
+	// Title names the mechanism, in title case: the catalog's index and the title of its page.
 	Title string
-	// Page is the file of the mechanism's page in docs/optimizations/mechanisms.
+	// Page is the file of the mechanism's page in docs/optimizations/mechanisms, whose facts are
+	// generated from the registry and whose prose is written by hand.
 	Page string
 	// Scope says where the mechanism applies, as the index's path scope.
 	Scope string

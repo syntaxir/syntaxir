@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # E030: Operators Rule Line Value Elision
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Operators Rule lines whose values no reader needs
+- **An eligible subset, named under Scope, of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 An Operators Rule action often needs captured operands or `$op` text, not the
 line's intermediate CST. Value-free line lowering avoids that unused
@@ -12,13 +19,13 @@ Named captures still build required values. A line's frame, match position and
 candidate-selection behavior remain owned by the Operators Rule runtime.
 Recognition additionally omits line actions where their results are unused.
 
-## Scope and State
+## Scope
 
-Default eligible Operators Rule lines in closure, both VMs, generated Go Node,
+Eligible Operators Rule lines in closure, both VMs, generated Go Node,
 typed Go and TypeScript. This analysis is distinct from ordinary body elision
 and from direct line-body inlining.
 
-## Reference Control
+## Controls and Measurements
 
 No line-elision-only same-source control is maintained. Typed Go output has no
 optimization setting for the `leanLine` value decision; it is compared with the

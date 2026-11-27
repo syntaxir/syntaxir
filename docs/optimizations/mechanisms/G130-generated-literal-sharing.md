@@ -1,4 +1,15 @@
+<!-- generated:facts -->
 # G130: Generated Literal Sharing
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Generated parsers with equal literals; TypeScript as an opt-in
+- **An eligible subset, named under Scope, of**: Go Node, Go recognizer, typed Go, TypeScript
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `literal-sharing` | setting (printer) | on | speed on, memory on, size on | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go | [136](../logs/136-measured-effect-of-the-generation-flags.md) |
+| `ts-literal-sharing` | setting (printer) | off | speed off, memory off, size off | opt-in | TypeScript | [136](../logs/136-measured-effect-of-the-generation-flags.md) |
+<!-- /generated:facts -->
 
 Repeated immutable literal tables can be emitted once and referenced by multiple
 matchers, reducing generated data duplication.
@@ -10,17 +21,16 @@ description/expectation identity; sharing data cannot merge diagnostics or rule
 wrappers. Failed speculative lowering rolls back inserted literal entries and
 reserved declarations. Helper-body sharing is independently selected.
 
-## Scope and State
+## Scope
 
-Default literal sharing in generated Go Node and typed Go. TypeScript literal
-sharing is an opt-in that no profile sets; helper sharing remains default
-there. Core closure/VM literals are separate compilation representations.
+Literal sharing in generated Go Node and typed Go, and in TypeScript through its own setting. Helper sharing
+([G010](G010-generated-helper-sharing.md)) is separate. Core closure/VM literals are separate compilation
+representations.
 
-## Reference Control
+## Controls and Measurements
 
-`-no-opt literal-sharing` selects duplicate tables. The optimization
-`ts-literal-sharing`, off by default, opts into TypeScript literal sharing;
-`-no-opt literal-sharing` takes precedence. These select generated source before parsing.
+`-no-opt literal-sharing` selects duplicate tables, and takes precedence over `ts-literal-sharing`, which
+opts TypeScript into literal sharing. These select generated source before parsing.
 
 ## Evidence and Implementation
 

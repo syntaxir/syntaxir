@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # A280: Typed Chunk Growth
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Typed Go output
+- **Every parser of**: typed Go
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `typed-chunk-growth` | setting (storage) | on | speed on, memory on, size on | adopted (speed, memory, size) | typed Go | [139](../logs/139-geometric-typed-value-chunks.md) |
+<!-- /generated:facts -->
 
 The slabs of typed objects ([A250](A250-typed-object-slabs.md)), of typed lists
 ([A260](A260-typed-list-slabs.md)) and the chunks of the match cells of a typed parse stop at a fixed size
@@ -19,19 +29,18 @@ most one slab, of at most the larger of the fixed limit and 1/32 of the owner's 
 unused tail of the last slab is at most the larger of the fixed limit and 1/33 of the owner's total. The
 `Memory` limit counts the real size of every slab.
 
-## Scope and State
+## Scope
 
 Generated Go typed output, with the library imported or embedded, in both direct construction and Node
 conversion. Where object or list slabs are off ([A250](A250-typed-object-slabs.md),
 [A260](A260-typed-list-slabs.md)) it acts only on the slabs that remain and on the match chunks. Ordinary
 Node parses, the engine backends and TypeScript are unchanged.
 
-## Reference Control
+## Controls and Measurements
 
-The optimization setting `-no-opt typed-chunk-growth` keeps every slab and match chunk at its fixed limit: the
-parser prints the local chunk helpers with the fixed limit and sets a mask in the grammar that clears the growth of
-the library's match chunks without a test.
-Every profile leaves it on.
+With the setting off, every slab and match chunk stays at its fixed limit: the parser prints the local chunk
+helpers with the fixed limit and sets a mask in the grammar that clears the growth of the library's match chunks
+without a test.
 
 ## Evidence and Implementation
 

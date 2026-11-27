@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # R160: Relative Snapshot Position Overlays
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Document snapshots, as an experiment that is off by default
+- **Every parser of**: closure, recursive VM, iterative VM
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `sxir_snapshot_position_overlays` | reference build tag | — | — | — | closure, recursive VM, iterative VM | [100](../logs/100-relative-snapshot-position-overlays.md) |
+<!-- /generated:facts -->
 
 Shifted immutable records can share payload storage when version-specific
 positions live in a separate overlay.
@@ -15,17 +25,17 @@ Relative sharing requires at least 128 nodes, 25% matching records and a reuse
 allocation heuristic. That heuristic is not a retained-heap guarantee: reused
 records can retain older backing arrays.
 
-## Scope and State
+## Scope
 
 Private, experimental and default-off for engine Document snapshots across
 closure and both VMs. Generated parsers are outside scope. The empty default
 state preserves the 64-byte graph and 24-byte handle on measured arm64;
 enabled handles are 32 bytes.
 
-## Reference Control
+## Controls and Measurements
 
-Build tag `sxir_snapshot_position_overlays` enables the candidate. The same-source
-no-tag build is the unchanged default comparator.
+Unlike the other reference build tags, this one enables the candidate rather than selecting a reference form:
+the no-tag build is the default and the comparator.
 
 ## Evidence and Implementation
 

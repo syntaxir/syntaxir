@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # M050: Plain Rule Calls
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Calls of rules that are neither captured nor memoized
+- **An eligible subset, named under Scope, of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Unmemoized rules without captures do not need the full memo lookup,
 capture-frame switch and generic rule dispatch on every call.
@@ -13,13 +20,13 @@ iterative VM combines the plain call with its body frame; generated Go and
 TypeScript emit rule-specific wrappers. Document parsing still memoizes
 transient rules and must take the appropriate Document route.
 
-## Scope and State
+## Scope
 
-Default eligible plain-call routes exist in closure, recursive VM, iterative VM,
+Eligible plain-call routes exist in closure, recursive VM, iterative VM,
 generated Go Node/recognition, typed Go and TypeScript. Typed direct bodies are
 a broader generator specialization described separately.
 
-## Reference Control
+## Controls and Measurements
 
 There is no universal same-source plain-call reference switch. A memo-disable
 option changes memo policy, not only wrapper dispatch. Typed body controls also

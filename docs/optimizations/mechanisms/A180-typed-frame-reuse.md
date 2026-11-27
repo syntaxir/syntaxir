@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # A180: Typed Frame Reuse
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Capture frames of typed Go
+- **Every parser of**: typed Go
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Runtime-framed typed invocations can release their capture frame at completion
 instead of retaining every frame until parsing ends.
@@ -10,12 +17,12 @@ completed scratch frames and preserves values reachable from the result, saved
 marks and actions. Go-local direct captures need no runtime frame. This typed
 boundary does not justify returning ordinary Node frames early.
 
-## Scope and State
+## Scope
 
-Default generated typed Go runtime. Core and Node frame policies differ;
+Generated typed Go runtime. Core and Node frame policies differ;
 TypeScript has no Go typed-frame pool.
 
-## Reference Control
+## Controls and Measurements
 
 No frame-reuse-only same-source comparator is maintained.
 

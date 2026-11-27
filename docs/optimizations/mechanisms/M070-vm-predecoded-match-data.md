@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # M070: Predecoded VM Match Data
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Literals and classes of VM programs
+- **Every parser of**: recursive VM, iterative VM
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 A VM module stores literal strings and class descriptions. Converting those
 strings to runes/bytes or preparing ASCII class membership on every instruction
@@ -13,13 +20,13 @@ determine diagnostics; non-ASCII classes retain exact range checks. Recursive
 and iterative prepared programs are separate, so preparation is reusable within
 each selected backend.
 
-## Scope and State
+## Scope
 
-Default setup for recursive and iterative VMs only. Closure captures its own
+Setup for recursive and iterative VMs only. Closure captures its own
 matcher data; generated parsers emit theirs. Their analogous representations are
 covered by class/literal mechanisms, not this VM preparation step.
 
-## Reference Control
+## Controls and Measurements
 
 No private same-source per-instruction-conversion reference is maintained. This
 is setup work with matching consumers, unlike a parse-time optimization flag.

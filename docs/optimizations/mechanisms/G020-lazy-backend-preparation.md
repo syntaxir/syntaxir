@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # G020: Lazy Backend Preparation
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: The engine's recognizer and VM setup on first use
+- **An eligible subset, named under Scope, of**: closure, recursive VM, iterative VM
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 A compiled grammar need not prepare every execution backend before its first
 parse. SyntaxIR delays derived bytecode, VM metadata and the recognition graph until
@@ -13,13 +20,13 @@ its program or its setup error. Grammar-less programs cannot construct closure
 or recognition graphs. The ordinary closure parse graph is built eagerly during
 compilation.
 
-## Scope and State
+## Scope
 
-Default engine setup for closure recognition and both VMs. Generated Go
+Engine setup for closure recognition and both VMs. Generated Go
 Node/typed Go and TypeScript embed their machinery and are outside scope. This
 is first-use preparation, not per-rule matching work.
 
-## Reference Control
+## Controls and Measurements
 
 No same-source eager-preparation control or private opt-in alternative is
 maintained.

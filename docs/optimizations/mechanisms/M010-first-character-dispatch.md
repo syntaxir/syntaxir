@@ -1,4 +1,16 @@
+<!-- generated:facts -->
 # M010: First-Character Dispatch
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Choices whose alternatives have known first characters
+- **An eligible subset, named under Scope, of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `dispatch` | setting (pass) | on | speed on, memory on, size on | adopted (speed, memory, size) | recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [141](../logs/141-dispatch-of-kept-guards.md) |
+| `guards` | setting (pass) | on | speed on, memory on, size on | adopted (speed, memory, size) | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [136](../logs/136-measured-effect-of-the-generation-flags.md) |
+| `guarded-classes` | setting (flow pass) | on | speed on, memory on, size on | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go | [136](../logs/136-measured-effect-of-the-generation-flags.md) |
+<!-- /generated:facts -->
 
 An ordered choice may call several rules that cannot begin with the next input
 character. A conservative first-terminal guard rejects those alternatives before
@@ -26,20 +38,19 @@ both cases of its first ASCII letter in the VMs and in the generated Go and Type
 parsers, and in the typed Go path through the Core first set (a lower-case letter with a
 fold flag). Record 119 has the measurement.
 
-## Scope and State
+## Scope
 
-Applied by default to eligible choices in closure, both VMs, generated Go
+Eligible choices in closure, both VMs, generated Go
 Node/recognition, typed Go and TypeScript. It is not a reordering of PEG
 alternatives or a general lookahead prediction.
 
-## Reference Control
+## Controls and Measurements
 
-For generated Go and TypeScript parsers, `-no-opt guards` generates the same
-grammar without first-character guards, and `-no-opt guarded-classes` keeps the
-guards but leaves the leading class of a guarded alternative to test the
-character again. Both are same-generator references. The closure backend and the
-VMs have no guard-disable control, and old bytecode without `GUARD` is
-compatibility input, not a current-source reference compiler.
+`guards` builds the same grammar without first-character guards on every backend. `dispatch` keeps only the
+guards whose skip leaves what the alternative's evaluation would (record 141); off, the parser tries every
+alternative, as with `guards` off. `guarded-classes` keeps the guards but leaves the leading class of a guarded
+alternative to test the character again. Each is a same-source
+reference. Old bytecode without `GUARD` is compatibility input, not a current-source reference compiler.
 
 ## Evidence and Implementation
 

@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # R140: Document Snapshot Child Run Sharing
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Child runs of Document snapshots
+- **Every parser of**: closure, recursive VM, iterative VM
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `sxir_snapshot_child_chunks_reference` | reference build tag | — | — | — | closure, recursive VM, iterative VM | [099](../logs/099-share-document-snapshot-child-runs.md) |
+<!-- /generated:facts -->
 
 A changed wide snapshot record can have nearly all of its child IDs unchanged.
 Sharing those immutable runs avoids copying a full child-ID slice into every
@@ -14,17 +24,16 @@ chunked records. Materialize expands an independent mutable Children slice. Weak
 previous ownership, exact ID checks and bounded copy charging prevent stale or
 partially published snapshots.
 
-## Scope and State
+## Scope
 
-Default eligible closure/recursive-VM/iterative-VM Document snapshot graphs.
+Eligible closure/recursive-VM/iterative-VM Document snapshot graphs.
 Generated Go/TypeScript and ordinary Parse/Recognize do not expose this snapshot
 path. Small graphs, low record reuse and length-changing shifts often retain the
 flat fallback.
 
-## Reference Control
+## Controls and Measurements
 
-Private build tag `sxir_snapshot_child_chunks_reference` keeps flat child
-slices. Cached handles remain in both variants, so the control isolates child
+The build tag keeps flat child slices. Cached handles remain in both variants, so the control isolates child
 storage rather than descriptor caching.
 
 ## Evidence and Implementation

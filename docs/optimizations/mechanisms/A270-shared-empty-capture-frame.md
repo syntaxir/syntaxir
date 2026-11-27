@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # A270: Shared Empty Capture Frame
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Scopes without captures
+- **An eligible subset, named under Scope, of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 A scope with no capture slots needs no fresh frame storage. One immutable empty
 frame can represent it.
@@ -11,12 +18,12 @@ frame current, while generic zero-slot invocations use the empty owner. Complete
 layout collectors must count required dead/nil slots before deciding a scope is
 empty.
 
-## Scope and State
+## Scope
 
-Default capture-free scope representation in closure, both VMs, generated Go
+Capture-free scope representation in closure, both VMs, generated Go
 Node/typed Go and TypeScript.
 
-## Reference Control
+## Controls and Measurements
 
 No shared-empty-frame-only comparator is maintained. Plain-call or layout
 controls affect a larger route.

@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # A160: Whole-Input Scratch Pooling
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Scratch of a whole-input parse in Go
+- **Every parser of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Repeated batch parses can reuse decoded input, offset, memo and collection
 buffers that no returned result references.
@@ -12,13 +19,13 @@ discarded under per-buffer limits. Recognition may use another engine Program
 pool or a generated shared pool with rule-table counters reset. A pool may be
 cleared by GC and is not persistent result ownership.
 
-## Scope and State
+## Scope
 
-Default closure/VM whole-input parsing and generated Go Node/recognition/typed
+Closure/VM whole-input parsing and generated Go Node/recognition/typed
 parsing. Documents and streams keep their own state; TypeScript creates an
 invocation-owned parser with no cross-call pool.
 
-## Reference Control
+## Controls and Measurements
 
 No universal same-source pool-disable control exists. Narrow Node frame/sparse
 controls do not disable all pooling.

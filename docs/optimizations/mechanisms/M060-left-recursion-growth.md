@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # M060: Left-Recursion Growth State
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Left-recursion seed growth in Go
+- **Every parser of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Seed growth invokes a left-recursive leader repeatedly while searching for a
 longer result. Keeping growth state in the call and memo entries in owned chunks
@@ -12,15 +19,15 @@ The leader remains memoized: the seed is part of the recursion algorithm, not
 optional caching. Retirement cannot clear a seed still owned by an active growth
 frame. Expression inlining leaves growth ownership in the runtime.
 
-## Scope and State
+## Scope
 
-Default growth-state reuse applies to closure, both VMs and the generated Go
+Growth-state reuse applies to closure, both VMs and the generated Go
 Node and typed runtimes. TypeScript implements seed growth with JavaScript
 objects; it does not implement Go's slab allocation or by-value growth-state
 layout. VM position/lambda chunks are related allocation work, not a TypeScript
 guarantee.
 
-## Reference Control
+## Controls and Measurements
 
 No universal same-source growth-allocation reference control exists. Disabling
 memoization does not disable left-recursion seeds and is not the former

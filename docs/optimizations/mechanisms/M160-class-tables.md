@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # M160: Class Tables
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Lean typed Go; classes of at least the configured number of ranges
+- **An eligible subset, named under Scope, of**: typed Go
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `class-tables` | setting (flow pass) | off | speed 0, memory 0, size 5 | adopted (size) | typed Go | [136](../logs/136-measured-effect-of-the-generation-flags.md) |
+<!-- /generated:facts -->
 
 A class with many ranges spelled out in place makes a large test in every place it is used. A
 shared membership table makes the test a lookup.
@@ -11,19 +21,18 @@ the configured number of ranges is matched through it: an inlined ASCII bit test
 for every other character that also records the expectation of the failing class at the failing
 position. Values, errors and expected sets do not change.
 
-## Scope and State
+## Scope
 
-An opt-in. The `speed` profile leaves it off and the `size` profile sets the count 5. It applies
-to typed Go parsers that have no budget controls and no Documents, because a table match
+Typed Go parsers that have no budget controls and no Documents, because a table match
 charges no budget for the input, and it never applies elsewhere, whatever the flag says. The
 engine backends, generated Go Node parsers and TypeScript do not use it.
 
-## Reference Control
+## Controls and Measurements
 
-`-opt class-tables=N` selects the least number of ranges for which a class is matched through a
-table, and 0 generates the classes in place, from the same generator. Over the six typed
-grammars, 5 makes `parser.go` 0.966 times the size of the default and the parse about 1.1%
-slower; that cost is why the default is off (record 136).
+The setting is the least number of ranges for which a class is matched through a table, and 0 generates the
+classes in place, from the same generator. Over the six typed grammars, 5 makes `parser.go` 0.966 times the
+size of the default and the parse about 1.1% slower; that cost is why only the `size` profile sets it
+(record 136).
 
 ## Evidence and Implementation
 

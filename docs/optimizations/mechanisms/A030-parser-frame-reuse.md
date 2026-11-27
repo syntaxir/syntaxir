@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # A030: Iterative VM Frame Reuse
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Frames of the iterative VM
+- **Every parser of**: iterative VM
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Iterative VM execution needs explicit call/body state. Reusing completed frames
 avoids a heap allocation for each step or rule call.
@@ -11,12 +18,12 @@ reducing push/pop dispatch. State remains live until its frame finishes, and
 published values are never recycled with the frame. Active growth, recovery and
 capture owners must stay intact.
 
-## Scope and State
+## Scope
 
-Default iterative VM execution only. Closure/recursive calls use the Go stack;
+Iterative VM execution only. Closure/recursive calls use the Go stack;
 generated Go and TypeScript have separate frame allocation policies.
 
-## Reference Control
+## Controls and Measurements
 
 No universal same-source fresh-iterative-frame comparator is maintained. Stream
 frame controls concern another owner and boundary.

@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # G220: Outlined TypeScript Nodes
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Large and repeated nodes of TypeScript Node and recognizer tables
+- **An eligible subset, named under Scope, of**: TypeScript
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `outline` | setting (pass) | on | speed on, memory on, size on | adopted (speed, memory, size) | TypeScript | [146](../logs/146-outlined-typescript-nodes.md) |
+<!-- /generated:facts -->
 
 A TypeScript function printed in one piece grows with the grammar: a rule of many alternatives, or a
 body that nests the same few matchers many times, prints as thousands of lines that no other rule can
@@ -16,14 +26,15 @@ its function to the table, and the TypeScript printer shares the functions whose
 once the constants they name are replaced by their declarations ([G010](G010-generated-helper-sharing.md)).
 An outlined node runs as it does in place: the same input, results, expectations and charges.
 
-## Scope and State
+## Scope
 
-Adopted in the TypeScript pipeline only, for the Node and recognizer tables. Go and the engine
+The TypeScript pipeline only, for the Node and recognizer tables. Go and the engine
 backends print each rule as one function.
 
-## Reference Control
+## Controls and Measurements
 
-`-no-opt outline` prints every node in place from the same generator.
+With the setting off, the same generator prints every node in place, so a comparison measures what outlining
+adds to the source size and to the time the JavaScript engine takes to compile and run the parser.
 
 ## Evidence and Implementation
 

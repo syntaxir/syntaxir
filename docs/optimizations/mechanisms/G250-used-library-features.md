@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # G250: Library of the Used Features
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Generated parsers with an embedded library
+- **An eligible subset, named under Scope, of**: Go Node, Go recognizer, typed Go, TypeScript
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `used-features` | setting (printer) | on | speed on, memory on, size on | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [144](../logs/144-library-of-the-used-features.md) |
+<!-- /generated:facts -->
 
 A generated parser that embeds its library carries every feature of it unless something leaves the
 unused ones out: the growth of left-recursion seeds, recovery, Operators Rules, streams, Documents and
@@ -14,16 +24,16 @@ in the set. With the flag on, the embedded library keeps the code of those featu
 declarations that the parser names. With the build tag of the feature witness, a parser panics when a
 parse uses a feature outside its set, which the generated-parser tests build with.
 
-## Scope and State
+## Scope
 
-Adopted for generated Go and TypeScript parsers that embed their library (`-lib embed`). A parser that
+Generated Go and TypeScript parsers that embed their library (`-lib embed`). A parser that
 imports the library, and `-lib only`, carry the whole library; the engine backends have no generated
 library.
 
-## Reference Control
+## Controls and Measurements
 
-`-no-opt used-features` generates the parser with every feature from the same generator; what a parse
-returns and charges is the same.
+With the setting off, the same generator embeds every feature; what a parse returns and charges is the same, so
+the comparison measures source and binary size only.
 
 ## Evidence and Implementation
 

@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # M130: Short Literal Comparisons
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Short literals of generated Go
+- **An eligible subset, named under Scope, of**: Go Node, Go recognizer, typed Go
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `inline-literals` | setting (flow pass) | 4 | speed 4, memory 4, size 0 | adopted (speed, memory) | Go Node, Go recognizer, typed Go | [136](../logs/136-measured-effect-of-the-generation-flags.md) |
+<!-- /generated:facts -->
 
 Generated direct Go rules can match common punctuation without calling the
 general literal helper on the successful path.
@@ -11,18 +21,17 @@ matched-prefix position and expectation behavior. Bytes always uses the general
 matcher. Unicode literals and one-to-five-point boundary tests prevent
 accidentally treating byte length as character count.
 
-## Scope and State
+## Scope
 
-Default eligible generated Go Node and typed direct bodies in CodePoints. Longer
+Eligible generated Go Node and typed direct bodies in CodePoints. Longer
 literals, fallback bodies, Bytes and other backends retain their literal route.
 
-## Reference Control
+## Controls and Measurements
 
-`-opt inline-literals=N` sets the longest literal, in code points, that is
-compared in place; the default is 4 and `-opt inline-literals=0` generates the
-same grammar with every literal going through the general matcher. The `size`
-profile sets 0. With 0, parse time over the ten language grammars is 1.016 times
-that of the default and `parser.go` is 0.930 times its size (record 136).
+The setting is the longest literal, in code points, that is compared in place; 0 generates the same grammar
+with every literal going through the general matcher. With 0, parse time over the ten language grammars is
+1.016 times that of the default and `parser.go` is 0.930 times its size (record 136), which is why the `size`
+profile uses 0.
 
 ## Evidence and Implementation
 

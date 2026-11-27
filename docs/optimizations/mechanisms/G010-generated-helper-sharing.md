@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # G010: Generated Helper Sharing
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Generated parsers with exactly equal bodies
+- **An eligible subset, named under Scope, of**: Go Node, Go recognizer, typed Go, TypeScript
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `method-sharing` | setting (printer) | on | speed on, memory on, size on | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [136](../logs/136-measured-effect-of-the-generation-flags.md) |
+<!-- /generated:facts -->
 
 Generated parsers can repeat identical expression methods and literal tables.
 Sharing exact emitted helpers reduces generated source duplication without
@@ -12,16 +22,15 @@ expectations. Failed speculative direct lowering rolls back inserted helper
 entries and reserved names, so later code cannot call a discarded helper.
 Literal-table sharing is a separate registry and selector.
 
-## Scope and State
+## Scope
 
-Default helper sharing in generated Go Node, typed Go and TypeScript. Closure
+Helper sharing in generated Go Node, typed Go and TypeScript. Closure
 and VMs are outside this generator mechanism.
 
-## Reference Control
+## Controls and Measurements
 
-`-no-opt method-sharing` produces a same-generator duplicate-helper
-reference. Literal sharing can be held fixed independently; no matching-time
-selector is emitted.
+With the setting off, the same generator prints a duplicate-helper reference. Literal sharing can be held fixed
+independently; no matching-time selector is emitted.
 
 ## Evidence and Implementation
 

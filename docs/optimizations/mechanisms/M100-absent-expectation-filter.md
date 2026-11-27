@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # M100: Absent Expectation Filter
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Expectation sets of the Go backends
+- **An eligible subset, named under Scope, of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 An expectation already present in the active error record needs an exact
 duplicate check. A fixed-size membership filter proves many new expectations
@@ -13,12 +20,12 @@ Farthest-position reset, isolation, memo/recovery marks and parser recycling
 preserve or clear the filter consistently. Saturation retains linear duplicate
 work.
 
-## Scope and State
+## Scope
 
-Default Go expectation paths in closure, both VMs, generated Node/recognition
+Go expectation paths in closure, both VMs, generated Node/recognition
 and typed output. TypeScript is unchanged.
 
-## Reference Control
+## Controls and Measurements
 
 No maintained same-source filter-disable control exists.
 

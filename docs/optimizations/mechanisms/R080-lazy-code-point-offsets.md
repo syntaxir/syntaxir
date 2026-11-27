@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # R080: Lazy Code-Point Offsets
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Code-point offsets of recognition and Documents
+- **Every parser of**: closure, recursive VM, iterative VM
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Recognition often needs decoded characters but no token text. Deferring
 code-point-to-byte offsets avoids an extra table build until text or a position
@@ -12,14 +19,14 @@ during parsing so a copy of parser input does not discard the cache. Invalid
 UTF-8 retains normalized text behavior. Piece-backed Document input has its own
 indexed mapping and need not use the old flat table.
 
-## Scope and State
+## Scope
 
-Default core closure/VM CodePoints recognition preparation, and flat Document
+Core closure/VM CodePoints recognition preparation, and flat Document
 table ownership where applicable. Generated Go full input prepares offsets
 eagerly; TypeScript uses its own decode/offset setup. This is not a common
 lazy-offset policy for all targets.
 
-## Reference Control
+## Controls and Measurements
 
 No same-source lazy/eager offset control is maintained. Requesting token text
 changes the observed work, not the implementation selection.

@@ -1,4 +1,17 @@
+<!-- generated:facts -->
 # R060: Chunked Document Input
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Document text
+- **Every parser of**: closure, recursive VM, iterative VM
+- **An eligible subset, named under Scope, of**: Go Node, typed Go
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `sxir_reference_document_pieces` | reference build tag | — | — | — | closure, recursive VM, iterative VM | [093](../logs/093-chunked-document-input.md) |
+
+No control reaches it yet on: Go Node, typed Go.
+<!-- /generated:facts -->
 
 A small edit to a large Document should not copy the entire unchanged text
 suffix. Immutable chunks and indexed piece ranges replace full-buffer splicing
@@ -12,19 +25,18 @@ split/replace ranges, and more than 512 pieces triggers compaction while keeping
 piece storage. Byte boundaries, malformed UTF-8 and code-point positions
 preserve the input contract. Ordinary batch and stream input stay contiguous.
 
-## Scope and State
+## Scope
 
-Default eligible Document storage in closure and both VMs. Generated Go
+Eligible Document storage in closure and both VMs. Generated Go
 Documents (`-document`, Node and typed) keep the decoded code points as one
 array that each edit splices, since generated code indexes them directly, and
 keep the token text in chunks of about 4,096 code points, with sampled byte
 offsets for non-ASCII chunks; an edit rebuilds only the chunks it touches.
 Generated TypeScript Documents decode and copy the whole text at each edit.
 
-## Reference Control
+## Controls and Measurements
 
-Build tag `sxir_reference_document_pieces` selects flat same-source input. It
-isolates storage while retaining surrounding Document logic. The generated Go
+The build tag selects flat same-source input. It isolates storage while retaining surrounding Document logic. The generated Go
 form has no control: decoding the text at each parse is not a maintained form
 of the Document contract (record 147).
 

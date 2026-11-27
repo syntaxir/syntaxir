@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # G110: One-Pass Code-Point Preparation
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Preparation of code-point input
+- **An eligible subset, named under Scope, of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 Decoding, validating UTF-8 and building token-text offsets in separate passes
 rereads the input. One preparation pass produces the decoded characters and
@@ -12,14 +19,14 @@ copy path. Core recognition keeps on-demand offsets when no text consumer needs
 them; generated input uses its runtime's eager preparation. This does not change
 the parser's selected position unit.
 
-## Scope and State
+## Scope
 
-Default applicable CodePoints preparation before core/generated Go matching;
+Applicable CodePoints preparation before core/generated Go matching;
 TypeScript has its own combined decoding/offset initialization. Bytes input
 needs no code-point mapping. Shared preparation is separate from matching-path
 backend cells.
 
-## Reference Control
+## Controls and Measurements
 
 No maintained same-source separate-pass reference control exists. Lazy
 recognition offsets are an operation-specific policy, not a full-parse

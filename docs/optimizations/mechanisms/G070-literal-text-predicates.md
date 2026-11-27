@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # G070: Literal Text Predicates
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Predicates that compare a capture's text with literals, without limit controls
+- **An eligible subset, named under Scope, of**: Go Node, Go recognizer, typed Go, TypeScript
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `text-dispatch` | setting (action pass) | on | speed on, memory on, size on | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [136](../logs/136-measured-effect-of-the-generation-flags.md) |
+<!-- /generated:facts -->
 
 A pure OR of comparisons against one capture's text can compute that text once
 and dispatch by literal, rather than repeat general expression evaluation for
@@ -16,16 +26,16 @@ is independent of this shape specialization. Generated Go and TypeScript take
 this path on ordinary nil-control calls; active budget-controlled calls keep
 the general charged evaluation.
 
-## Scope and State
+## Scope
 
-Default eligible predicates in generated Go Node, typed Go and TypeScript.
+Eligible predicates in generated Go Node, typed Go and TypeScript.
 Closure and both VMs retain their general action evaluator for this disjunction
 shape.
 
-## Reference Control
+## Controls and Measurements
 
-The optimization setting `-no-opt text-dispatch` emits the general
-predicate from the same generator. It adds no runtime selector to the generated parser.
+With the setting off, the same generator emits the general predicate. It adds no runtime selector to the
+generated parser.
 
 ## Evidence and Implementation
 

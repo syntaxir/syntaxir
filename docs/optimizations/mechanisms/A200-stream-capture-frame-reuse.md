@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # A200: Stream Capture Frame Reuse
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Streams of the engine
+- **Every parser of**: closure, recursive VM, iterative VM
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `sxir_reference_stream_frames` | reference build tag | — | — | — | closure, recursive VM, iterative VM | [085](../logs/085-reuse-stream-capture-frames.md) |
+<!-- /generated:facts -->
 
 An emitted stream element no longer needs its completed frame structs. Rewinding
 their slab prefix reuses storage for the next element.
@@ -11,18 +21,17 @@ reused through this operation. Root-search protection handles roots that reside
 in sealed or later slabs. A nil callback retains ordinary collected repetition
 behavior.
 
-## Scope and State
+## Scope
 
-Default engine streaming in closure and both VMs. Generated Go streams reuse
+Engine streaming in closure and both VMs. Generated Go streams reuse
 their own capture frames in the runtime library, which this control does not
 select; generated TypeScript streams keep no frame slabs and leave their
 storage to the JavaScript garbage collector.
 
-## Reference Control
+## Controls and Measurements
 
-Build tag `sxir_reference_stream_frames` selects the former allocation route
-without a runtime selector. It is independent of text and prefix cleanup
-controls.
+The build tag selects the former allocation route without a runtime selector. It is independent of the text
+and prefix cleanup controls.
 
 ## Evidence and Implementation
 

@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # A250: Typed Object Slabs
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Typed Go output
+- **Every parser of**: typed Go
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `typed-object-slabs` | setting (storage) | on | speed on, memory off, size on | adopted (speed, size) | typed Go | [136](../logs/136-measured-effect-of-the-generation-flags.md) |
+<!-- /generated:facts -->
 
 After small-result bootstrap allocations, typed struct and terminal cells use
 chunks to amortize per-object allocation.
@@ -12,16 +22,16 @@ escaped cell can retain unused siblings in its chunk, so a retained value pins
 at most one slab. Bootstrap and optional liveness cleanup are separate policies.
 Direct construction and Node conversion use the same object allocator.
 
-## Scope and State
+## Scope
 
-Default generated Go typed output only. Node slabs, engine values and TypeScript
+Generated Go typed output only. Node slabs, engine values and TypeScript
 objects use different allocation policies.
 
-## Reference Control
+## Controls and Measurements
 
-Private `disableTypedObjectSlabs` emits individual object allocation while
-holding list slab policy independently selectable. It is not the
-bootstrap-disable control.
+With the setting off, the parser allocates each object on its own while list slab policy stays independently
+selectable. It is not the bootstrap control ([A070](A070-typed-output-bootstrap.md)); the `memory` profile
+turns it off to trade allocations for retained memory.
 
 ## Evidence and Implementation
 

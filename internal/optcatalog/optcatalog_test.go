@@ -1,6 +1,7 @@
 package optcatalog
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -13,16 +14,18 @@ import (
 
 const root = "../.."
 
-// The generated regions of the catalog and the guide are what go generate writes now.
+// The generated regions of the catalog, the guide and the mechanism pages are what go generate
+// writes now, and a registered mechanism without a page fails.
 func TestGeneratedFilesAreCurrent(t *testing.T) {
 	files, err := Generate(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{CatalogPath, GuidePath} {
+	for _, path := range slices.Sorted(maps.Keys(files)) {
 		data, err := os.ReadFile(filepath.Join(root, path))
 		if err != nil {
-			t.Fatal(err)
+			t.Errorf("%v: run go generate ./internal/optcatalog", err)
+			continue
 		}
 		if string(data) != string(files[path]) {
 			t.Errorf("%s is not current: run go generate ./internal/optcatalog", path)
@@ -71,8 +74,9 @@ func TestRecordsDecideTheStates(t *testing.T) {
 	}
 }
 
-// Every declared mechanism has its page, every page belongs to a declared or an unclassified
-// mechanism and starts with its ID, and no page belongs to a former ID.
+// Every declared mechanism has its page with its hand-written summary and sections, every page
+// belongs to a declared or an unclassified mechanism and starts with its ID, and no page belongs to a
+// former ID.
 func TestMechanismPages(t *testing.T) {
 	entries, err := os.ReadDir(filepath.Join(root, MechanismsDir))
 	if err != nil {
@@ -91,6 +95,11 @@ func TestMechanismPages(t *testing.T) {
 			t.Errorf("the page %s of mechanism %s does not start with its ID", m.Page, m.ID)
 		}
 		owned[m.Page] = m.ID
+		if data, err := os.ReadFile(filepath.Join(root, MechanismsDir, m.Page)); err == nil {
+			if err := CheckPageProse(m.Page, data); err != nil {
+				t.Error(err)
+			}
+		}
 	}
 	for _, id := range pass.Unclassified() {
 		i := slices.IndexFunc(pages, func(p string) bool { return strings.HasPrefix(p, id+"-") })
@@ -103,6 +112,28 @@ func TestMechanismPages(t *testing.T) {
 	for _, p := range pages {
 		if _, ok := owned[p]; !ok {
 			t.Errorf("the page %s belongs to no declared or unclassified mechanism", p)
+		}
+	}
+}
+
+// CheckPageProse accepts a page whose summary and sections are written, and rejects a stub, an empty
+// section, a missing section and sections out of order.
+func TestCheckPageProse(t *testing.T) {
+	facts := "<!-- generated:facts -->\n# M999: X\n<!-- /generated:facts -->\n\n"
+	full := facts + "Summary.\n\n## Mechanism and Invariants\n\nA.\n\n## Scope\n\nB.\n\n## Controls and Measurements\n\nC.\n\n## Evidence and Implementation\n\nD.\n\n[Optimization Catalog](../README.md)\n"
+	if err := CheckPageProse("ok.md", []byte(full)); err != nil {
+		t.Errorf("complete page: %v", err)
+	}
+	for name, page := range map[string]string{
+		"stub":          stubPage(),
+		"no facts":      strings.Replace(full, "<!-- /generated:facts -->", "", 1),
+		"no summary":    strings.Replace(full, "Summary.", "<!-- prompt -->", 1),
+		"empty section": strings.Replace(full, "C.", "", 1),
+		"missing":       strings.Replace(full, "## Scope\n\nB.\n\n", "", 1),
+		"out of order":  strings.Replace(strings.Replace(full, "## Scope", "## X", 1), "## Controls and Measurements", "## Scope", 1),
+	} {
+		if err := CheckPageProse(name, []byte(page)); err == nil {
+			t.Errorf("%s: no error", name)
 		}
 	}
 }

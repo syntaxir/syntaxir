@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # A260: Typed List Slabs
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Typed Go output
+- **Every parser of**: typed Go
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `typed-list-slabs` | setting (storage) | on | speed on, memory off, size on | adopted (speed, size) | typed Go | [136](../logs/136-measured-effect-of-the-generation-flags.md) |
+<!-- /generated:facts -->
 
 Small typed list backing can share chunks instead of allocating a separate
 backing array for every list.
@@ -14,16 +24,15 @@ to the next). Lists above the small-list policy use exact-size allocations.
 Published slices constrain capacity for append isolation; an escaped slice
 retains its backing slab. Empty-list nil/non-nil shapes remain exact.
 
-## Scope and State
+## Scope
 
-Default generated Go typed direct and conversion output. Node child slabs and
+Generated Go typed direct and conversion output. Node child slabs and
 TypeScript arrays are separate policies.
 
-## Reference Control
+## Controls and Measurements
 
-Private `disableTypedListSlabs` emits independent list arrays; object slab
-policy remains separately selectable. Bootstrap disable changes early
-allocation, not all list slabs.
+With the setting off, the parser emits independent list arrays; object slab policy remains separately
+selectable. Turning the bootstrap off changes early allocation, not all list slabs.
 
 ## Evidence and Implementation
 

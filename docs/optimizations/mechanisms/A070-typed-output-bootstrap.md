@@ -1,4 +1,14 @@
+<!-- generated:facts -->
 # A070: Typed Output Bootstrap
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Typed Go output
+- **Every parser of**: typed Go
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `typed-output-bootstrap` | setting (storage) | on | speed on, memory on, size on | adopted (speed, memory, size) | typed Go | [136](../logs/136-measured-effect-of-the-generation-flags.md) |
+<!-- /generated:facts -->
 
 A tiny typed result can retain a large first slab containing discarded siblings.
 Independent early allocations keep common small results from immediately paying
@@ -14,16 +24,16 @@ preserves append isolation, spans and shared result values; returned chunks are
 not pooled. Full/bounded liveness sweeps keep legacy helpers and are measured
 separately.
 
-## Scope and State
+## Scope
 
-Applied by default to generated Go typed output, both direct construction and
+Generated Go typed output, both direct construction and
 Node conversion. Ordinary Node parse/recognition, closure, VMs and TypeScript
 are unchanged.
 
-## Reference Control
+## Controls and Measurements
 
-The optimization setting `-no-opt typed-output-bootstrap` emits the legacy
-first-slab strategy. Object/list slab controls can further isolate ownership.
+With the setting off, the parser emits the legacy first-slab strategy. Object/list slab controls can further
+isolate ownership.
 The legacy same-source comparator retains bootstrap state fields, so it is not
 layout-identical to historical main.
 

@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # M110: Compact VM Backtracking State
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Backtracking state of the VMs
+- **Every parser of**: recursive VM, iterative VM
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 VM choice and repetition entries are pushed frequently. Keeping rare
 label/recovery data off the common entry reduces copied stack state.
@@ -10,12 +17,12 @@ indexed by the main entry. Saved heights use compact integers. Entry rollback
 must restore both stacks together so expectations, recovered errors and skip
 behavior stay unchanged.
 
-## Scope and State
+## Scope
 
-Default recursive and iterative VM entry representation. Closure and generated
+Recursive and iterative VM entry representation. Closure and generated
 Go/TypeScript have separate state layouts.
 
-## Reference Control
+## Controls and Measurements
 
 No maintained same-source large-entry layout comparator exists.
 

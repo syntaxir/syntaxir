@@ -1,4 +1,11 @@
+<!-- generated:facts -->
 # M020: Character-Class Tests
+
+- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Path scope**: Character classes
+- **Every parser of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+<!-- /generated:facts -->
 
 A character class should not repeatedly walk its complete range table when a
 small comparison or ASCII bit lookup can decide membership.
@@ -12,14 +19,14 @@ non-ASCII characters retain range tests. Generated Go and TypeScript emit class
 comparisons from the grammar. Negation and out-of-input behavior must remain
 identical on every route; an ASCII mask does not replace Unicode membership.
 
-## Scope and State
+## Scope
 
-Default class specialization applies in all six targets: closure, recursive VM,
+Class specialization applies in all six targets: closure, recursive VM,
 iterative VM, generated Go Node/recognition, typed Go and TypeScript. Generated
 direct Go bodies can also read decoded code points directly, a separate access
 optimization.
 
-## Reference Control
+## Controls and Measurements
 
 No universal same-source class-specialization control exists. A bitmap-only
 closure experiment was not adopted; its result does not describe the current
