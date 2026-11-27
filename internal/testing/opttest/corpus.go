@@ -1,0 +1,39 @@
+// Package opttest holds the corpus of the backend-claims test of the optimization registry: the
+// grammars on which a flag's witnesses (pass.Flag.Witnesses) show that it changes the parsers of the
+// backends it lists, and on which the long tier shows that it changes no other backend's parser.
+package opttest
+
+import (
+	"fmt"
+	"strings"
+
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+)
+
+// Corpus returns the cases of the backend-claims test: the cases of the flag parity corpus, and cases of
+// the shapes that the other flags act on.
+func Corpus() []codegentest.Case {
+	cases := codegentest.FlagParityCases()
+	kw, kwIn := codegentest.OutlineKeywords()
+	cases = append(cases,
+		codegentest.Case{Name: "outlined keywords", Src: kw, Inputs: kwIn},
+		codegentest.Case{Name: "class tables", Src: "rule main = ([a-cf-hk-mp-rt-vx-z0-35-7]+ / [^a-cf-hk-mp-rt-vx-z0-35-7 ]+ / -\" \")* $$\n"},
+		codegentest.Case{Name: "terminals", Src: "rule main = (-([aA] [bB] / [cC] [dD] / [eE] [fF] / [gG] [hH] / [iI] [jJ] / [kK] [lL] / [mM] [nN] / [oO] [pP]) / -\" \")* $$\n"},
+		// The operand lines of the two Operators Rules call one rule, so their generated Go helpers are equal.
+		codegentest.Case{Name: "equal bodies", Src: "rule main = a \",\" b $$\nrule a = #operators {\n    operand n\n    level { infix left \"+\" }\n}\nrule b = #operators {\n    operand n\n    level { infix left \"*\" }\n}\nrule n = [0-9]+\n"},
+		codegentest.Case{Name: "typed text fields", Src: codegentest.TextCompareGrammar},
+		codegentest.Case{Name: "many memoized rules", Src: manyMemoizedRules(70)},
+	)
+	return cases
+}
+
+// manyMemoizedRules returns a grammar of n rules that the parse memoizes, each called at two places, so
+// that the first-call table of its parser has more entries than a dense table holds.
+func manyMemoizedRules(n int) string {
+	var alts, rules []string
+	for i := range n {
+		alts = append(alts, fmt.Sprintf("r%d \"!\" / r%d \"?\"", i, i))
+		rules = append(rules, fmt.Sprintf("rule r%d = \"k%d\" w\n", i, i))
+	}
+	return "rule main = (item / -\" \")* $$\nrule item = " + strings.Join(alts, " / ") + "\nrule w = [a-z]*\n" + strings.Join(rules, "")
+}
