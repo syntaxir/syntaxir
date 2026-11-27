@@ -410,6 +410,9 @@ func (p *execPrinter) body(b *code.Block) {
 // let prints the declaration l, which the statements rest follow in its block: a name that
 // nothing reads prints as the blank identifier, as Go requires.
 func (p *execPrinter) let(l *code.Let, rest []code.Stmt) {
+	if p.dead {
+		return // as with an unreachable statement (stmt)
+	}
 	names := make([]string, len(l.Names))
 	declared := false
 	var unread []string
@@ -467,6 +470,13 @@ func assigns(ss []code.Stmt, name string) bool {
 
 func (p *execPrinter) stmt(st code.Stmt) {
 	p.t.Control.Poll()
+	if p.dead {
+		// An unreachable statement stays so to its end: the exits it holds name only blocks and
+		// loops that enclose it. It prints nothing, so its operands are not formed either: they
+		// would name package tables and labels that no printed code uses, and the names that
+		// follow would depend on code the canonical form drops.
+		return
+	}
 	switch s := st.(type) {
 	case *code.Block:
 		p.block(s)
@@ -582,7 +592,7 @@ func (p *execPrinter) loop(s *code.Loop) {
 	if len(head) > 0 {
 		h += " " + head[0]
 	}
-	// The braces of a loop are printed whatever the reachability.
+	// The braces of a loop are printed even when its body ends at an unreachable point.
 	p.always("%s {\n", h)
 	p.body(s.Body)
 	p.always("}\n")

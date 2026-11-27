@@ -51,8 +51,9 @@ func TestBodyDeadPoints(t *testing.T) {
 	}
 }
 
-// TestBodyLoopBraces checks that a loop at an unreachable point keeps its braces and makes the point
-// after it reachable.
+// TestBodyLoopBraces checks that a loop at an unreachable point prints nothing, not even its braces,
+// and leaves the point after it unreachable: only a break inside the loop could reach that point, and
+// it is unreachable too.
 func TestBodyLoopBraces(t *testing.T) {
 	m, f := bodyModule(t, nil,
 		&ir.Exit{Label: "fail"},
@@ -60,12 +61,12 @@ func TestBodyLoopBraces(t *testing.T) {
 		note(ir.Int(2)),
 	)
 	r := Body(m, f, testTarget, nil)
-	want := "goto fail\nfor {\n}\np.note(2)\n"
+	want := "goto fail\n"
 	if r.Text != want {
 		t.Errorf("body\n%s\nwant\n%s", r.Text, want)
 	}
-	if !r.End {
-		t.Error("the point after the loop is unreachable")
+	if r.End {
+		t.Error("the point after the loop is reachable")
 	}
 }
 
