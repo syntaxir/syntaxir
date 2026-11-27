@@ -170,6 +170,9 @@ var layout = []place{
 	{pkg: "cmd/...", target: "cmd"},
 	{pkg: "bench/...", target: "bench"},
 	{pkg: "internal/bench/...", target: "internal/bench"},
+	// The generator of the optimization catalog: a tool outside the layer graph, since it links every
+	// part of the compiler that registers flags.
+	{pkg: "internal/optcatalog/...", target: "internal/optcatalog"},
 	{pkg: "internal/bench/parsers/...", target: "internal/bench/parsers", generated: true},
 	{pkg: "examples/...", target: "examples"},
 	{pkg: "spec/language/...", target: "spec/language"},

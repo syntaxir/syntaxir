@@ -419,6 +419,7 @@ func TestAffectedTestsDeletedPackages(t *testing.T) {
 	write(t, filepath.Join(w, "user", "u.go"), "package user\n\nimport _ \""+mod+"/codegen\"\n", 0o644)
 	write(t, filepath.Join(w, "dep", "d.go"), "package dep\n\nimport _ \""+mod+"/pkg/runtime/libgo\"\n", 0o644)
 	write(t, filepath.Join(w, "cmd", "sxir", "main.go"), "package main\n\nfunc main() {}\n", 0o644)
+	write(t, filepath.Join(w, "internal", "optcatalog", "c.go"), "package optcatalog\n", 0o644)
 	mustRun(t, w, env, "git", "init", "-q", "-b", "main")
 	mustRun(t, w, env, "git", "add", ".")
 	mustRun(t, w, env, "git", "commit", "-q", "-m", "Seed")
@@ -458,10 +459,12 @@ func TestAffectedTestsDeletedPackages(t *testing.T) {
 }
 
 // TestAffectedTestsGeneratorDependencies runs hack/affected-tests.sh in a scratch module whose generator, cmd/sxir,
-// imports a middle-end package. A change of a non-test file of that package, or of a file it embeds, changes what
-// the generator prints, so it affects go generate and alpha-parsers ("# generate" and "# alpha") although no path rule
-// names the package; a change of its tests or of a package the generator does not import affects neither, and a
-// module without the generator fails the script instead of printing neither.
+// imports a middle-end package and whose catalog generator, internal/optcatalog, imports the registry package. A change
+// of a non-test file of the middle-end package, or of a file it embeds, changes what the generator prints, so it
+// affects go generate and alpha-parsers ("# generate" and "# alpha") although no path rule names the package. A
+// change of a non-test Go file of the registry package, or of a catalog page, changes only what the catalog generator
+// writes, so it affects go generate and not alpha-parsers. A change of a test or of a package neither generator
+// imports affects neither, and a module without either generator fails the script instead of printing neither.
 func TestAffectedTestsGeneratorDependencies(t *testing.T) {
 	needTools(t)
 	for _, tool := range []string{"go", "python3"} {
@@ -483,19 +486,27 @@ func TestAffectedTestsGeneratorDependencies(t *testing.T) {
 	write(t, filepath.Join(w, "internal", "middleend", "flowlower", "t.txt"), "t\n", 0o644)
 	write(t, filepath.Join(w, "internal", "middleend", "flowlower", "l_test.go"), "package flowlower\n", 0o644)
 	write(t, filepath.Join(w, "internal", "lsp", "sxirls", "s.go"), "package sxirls\n", 0o644)
+	write(t, filepath.Join(w, "internal", "optcatalog", "c.go"), "package optcatalog\n\nimport _ \""+mod+"/internal/pass\"\n", 0o644)
+	write(t, filepath.Join(w, "internal", "pass", "r.go"), "package pass\n", 0o644)
+	write(t, filepath.Join(w, "internal", "pass", "r_test.go"), "package pass\n", 0o644)
+	write(t, filepath.Join(w, "docs", "optimizations", "p.md"), "p\n", 0o644)
 	mustRun(t, w, env, "git", "init", "-q", "-b", "main")
 	mustRun(t, w, env, "git", "add", ".")
 	mustRun(t, w, env, "git", "commit", "-q", "-m", "Seed")
 	base := strings.TrimSpace(mustRun(t, w, env, "git", "rev-parse", "HEAD"))
 	for _, c := range []struct {
-		dir, file string
-		markers   bool
+		dir, file  string
+		gen, alpha bool
 	}{
-		{"internal/middleend/flowlower", "l.go", true},
-		{"internal/middleend/flowlower", "t.txt", true},
-		{"cmd/sxir", "main.go", true},
-		{"internal/middleend/flowlower", "l_test.go", false},
-		{"internal/lsp/sxirls", "s.go", false},
+		{"internal/middleend/flowlower", "l.go", true, true},
+		{"internal/middleend/flowlower", "t.txt", true, true},
+		{"cmd/sxir", "main.go", true, true},
+		{"internal/middleend/flowlower", "l_test.go", false, false},
+		{"internal/lsp/sxirls", "s.go", false, false},
+		{"internal/pass", "r.go", true, false},
+		{"internal/optcatalog", "c.go", true, false},
+		{"docs/optimizations", "p.md", true, false},
+		{"internal/pass", "r_test.go", false, false},
 	} {
 		mustRun(t, w, env, "git", "checkout", "-q", "--detach", base)
 		f := filepath.Join(w, c.dir, c.file)
@@ -504,14 +515,15 @@ func TestAffectedTestsGeneratorDependencies(t *testing.T) {
 			t.Fatal(err)
 		}
 		write(t, f, string(old)+"\n// changed\n", 0o644)
-		if strings.HasSuffix(c.file, ".txt") {
+		if !strings.HasSuffix(c.file, ".go") {
 			write(t, f, "changed\n", 0o644)
 		}
 		mustRun(t, w, env, "git", "commit", "-q", "-a", "-m", c.dir+"/"+c.file)
 		out := mustRun(t, w, env, "sh", filepath.Join(w, "hack", "affected-tests.sh"), base, "HEAD")
-		gen, alpha := strings.Contains(out, "\n# generate\n"), strings.Contains(out, "\n# alpha\n")
-		if gen != c.markers || alpha != c.markers {
-			t.Errorf("a change of %s/%s: generate %v, alpha %v, want %v:\n%s", c.dir, c.file, gen, alpha, c.markers, out)
+		lines := strings.Split(out, "\n")
+		gen, alpha := slices.Contains(lines, "# generate"), slices.Contains(lines, "# alpha")
+		if gen != c.gen || alpha != c.alpha {
+			t.Errorf("a change of %s/%s: generate %v, alpha %v, want %v, %v:\n%s", c.dir, c.file, gen, alpha, c.gen, c.alpha, out)
 		}
 	}
 
@@ -520,6 +532,13 @@ func TestAffectedTestsGeneratorDependencies(t *testing.T) {
 	mustRun(t, w, env, "git", "commit", "-q", "-m", "Delete the generator")
 	if out, err := runIn(t, w, env, "sh", filepath.Join(w, "hack", "affected-tests.sh"), base, "HEAD"); err == nil {
 		t.Errorf("a module without cmd/sxir succeeded with %q", out)
+	}
+
+	mustRun(t, w, env, "git", "checkout", "-q", "--detach", base)
+	mustRun(t, w, env, "git", "rm", "-q", "-r", "internal/optcatalog")
+	mustRun(t, w, env, "git", "commit", "-q", "-m", "Delete the catalog generator")
+	if out, err := runIn(t, w, env, "sh", filepath.Join(w, "hack", "affected-tests.sh"), base, "HEAD"); err == nil {
+		t.Errorf("a module without internal/optcatalog succeeded with %q", out)
 	}
 }
 
