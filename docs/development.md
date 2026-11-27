@@ -68,9 +68,13 @@ optional passes before it ran ([record 074](design/records/074-one-pass-pipeline
 verify after every pass. The default tier covers the per-pass verification on the whole corpus in
 `TestCorpusVerifiesEveryPass` of `internal/backend/codegen/golang/print` and
 `internal/backend/codegen/typescript/print`, which generate every grammar with `Debug.VerifyEach` and
-build nothing. A pass that breaks an invariant of the IR fails there at the pass that broke it, and
-the bulk tests report the same break at the stage boundary that follows. A test that needs the pass
-named on failure sets `Debug.VerifyEach` itself, as the `core_verify` tests do.
+build nothing. The grammars are generated in every option set of `codegentest.VerifyVariants`
+(ordinary, `Optimize: "size"`, the `class-tables` opt-in, Recognize, Document, and Stream for the
+grammars with `#stream`), so the passes that only a mode or an optimization runs are verified too.
+A pass that breaks an invariant of the IR fails there at the pass that broke it. The bulk tests
+report a break only at the stage boundary, and only when an optional pass ran after the broken pass;
+a break that no later optional pass checks passes the bulk tests unreported. A test that needs the
+pass named on failure sets `Debug.VerifyEach` itself, as the `core_verify` tests do.
 
 ### Choosing the Checks
 

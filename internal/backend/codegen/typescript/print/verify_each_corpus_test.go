@@ -9,25 +9,44 @@ import (
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
-// TestCorpusVerifiesEveryPass generates a TypeScript parser for every grammar of the corpus with the
-// verification after every pass (Debug.VerifyEach), without building or running it. The bulk tests
-// generate without it (codegentest.GenerateTSRaw), so this is the default-tier coverage of the per-pass
-// verification: a pass that breaks the IR of the corpus fails here at the pass that broke it.
+// TestCorpusVerifiesEveryPass generates a TypeScript parser for every grammar of the corpus, in every option set of
+// codegentest.VerifyVariants, with the verification after every pass (Debug.VerifyEach), without building or
+// running it. The bulk tests generate without it (codegentest.GenerateTSRaw), so this is the default-tier coverage
+// of the per-pass verification: a pass that breaks the IR of the corpus fails here at the pass that broke it.
+// A grammar in codegentest.TSRefused must still be refused with its listed refusal.
 func TestCorpusVerifiesEveryPass(t *testing.T) {
 	for _, c := range codegentest.CorpusWithParsers(t) {
-		// The TypeScript backend refuses a grammar whose type names a type of its runtime (types.ts), by
-		// design; the other cases of the corpus still verify.
-		if strings.HasSuffix(c.Name, "spanname.sxir") {
-			continue
-		}
 		g, err := compiletest.Parse(c.Src)
 		if err != nil {
 			t.Fatalf("%s: %v", c.Name, err)
 		}
-		opts := common.GenOptions{Start: "main", Types: true, TypedOnly: true}
-		opts.Debug.VerifyEach = true
-		if _, err := codegentest.GenerateTSRaw(g, opts); err != nil {
-			t.Errorf("%s: %v", c.Name, err)
+		if want, ok := codegentest.TSRefused[c.Name]; ok {
+			opts := common.GenOptions{Start: "main", Types: true, TypedOnly: true}
+			if _, err := codegentest.GenerateTSRaw(g, opts); err == nil || !strings.Contains(err.Error(), want) {
+				t.Errorf("%s: want the refusal %q, got %v", c.Name, want, err)
+			}
+			continue
+		}
+		for _, v := range codegentest.VerifyVariants() {
+			if v.Stream && !strings.Contains(c.Src, "#stream") {
+				continue
+			}
+			opts := v.Opts
+			opts.Start = "main"
+			opts.Debug.VerifyEach = true
+			generate := codegentest.GenerateTSRaw
+			if v.Stream {
+				generate = codegentest.GenerateTSStream
+			}
+			_, err := generate(g, opts)
+			// A #stream repetition that is not at the top level of the start rule is refused by design (as in
+			// codegentest.reference); only that refusal skips the stream variant.
+			if v.Stream && err != nil && strings.Contains(err.Error(), "needs a #stream repetition") {
+				continue
+			}
+			if err != nil {
+				t.Errorf("%s (%s): %v", c.Name, v.Name, err)
+			}
 		}
 	}
 }
