@@ -58,6 +58,7 @@ rule main R = t:n #atomic => R{T: $t}
 rule n = "(" n ")" / "x"`, Inputs: []string{strings.Repeat("(", limits.DefaultMaxDepth-2) + "x" + strings.Repeat(")", limits.DefaultMaxDepth-2),
 		strings.Repeat("(", limits.DefaultMaxDepth-1) + "x" + strings.Repeat(")", limits.DefaultMaxDepth-1)}})
 	cases = append(cases, TypedLeaderValueCases...)
+	cases = append(cases, AbsentValuesCase)
 	cases = append(cases, RuleOptionCases...)
 	cases = append(cases, Case{Name: "typed", Src: TypedGrammar, Inputs: []string{"f(1,x)!?;[3];zz", "f(1,(;g();", "f(a);"}})
 	// The grammars written for direct rules also get mutated inputs, which reach other partial
@@ -69,6 +70,19 @@ rule n = "(" n ")" / "x"`, Inputs: []string{strings.Repeat("(", limits.DefaultMa
 	}
 	return cases
 }
+
+// AbsentValuesCase converts options of every scalar type, present and absent, and tuples that are
+// set, hold an absent element or are left unset: an absent option is nil (null) whatever its element
+// type, never the zero value of the element, and an unset tuple is the tuple of the zero values of
+// its elements, never nil.
+var AbsentValuesCase = Case{Name: "absent options and tuples", Src: `type S = { I *int; S *string; B *bool; T (string, *int); U (int, bool) }
+@start
+rule main S = (
+    ("-" $$ => S{}) /
+    ("+" $$ => S{I: 1, S: "s", B: true, T: ("t", 2), U: (3, true)}) /
+    ("~" $$ => S{I: nil, S: nil, B: nil, T: ("t", nil)}) /
+    ("0" $$ => S{I: 0, S: "", B: false, T: ("", 0), U: (0, false)})
+)`, Inputs: []string{"-", "+", "~", "0", "x"}}
 
 // RuleOptionCases convert options whose elements are written as rules or joins of rules whose
 // values are scalars or tuples, as tuple elements, list elements and parts of tuples: such an option

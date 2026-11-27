@@ -121,8 +121,8 @@ func canonicalTS(v any, structs map[string]bool) (any, error) {
 
 // CanonicalTSMatches reports whether the typed TypeScript value encoded in raw, as TSTypedValueJSON
 // writes it, has the canonical form want of the engine's value, for a grammar whose struct types
-// are structs.
-func CanonicalTSMatches(raw string, want any, structs map[string]bool) error {
+// are structs and whose unset fields convert to zeros (FieldZerosOf).
+func CanonicalTSMatches(raw string, want any, structs map[string]bool, zeros FieldZeros) error {
 	var v any
 	if err := json.Unmarshal([]byte(raw), &v); err != nil {
 		return err
@@ -132,7 +132,7 @@ func CanonicalTSMatches(raw string, want any, structs map[string]bool) error {
 		return err
 	}
 	var diffs []string
-	CanonicalDifferences(got, want, "$", false, &diffs)
+	CanonicalDifferences(got, want, "$", zeros, &diffs)
 	if len(diffs) > 0 {
 		return fmt.Errorf("canonical values differ: %s", strings.Join(diffs, "; "))
 	}

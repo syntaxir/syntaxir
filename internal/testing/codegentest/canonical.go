@@ -297,8 +297,9 @@ func tupleElements(fields map[string]any) ([]any, bool, error) {
 }
 
 // CanonicalTypedMatches reports whether the typed value encoded in raw, as the generated program
-// prints it, has the canonical form want of the engine's value.
-func CanonicalTypedMatches(raw json.RawMessage, want any) error {
+// prints it, has the canonical form want of the engine's value, for a grammar whose unset fields
+// convert to zeros (FieldZerosOf).
+func CanonicalTypedMatches(raw json.RawMessage, want any, zeros FieldZeros) error {
 	var v any
 	if err := json.Unmarshal(raw, &v); err != nil {
 		return err
@@ -308,26 +309,38 @@ func CanonicalTypedMatches(raw json.RawMessage, want any) error {
 		return err
 	}
 	var diffs []string
-	CanonicalDifferences(got, want, "$", false, &diffs)
+	CanonicalDifferences(got, want, "$", zeros, &diffs)
 	if len(diffs) > 0 {
 		return fmt.Errorf("canonical values differ: %s", strings.Join(diffs, "; "))
 	}
 	return nil
 }
 
-// CanonicalDifferences appends to out a description of every place where the canonical values a
-// and b differ, by path. fieldsObject tells whether a is the "fields" object of a struct, whose keys
-// are the struct's declared fields. A key of such an object that only the typed side has is not a
-// difference when the typed value is nil or a zero scalar: the spec says an unset field reads as
-// nil, the engine writes no key for it, and the typed library writes the zero value of the field's
-// Go type (see canonicalUnsetZero). The engine writes the key of every field set to a zero value,
-// which TestEngineStructKeepsExplicitZeroFields pins, so a missing key there is an unset field. A
-// key outside a fields object is a difference whatever its value.
-func CanonicalDifferences(a, b any, path string, fieldsObject bool, out *[]string) {
+// FieldZeros holds, by the grammar names of the struct types and of their fields, the canonical
+// typed value that the typed parsers convert an unset field of each struct to: the zero value of
+// the field's type (FieldZerosOf).
+type FieldZeros map[string]map[string]any
+
+// CanonicalDifferences appends to out a description of every place where the canonical typed value
+// a and the canonical engine value b differ, by path. A field of a struct that only the typed value
+// has is no difference when it holds the zero value of its declared type, as zeros gives it for the
+// struct type of the engine's value: the spec says an unset field reads as the zero value of its
+// type, the engine writes no key for it, and the typed parsers convert it to that zero value. The
+// engine writes the key of every field set to a zero value, which
+// TestEngineStructKeepsExplicitZeroFields pins, so a missing key there is an unset field. A key
+// outside the fields of a struct is a difference whatever its value.
+func CanonicalDifferences(a, b any, path string, zeros FieldZeros, out *[]string) {
+	canonicalDifferences(a, b, path, "", zeros, out)
+}
+
+// canonicalDifferences is CanonicalDifferences, where a and b are the fields of a struct of the
+// type fieldsOf when that is not "".
+func canonicalDifferences(a, b any, path, fieldsOf string, zeros FieldZeros, out *[]string) {
 	switch a := a.(type) {
 	case map[string]any:
 		if b, ok := b.(map[string]any); ok {
 			_, isStruct := a["fields"]
+			structType, _ := b["type"].(string)
 			keys := slices.Sorted(maps.Keys(a))
 			for k := range b {
 				if _, ok := a[k]; !ok {
@@ -341,9 +354,23 @@ func CanonicalDifferences(a, b any, path string, fieldsObject bool, out *[]strin
 				case k == "type" && x == TypedGenericNode:
 					// A generic typed node matches the engine's node whatever its named type.
 				case inA && inB:
-					CanonicalDifferences(x, y, path+"."+k, isStruct && k == "fields", out)
-				case inA && fieldsObject && canonicalUnsetZero(x):
-					// The engine omits an unset field of a struct; the typed value holds its zero value.
+					sub := ""
+					if isStruct && k == "fields" {
+						sub = structType
+					}
+					canonicalDifferences(x, y, path+"."+k, sub, zeros, out)
+				case inA && fieldsOf != "":
+					// The engine omits an unset field of a struct; the typed value holds the zero value
+					// of the field's type.
+					zero, declared := zeros[fieldsOf][k]
+					switch {
+					case !declared:
+						*out = append(*out, fmt.Sprintf("%s.%s present only in the typed value, and no field of %s", path, k, fieldsOf))
+					case !reflect.DeepEqual(x, zero):
+						xb, _ := json.Marshal(x)
+						zb, _ := json.Marshal(zero)
+						*out = append(*out, fmt.Sprintf("%s.%s: typed %.200s, engine unset, whose typed value is %s", path, k, xb, zb))
+					}
 				default:
 					*out = append(*out, fmt.Sprintf("%s.%s present only in the %s value", path, k, map[bool]string{true: "typed", false: "engine"}[inA]))
 				}
@@ -353,7 +380,7 @@ func CanonicalDifferences(a, b any, path string, fieldsObject bool, out *[]strin
 	case []any:
 		if b, ok := b.([]any); ok && len(a) == len(b) {
 			for i := range a {
-				CanonicalDifferences(a[i], b[i], fmt.Sprintf("%s[%d]", path, i), false, out)
+				canonicalDifferences(a[i], b[i], fmt.Sprintf("%s[%d]", path, i), "", zeros, out)
 			}
 			return
 		}
@@ -364,30 +391,6 @@ func CanonicalDifferences(a, b any, path string, fieldsObject bool, out *[]strin
 	ab, _ := json.Marshal(a)
 	bb, _ := json.Marshal(b)
 	*out = append(*out, fmt.Sprintf("%s: typed %.200s, engine %.200s", path, ab, bb))
-}
-
-// canonicalUnsetZero reports whether a typed value is the zero value of its Go type that an unset
-// engine field reads as: null (a nil pointer, slice or interface), "", 0, false, or a tuple of such
-// values. An empty list is not, so an unset engine field never equals [].
-func canonicalUnsetZero(x any) bool {
-	switch x := x.(type) {
-	case nil:
-		return true
-	case []any:
-		for _, e := range x {
-			if !canonicalUnsetZero(e) {
-				return false
-			}
-		}
-		return len(x) > 0
-	case string:
-		return x == ""
-	case float64:
-		return x == 0
-	case bool:
-		return !x
-	}
-	return false
 }
 
 // onlyKeys reports an error if m has a key outside allowed.

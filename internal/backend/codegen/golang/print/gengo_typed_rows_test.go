@@ -31,7 +31,8 @@ func TestTypedRowsWitnessValues(t *testing.T) {
 @start
 rule main P = a:"x" h:hole $$ => P{A: $a, H: $h}
 rule hole missing = m:"]" #missing => $m.(missing)`
-	missing := "`missing` (from `#missing`)"
+	missingRow := "`missing` (from `#missing`)"
+	missing := missingRow + " (present)"
 	for _, c := range []struct {
 		inputs []string
 		want   bool
@@ -44,7 +45,7 @@ rule hole missing = m:"]" #missing => $m.(missing)`
 		if c.want != slices.Contains(rows, missing) {
 			t.Errorf("inputs %q witness %q, want the missing row %v", c.inputs, rows, c.want)
 		}
-		if all := codegentest.GoTypedRows.RowsOf(t, cs); !slices.Contains(all, missing) {
+		if all := codegentest.GoTypedRows.RowsOf(t, cs); !slices.Contains(all, missingRow) {
 			t.Fatalf("the grammar maps by %q, without the missing row", all)
 		}
 	}
@@ -53,10 +54,32 @@ rule hole missing = m:"]" #missing => $m.(missing)`
 @start
 rule main P = a:"x" $$ => P{A: $a}
 rule hole missing = m:"]" #missing => $m.(missing)`, Inputs: []string{"x"}}
-	if all := codegentest.GoTypedRows.RowsOf(t, cs); !slices.Contains(all, missing) {
+	if all := codegentest.GoTypedRows.RowsOf(t, cs); !slices.Contains(all, missingRow) {
 		t.Fatalf("the grammar without missing values maps by %q, without the missing row", all)
 	}
-	if rows := codegentest.GoTypedRows.Witnesses(t, cs); slices.Contains(rows, missing) || !slices.Contains(rows, "Struct type `T`") {
+	if rows := codegentest.GoTypedRows.Witnesses(t, cs); slices.Contains(rows, missing) || !slices.Contains(rows, "Struct type `T` (present)") {
 		t.Errorf("a value without missing values witnesses %q, want the struct row and not the missing row", rows)
+	}
+}
+
+// TestTypedRowsWitnessOnlyConvertedValues checks that a grammar witnesses the rows of the types its
+// values hold, not those of the types it declares: a struct whose fields are an empty list and an
+// absent option of another struct witnesses the struct row and the absent option, and none of the
+// rows of the list, the present option, the other struct, its node field or the node's string.
+func TestTypedRowsWitnessOnlyConvertedValues(t *testing.T) {
+	t.Parallel()
+	cs := codegentest.Case{Name: "declared but unconverted types", Src: `type Q = { N node[string] }
+type P = { Qs []Q; O *Q }
+@start
+rule main P = "x" => P{}`, Inputs: []string{"x"}}
+	all := codegentest.GoTypedRows.RowsOf(t, cs)
+	for _, row := range []string{"`[]T`", "`*T`", "`node[T]`", "`int`, `string`, `bool`"} {
+		if !slices.Contains(all, row) {
+			t.Fatalf("the grammar maps by %q, without the row %s", all, row)
+		}
+	}
+	want := []string{"Struct type `T` (present)", "`*T` (absent)"}
+	if got := codegentest.GoTypedRows.Witnesses(t, cs); !slices.Equal(got, want) {
+		t.Errorf("the value P{} witnesses %q, want %q", got, want)
 	}
 }

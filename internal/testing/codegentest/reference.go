@@ -481,7 +481,15 @@ func GeneratedTypesMismatches(t *testing.T, goBin string, cases []Case, referenc
 // copy of the library in the module directory lib (LibCopyWith, LibRunHotSpan).
 func GeneratedTypesMismatchesWithLib(t *testing.T, goBin, lib string, cases []Case, reference common.GenOptions, mutate func([]byte) []byte, requiredTyped ...int) []string {
 	t.Helper()
-	return generatedTypesMismatches(t, goBin, lib, cases, reference, mutate, 0, requiredTyped...)
+	return generatedTypesMismatches(t, goBin, lib, cases, reference, mutate, nil, 0, requiredTyped...)
+}
+
+// GeneratedTypesReferenceMismatches is GeneratedTypesMismatches with the Go files of the parsers of the
+// reference route, instead of those of the typed parsers, changed with mutateRef: a negative control of
+// the conversions that only the reference route makes, which the comparison of the routes detects.
+func GeneratedTypesReferenceMismatches(t *testing.T, goBin string, cases []Case, reference common.GenOptions, mutateRef func([]byte) []byte, requiredTyped ...int) []string {
+	t.Helper()
+	return generatedTypesMismatches(t, goBin, LibCopy(), cases, reference, nil, mutateRef, 0, requiredTyped...)
 }
 
 // GeneratedTypesInsertionMismatches is GeneratedTypesMismatches for parses with the limit of missing
@@ -489,12 +497,12 @@ func GeneratedTypesMismatchesWithLib(t *testing.T, goBin, lib string, cases []Ca
 // engine all take.
 func GeneratedTypesInsertionMismatches(t *testing.T, goBin string, cases []Case, reference common.GenOptions, missing int, requiredTyped ...int) []string {
 	t.Helper()
-	return generatedTypesMismatches(t, goBin, LibCopy(), cases, reference, nil, missing, requiredTyped...)
+	return generatedTypesMismatches(t, goBin, LibCopy(), cases, reference, nil, nil, missing, requiredTyped...)
 }
 
 // generatedTypesMismatches is GeneratedTypesMismatchesWithLib with the limit of missing tokens missing
-// in every parse.
-func generatedTypesMismatches(t *testing.T, goBin, lib string, cases []Case, reference common.GenOptions, mutate func([]byte) []byte, missing int, requiredTyped ...int) []string {
+// in every parse, and the parsers of the reference route changed with mutateRef when it is not nil.
+func generatedTypesMismatches(t *testing.T, goBin, lib string, cases []Case, reference common.GenOptions, mutate, mutateRef func([]byte) []byte, missing int, requiredTyped ...int) []string {
 	t.Helper()
 	var mismatches []string
 	fail := func(format string, args ...any) { mismatches = append(mismatches, fmt.Sprintf(format, args...)) }
@@ -543,6 +551,9 @@ func generatedTypesMismatches(t *testing.T, goBin, lib string, cases []Case, ref
 		refOpts.Start, refOpts.Types = "main", true
 		refOpts.SourceInfo = true
 		GeneratePackage(t, dir, fmt.Sprintf("c%d", i), g, refOpts)
+		if mutateRef != nil {
+			mutatePackage(t, filepath.Join(dir, fmt.Sprintf("c%d", i)), mutateRef)
+		}
 		fmt.Fprintf(&imports, "\tg%d \"codegentest/g%d\"\n\tc%d \"codegentest/c%d\"\n", i, i, i, i)
 		fmt.Fprintf(&parsers, "\tfunc(s string, b bool) (any, error) { u := g%d.CodePoints; if b { u = g%d.Bytes }; return g%d.ParseValue(s, g%[3]d.WithUnit(u)%[4]s) },\n", i, i, i, missingOpt)
 		fmt.Fprintf(&converters, "\tfunc(s string, b bool) (any, error) { u := c%d.CodePoints; if b { u = c%d.Bytes }; return c%d.ParseValue(s, c%[3]d.WithUnit(u)%[4]s) },\n", i, i, i, missingOpt)
@@ -697,12 +708,13 @@ func main() {
 	}
 	k := 0
 	for _, c := range cases {
+		zeros := FieldZerosOf(t, c)
 		for _, in := range c.Inputs {
 			if got[k].Err != wantErr[k] {
 				fail("%s: input %q: error %s, want %s", c.Name, in, got[k].Err, wantErr[k])
 			}
 			if accepted[k] {
-				if err := CanonicalTypedMatches(canonical[k], wantValue[k]); err != nil {
+				if err := CanonicalTypedMatches(canonical[k], wantValue[k], zeros); err != nil {
 					fail("%s: input %q: typed value %s: %v", c.Name, in, got[k].Value, err)
 				}
 			}

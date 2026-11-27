@@ -411,13 +411,14 @@ func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.G
 		Valid bool   `json:"valid"`
 	}
 	// A want holds, with values, the canonical form of the engine's value (value), whether the engine
-	// returned one (accepted), the struct types of the grammar (structs) and whether the parser is
-	// typed (typed).
+	// returned one (accepted), the struct types of the grammar (structs), the zero values of their
+	// fields (zeros) and whether the parser is typed (typed).
 	type want struct {
 		out, str, rec, units string
 		value                any
 		accepted, typed      bool
 		structs              map[string]bool
+		zeros                FieldZeros
 	}
 	var inputs [][]input
 	var wants []want
@@ -472,8 +473,10 @@ func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.G
 		// (generatedTypesMismatches): a projection drops only what no value holds.
 		var valueProg ReferenceParse
 		structs := map[string]bool{}
+		var zeros FieldZeros
 		if cmp.values && typed {
 			valueProg = refProgram(t, c.Src, check.Options{SourceInfo: opts.SourceInfo})
+			zeros = FieldZerosOf(t, c)
 			for _, d := range g.Types() {
 				if td, ok := d.(*ast.TypeDef); ok && td.Struct() != nil {
 					structs[td.Name] = true
@@ -502,7 +505,7 @@ func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.G
 				_, err = prog(s, bytes, true, missing, nil)
 				w.rec = fmt.Sprint(err)
 				if valueProg != nil {
-					w.typed, w.structs = true, structs
+					w.typed, w.structs, w.zeros = true, structs, zeros
 					n, _ := valueProg(s, bytes, false, missing, nil)
 					if w.accepted = n != nil; w.accepted {
 						if w.value, err = canonicalEngineValue(n); err != nil {
@@ -601,7 +604,7 @@ func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.G
 						case !wants[w].accepted && got.Val != "null":
 							mismatches = append(mismatches, fmt.Sprintf("%s (%v, %s): input %q: typed value %s, want null: the engine returns no value", c.Name, unit, form, in, Clip(got.Val, 0)))
 						case wants[w].accepted:
-							if err := CanonicalTSMatches(got.Val, wants[w].value, wants[w].structs); err != nil {
+							if err := CanonicalTSMatches(got.Val, wants[w].value, wants[w].structs, wants[w].zeros); err != nil {
 								mismatches = append(mismatches, fmt.Sprintf("%s (%v, %s): input %q: typed value %s: %v", c.Name, unit, form, in, Clip(got.Val, 0), err))
 							}
 						}

@@ -24,6 +24,12 @@ var typedConversionMutants = []struct{ name, from, to string }{
 	{"a struct field converts as absent", `obj[f.name] = get(work.node.field(f.name), f.repr);`, `obj[f.name] = get(null, f.repr);`},
 	{"a recovered value loses its message", `obj["message"] = typeof msg === "string" ? msg : "";`, `obj["message"] = "";`},
 	{"a missing value loses what it expects", `obj["expected"] = typeof expected === "string" ? expected : "";`, `obj["expected"] = "";`},
+	{"an absent option of an int converts as zero", `case "optint": return isInt(v) ? v : null;`, `case "optint": return isInt(v) ? v : 0;`},
+	{"an absent option of a string converts as empty", `case "optstring": return typeof v === "string" ? v : null;`, `case "optstring": return typeof v === "string" ? v : "";`},
+	{"an absent option of a bool converts as false", `case "optbool": return typeof v === "boolean" ? v : null;`, `case "optbool": return typeof v === "boolean" ? v : false;`},
+	{"an unset tuple converts as null", `if (recipe.kind !== "tuple") return null;
+        step();
+        return recipe.elems!.map(e => get(null, e));`, `return null;`},
 	{"a join converts no member", `const next = recipe.members!.get(v.type);`, `const next = recipe.members!.get("");`},
 }
 
