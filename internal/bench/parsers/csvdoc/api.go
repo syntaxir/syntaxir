@@ -73,7 +73,7 @@ func WithUnit(u sxirinput.PositionUnit) ParseOption { return sxirruntime.WithUni
 func WithLimits(l Limits) ParseOption { return sxirruntime.WithLimits(l) }
 
 // Limits bounds one parse invocation. A zero limit selects the default of that limit, and
-// Unlimited disables it.
+// Unlimited disables it, except Input, which no value disables.
 //
 // Compute bounds the compute units of the parse, which count its logical events in one counter:
 // rule calls, the input that terminals advance over, and the values built or compared in proportion
@@ -89,10 +89,11 @@ func WithLimits(l Limits) ParseOption { return sxirruntime.WithLimits(l) }
 // Document's count starts at the bytes it retains from earlier parses. What is counted depends on
 // the parser and its version.
 //
-// Input bounds the length of the input in the position unit of the parse. The default is
-// Unlimited: the default compute budget already grows with the input. A parse of an input that
-// is longer fails before any work, with a LimitError of kind LimitInput; a stream fails when the
-// parser reaches a unit beyond the limit.
+// Input bounds the length of the input in the position unit of the parse. No input of any parse
+// is longer than 2^31−1 units, so that every position fits an int32: zero, Unlimited and any
+// larger value select that maximum, which is the default. A parse of an input that is longer
+// fails before any work, with a LimitError of kind LimitInput; a stream fails when the parser
+// reaches a unit beyond the limit.
 //
 // Depth bounds the nesting of recursive rule calls: the entries of rules on a cycle of calls and
 // the operands of Operators Rules that nest like them. Zero selects the default of the parser

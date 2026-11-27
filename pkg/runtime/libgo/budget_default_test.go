@@ -83,7 +83,7 @@ func TestPrepareOptionsDefault(t *testing.T) {
 }
 
 // prepareText rejects a text longer than the Input limit before any work, counting code points only when
-// the byte length passes the limit; zero and Unlimited set no bound and need no control.
+// the byte length passes the limit; zero and Unlimited select the longest input and need no control.
 func TestPrepareTextInput(t *testing.T) {
 	text := strings.Repeat("é", 10) // 10 code points, 20 bytes
 	over := func(o parseOptions) (le *sxirruntime.LimitError) {
@@ -129,7 +129,7 @@ func TestPrepareTextInput(t *testing.T) {
 		t.Errorf("stream bound %d", o.maxInput)
 	}
 	o = prepareOptions(parseOptions{controls: true, limits: sxirruntime.Limits{Input: sxirruntime.Unlimited}}, 0, true)
-	if o.maxInput != 0 {
+	if o.maxInput != maxInputUnits {
 		t.Errorf("Unlimited stream bound %d", o.maxInput)
 	}
 	// Only a finite Compute needs a control: Input and Depth are checked without one.

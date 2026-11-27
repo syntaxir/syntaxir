@@ -604,7 +604,7 @@ number that does not grow with the input.
 Pass `runtime.WithContext(ctx)` to interrupt engine execution cooperatively, or
 `runtime.WithLimits(runtime.Limits{Compute: ...})` to bound
 one invocation. A zero budget selects the default, which is `max(2^20, 1024 * d)` for the furthest position `d` that the parser has
-asked the stream for, however the reader chunks the input; `runtime.Unlimited` disables the limit. `Limits.Input` bounds the length of the stream: with a finite value the stream fails with `runtime.LimitInput` when the parser asks for a unit beyond it and the stream has one, whichever way the reader chunks the input. `Limits.Memory` bounds the bytes the stream holds at once, not its length: delivering an element returns what was built for it ([Bounding Memory](cancellation-and-limits.md#bounding-memory)). `Compute` counts the
+asked the stream for, however the reader chunks the input; `runtime.Unlimited` disables the limit. `Limits.Input` bounds the length of the stream, at most 2^31−1 units: the stream fails with `runtime.LimitInput` when the parser asks for a unit beyond it and the stream has one, whichever way the reader chunks the input. `Limits.Memory` bounds the bytes the stream holds at once, not its length: delivering an element returns what was built for it ([Bounding Memory](cancellation-and-limits.md#bounding-memory)). `Compute` counts the
 [compute units](../../spec/runtime/parsing.md#compute-units) of the stream, the logical events of its parse, so the
 engine and generated parsers count the same number for the same input and position unit, however the reader chunks
 it. Reading the reader, committing an element and discarding input count nothing; the text of a node counts one unit

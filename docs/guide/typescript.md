@@ -182,7 +182,7 @@ export interface Limits {
   input?: number;
   depth?: number;
 }
-export const Unlimited: number;        // disables the compute and input limits
+export const Unlimited: number;        // disables the compute limit; for input it selects 2^31−1
 export function parseWithOptions(input: string | Uint8Array, options?: ParseOptions): ParseResult;
 export function parseRuleWithOptions(name: string, input: string | Uint8Array, options?: ParseOptions): ParseResult;
 // With -recognize:

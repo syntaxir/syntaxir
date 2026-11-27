@@ -547,7 +547,7 @@ type parseOptions struct {
 	// expectations selects the recording of expectations; ResolveOptions rejects it for a parser
 	// generated without them (WithExpectations, grammar.Expectations).
 	expectations bool
-	// maxInput is the resolved Input limit of a stream, in units; zero sets no bound.
+	// maxInput is the resolved Input limit of a stream, in units (resolveInput).
 	maxInput int
 	// controls is set when the parser was generated with limit controls, which count logical compute
 	// units (units.go): the resolved compute limit and the context go to the parser's counter, and
@@ -685,10 +685,7 @@ func prepareOptions(o parseOptions, n uint64, stream bool) parseOptions {
 	if !o.prepared {
 		o.prepared = true
 		l, adaptive := o.limits, false
-		// A limit beyond math.MaxInt bounds no stream.
-		if l.Input != 0 && l.Input != sxirruntime.Unlimited && l.Input <= math.MaxInt {
-			o.maxInput = int(l.Input)
-		}
+		o.maxInput = int(resolveInput(l.Input))
 		if l.Memory == sxirruntime.Unlimited {
 			l.Memory = 0 // the default of Memory is Unlimited
 		}
@@ -713,19 +710,32 @@ func prepareOptions(o parseOptions, n uint64, stream bool) parseOptions {
 	return o
 }
 
+// maxInputUnits is the length of the longest input of any parse, in its position unit: the largest int32,
+// so that every position fits an int32. It is the default of the Input limit, and a larger Input
+// counts as it.
+const maxInputUnits = math.MaxInt32
+
+// resolveInput returns the Input limit a parse runs under for an Input option of n: maxInputUnits for zero,
+// Unlimited and any n above it.
+func resolveInput(n uint64) uint64 {
+	if n == 0 || n > maxInputUnits {
+		return maxInputUnits
+	}
+	return n
+}
+
 // prepareText is prepareOptions for the input text of a batch parse or a Document. It rejects a text
 // longer than the Input limit before any work: O(1), unless the byte length passes the limit in CodePoints,
 // where the count of code points decides.
 func prepareText(o parseOptions, text string) parseOptions {
 	if !o.prepared {
-		if max := o.limits.Input; max != 0 && max != sxirruntime.Unlimited {
-			n := uint64(len(text))
-			if n > max && o.unit == sxirinput.CodePoints {
-				n = uint64(utf8.RuneCountInString(text))
-			}
-			if n > max {
-				panic(fatal{err: &sxirruntime.LimitError{Kind: sxirruntime.LimitInput, Limit: max, Requested: n}})
-			}
+		max := resolveInput(o.limits.Input)
+		n := uint64(len(text))
+		if n > max && o.unit == sxirinput.CodePoints {
+			n = uint64(utf8.RuneCountInString(text))
+		}
+		if n > max {
+			panic(fatal{err: &sxirruntime.LimitError{Kind: sxirruntime.LimitInput, Limit: max, Requested: n}})
 		}
 	}
 	return prepareOptions(o, inputUnits(text, o.unit), false)
@@ -736,7 +746,7 @@ func prepareText(o parseOptions, text string) parseOptions {
 // without reading the text.
 func prepareUnits(o parseOptions, n uint64) parseOptions {
 	if !o.prepared {
-		if max := o.limits.Input; max != 0 && max != sxirruntime.Unlimited && n > max {
+		if max := resolveInput(o.limits.Input); n > max {
 			panic(fatal{err: &sxirruntime.LimitError{Kind: sxirruntime.LimitInput, Limit: max, Requested: n}})
 		}
 	}

@@ -2756,7 +2756,7 @@ through `WithContext` and `WithLimits`; generated Go exposes corresponding
 package-local options.
 These controls are cooperative. A zero limit selects the
 [default of that limit](#default-limits) and the value `Unlimited` disables
-it. The compute limit caps the [compute units](#compute-units) of an
+it, except the input limit, which no value disables. The compute limit caps the [compute units](#compute-units) of an
 invocation, which start from zero at each call of an entry point. They do not
 measure elapsed time, memory or buffered input; the
 [memory limit](#memory-limit) counts bytes.
@@ -2892,11 +2892,11 @@ error.
 | --- | --- | --- |
 | `Compute` | the [compute units](#compute-units) of the parse | `max(2^20, 1024 * n)` |
 | `Memory` | the storage the parse takes into use, in bytes ([Memory Limit](#memory-limit)) | `Unlimited` |
-| `Input` | the length of the input | `Unlimited` |
+| `Input` | the length of the input | `2^31−1`, the longest input of any parse |
 | `Depth` | the nesting of recursive rule calls ([Limits](#limits)) | 100,000; 10,000,000 on the iterative bytecode VM; the generated default |
 
 Here `n` is the length of the input in the position unit of the parse: bytes
-for `Bytes`, code points for `CodePoints`. `Input` has no finite default
+for `Bytes`, code points for `CodePoints`. `Input` has no smaller default
 because the default `Compute` already grows with `n`, and `Memory` has none
 because, outside missing-token insertion, the memory a parse allocates is at
 most proportional to its cost plus the input
@@ -2916,8 +2916,8 @@ value `Unlimited` (the largest `uint64` in Go, `Number.MAX_SAFE_INTEGER` in
 TypeScript) disables the budget; with no context and no finite `Memory`
 either, the parse runs without a control. `LimitError.Limit` reports the resolved limit, and the
 default is `Unlimited - 1` at most. One constant disables every field of
-`Limits`, and a field added to `Limits` takes the same zero and `Unlimited`
-meaning.
+`Limits` but `Input`, for which it selects the longest input, and a field added
+to `Limits` takes the same zero and `Unlimited` meaning.
 
 `Input` bounds the length of the input in the position unit. A batch parse,
 a recognition and the creation of a Document compare the length of the input
@@ -2932,12 +2932,19 @@ a context is consulted, so an input over the limit fails with `LimitInput` even
 if the context is already canceled. A generated parser checks it whether or
 not it has limit controls.
 
-A stream does not know its length. With a finite `Input`, it fails when the
-parser asks for a unit beyond the limit and the stream has one, and `Requested`
+The resolved `Input` is at most 2^31−1, the longest input of any parse: zero,
+`Unlimited` and any larger value select it. No parse accepts a longer input,
+on any backend and for every kind of parse: a batch parse, a recognition, a
+typed parse, a Document and a stream. Every position, and so every offset in
+a node, a memo entry or an error, fits a signed 32-bit integer. A longer input
+fails as an input over a smaller `Input` does, with `Limit` 2^31−1.
+
+A stream does not know its length. It fails when the
+parser asks for a unit beyond the resolved `Input` and the stream has one, and `Requested`
 is the number of units the parser asked for, or the length of the stream if that
 is shorter. A stream of exactly `Input` units completes. As with the default
 budget, the outcome does not depend on how the reader splits the input into
-reads. With `Input` at its default, a stream tracks no length.
+reads.
 
 The default is resolved once per entry point, from the input the entry point
 receives. A stream does not know `n` up front, so its default is
