@@ -155,7 +155,7 @@ func BenchmarkRuntimeBackendCompile(b *testing.B) {
 // library to what each parser can run. It is the generation-time gate of that pruning.
 func BenchmarkGenerationEmbeddedLibrary(b *testing.B) {
 	targets := corpusTargets(b)
-	paths, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
+	paths, err := filepath.Glob("../testdata/grammars/*/*.sxir")
 	if err != nil || len(paths) == 0 {
 		b.Fatalf("no grammars: %v", err)
 	}
