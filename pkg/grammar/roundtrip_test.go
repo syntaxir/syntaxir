@@ -548,10 +548,10 @@ func (g *astGen) grammar(d int) *ast.Grammar {
 	if g.r.IntN(3) == 0 {
 		rule.Type = g.typ(d)
 	}
-	if g.wide && g.r.IntN(4) == 0 {
-		rule.LeadingComments = "c" + g.str()
-	}
 	out.File.Decls = append(out.File.Decls, rule)
+	for _, decl := range out.File.Decls {
+		g.comments(decl)
+	}
 	if g.wide {
 		g.fileComments(out, rule)
 	}
@@ -587,6 +587,50 @@ func (g *astGen) fileComments(out *ast.Grammar, rule *ast.RuleDef) {
 	if g.r.IntN(8) == 0 {
 		f.EndBreak = &ast.LineBreak{Comments: []*ast.Comment{line()}}
 	}
+}
+
+// comments sets random leading, detached and trailing comments of the declaration decl. The
+// parser hands a trailing comment to the last node of its line, so that the round trip also
+// checks the comments after the closing delimiters inside the declaration.
+func (g *astGen) comments(decl ast.Decl) {
+	var s *ast.SourceInfo
+	switch d := decl.(type) {
+	case *ast.RuleDef:
+		s = &d.SourceInfo
+	case *ast.TypeDef:
+		s = &d.SourceInfo
+	case *ast.TypeAlias:
+		s = &d.SourceInfo
+	case *ast.VarDef:
+		s = &d.SourceInfo
+	}
+	some := func(prefix string) []string {
+		out := make([]string, 1+g.r.IntN(2))
+		for i := range out {
+			out[i] = g.comment(prefix)
+		}
+		return out
+	}
+	if g.r.IntN(4) == 0 {
+		s.LeadingComments = g.comment("c")
+	}
+	if g.r.IntN(6) == 0 {
+		s.LeadingDetachedComments = some("d")
+	}
+	if g.r.IntN(3) == 0 {
+		s.TrailingComments = some("t")
+	}
+}
+
+// comment returns the text of a random comment that begins with prefix.
+func (g *astGen) comment(prefix string) string {
+	var b strings.Builder
+	b.WriteString(prefix)
+	for range g.r.IntN(3) {
+		b.WriteString(pick(g, " ", "/*", "*/", "//", "\n", "x"))
+		b.WriteString(g.str())
+	}
+	return b.String()
 }
 
 // normalTree returns the JSON tree of g without source positions and with the differences that

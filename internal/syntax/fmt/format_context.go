@@ -114,8 +114,11 @@ func writeFormatString(b *strings.Builder, s string, c *formatControl) {
 	}
 }
 
+// joinFormatParts joins parts with sep, as strings.Join does, except that sep loses its leading
+// spaces after a part that ends in a line terminator: the part ends in a line comment, and the next
+// part starts the next line.
 func joinFormatParts(parts []string, sep string, c *formatControl) string {
-	if c == nil {
+	if c == nil && !slices.ContainsFunc(parts, endsInLineTerminator) {
 		return strings.Join(parts, sep)
 	}
 	if len(parts) == 0 {
@@ -141,7 +144,11 @@ func joinFormatParts(parts []string, sep string, c *formatControl) string {
 	for i, part := range parts {
 		pollFormat(c)
 		if i > 0 {
-			writeFormatString(&out, sep, c)
+			if endsInLineTerminator(parts[i-1]) {
+				writeFormatString(&out, strings.TrimLeft(sep, " "), c)
+			} else {
+				writeFormatString(&out, sep, c)
+			}
 		}
 		writeFormatString(&out, part, c)
 	}

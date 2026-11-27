@@ -1025,6 +1025,45 @@ func formatOperator(op *ast.OperatorsRuleOperator, control *formatControl) strin
 }
 
 // String aligns the lines and joins them.
+// text returns the lines of p as the text of a node within a line: without the line terminator
+// after the last line, unless that line ends in a line comment. Such a comment, a trailing comment
+// after the closing delimiter of the node, ends its line, so the text after the node goes on the
+// next line, as after a line comment of a gap (gapString).
+func (p *printer) text() string {
+	s := p.String()
+	if n := len(p.lines); n > 0 {
+		l := p.lines[n-1]
+		if comment := l.comment; endsInLineComment(comment) || comment == "" && endsInLineComment(l.text) && strings.HasPrefix(l.text, "/") {
+			return s
+		}
+	}
+	return strings.TrimSuffix(s, "\n")
+}
+
+// endsInLineComment reports whether the comments of text, separated by white space, end in a
+// line comment: one begins with "//" outside the block comments, which nest.
+func endsInLineComment(text string) bool {
+	depth := 0
+	for i := 0; i+1 < len(text); i++ {
+		switch text[i : i+2] {
+		case "/*":
+			depth++
+			i++
+		case "*/":
+			if depth > 0 {
+				depth--
+			}
+			i++
+		case "//":
+			if depth == 0 {
+				return true
+			}
+			i++
+		}
+	}
+	return false
+}
+
 func (p *printer) String() string {
 	ls := p.lines
 	// Align the types of consecutive struct fields.
@@ -1167,7 +1206,7 @@ func formatType(t ast.TypeExpr, control *formatControl) string {
 		oneLine = oneLine && (t.CloseBreak == nil || t.CloseBreak.Trailing == nil)
 		p.structBody(t.Fields, t.CloseBreak, oneLine, "")
 		p.flush()
-		return finishFormat(strings.TrimSuffix(p.String(), "\n"), control)
+		return finishFormat(p.text(), control)
 	case *ast.TypeApp:
 		elems := make([]listElem, len(t.Args))
 		for i, x := range t.Args {
@@ -1461,7 +1500,7 @@ func formatSourceGroupIndented(body, openDelim, closeDelim string, open, first, 
 	p.write(closeDelim)
 	p.inline(close)
 	p.flush()
-	return strings.TrimSuffix(p.String(), "\n")
+	return p.text()
 }
 
 // indentTypeLines indents the lines of a formatted type that follow its first one, except the
@@ -1720,7 +1759,7 @@ func formatExprNode(e ast.Expr, outer int, control *formatControl) string {
 				if i > 0 {
 					if g := leadGap(e.Items[i]); g != nil {
 						writeFormatString(&b, gapString(g, " ", control), control)
-					} else {
+					} else if !endsInLineTerminator(parts[i-1]) {
 						b.WriteString(" ")
 					}
 				}
@@ -1763,7 +1802,7 @@ func formatExprNode(e ast.Expr, outer int, control *formatControl) string {
 		p := &printer{control: control}
 		p.group(e, "")
 		p.flush()
-		return finishFormat(strings.TrimSuffix(p.String(), "\n"), control)
+		return finishFormat(p.text(), control)
 	case *ast.Ref:
 		if e.Level != "" {
 			return finishFormat(levelCall(e, control), control)
@@ -1801,7 +1840,7 @@ func formatExprNode(e ast.Expr, outer int, control *formatControl) string {
 		p := &printer{control: control}
 		p.operatorsRule(e, "")
 		p.flush()
-		return finishFormat(strings.TrimSuffix(p.String(), "\n"), control)
+		return finishFormat(p.text(), control)
 	}
 	return finishFormat(fmt.Sprintf("<%T>", e), control)
 }
@@ -2570,7 +2609,7 @@ func formatActionExprNode(t ast.ActionExpr, outer int, control *formatControl) s
 		}
 		p.closeBlock(t.CloseBreak, "")
 		p.flush()
-		return strings.TrimSuffix(p.String(), "\n")
+		return p.text()
 	case *ast.IntLit:
 		// A negative literal starts with "-", which binds more loosely than a
 		// field access, an index or a cast. The minimum int is written as one

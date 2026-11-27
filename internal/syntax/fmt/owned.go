@@ -136,13 +136,22 @@ func ownedLeadFrom(s *ast.SourceInfo, blank bool) *ast.LineBreak {
 
 // ownedTrailing returns the break that writes the trailing comment s owns at
 // the end of its line, or nil. Each string is one comment, written after the
-// one before it; a comment over several lines is one block comment.
+// one before it; a comment over several lines is one block comment. Only the
+// last can be a line comment, which ends the line: one before it is written as
+// a block comment without the line terminators at its end.
 func ownedTrailing(s *ast.SourceInfo, b *ast.LineBreak) *ast.LineBreak {
 	if b != nil || len(s.TrailingComments) == 0 {
 		return nil
 	}
+	last := len(s.TrailingComments) - 1
+	for last >= 0 && s.TrailingComments[last] == "" {
+		last--
+	}
 	var texts []string
-	for _, text := range s.TrailingComments {
+	for i, text := range s.TrailingComments {
+		for i < last && endsInLineTerminator(text) {
+			text = trimLineEnd(text)
+		}
 		cs := ownedComments(text)
 		if len(cs) == 0 {
 			continue

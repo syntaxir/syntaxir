@@ -291,3 +291,60 @@ func TestCommentLineTerminators(t *testing.T) {
 		})
 	}
 }
+
+// TestFormatTrailingCommentAfterClosingDelimiter formats a comment that ends the line after the
+// closing delimiter of a node inside an expression, which the parser gives to that node, and checks
+// that the text parses, keeps the comment and formats again as the same text. Such a comment ends
+// its line, so the text after the node, such as the ")" of #recover, goes on the next line.
+func TestFormatTrailingCommentAfterClosingDelimiter(t *testing.T) {
+	var sources []string
+	for _, context := range []string{
+		`"a" #recover(skip=G)`, `"a" #recover(skip=G) "b"`, `"a" #recover(skip="b" / G)`, `"a" #recover(skip=G*)`,
+		`"a" #recover(skip=!G "b")`, `"a" #recover(skip=c:G)`, `!G`, `G*`, `G #atomic`, `(G / "b")`, `"a" @y(x=G)`,
+	} {
+		for _, group := range []string{`("x")`, `($ => 1)`, `("x" / "y")`, `(("x"))`} {
+			for _, comment := range []string{"//t", "/*a */ //t", "/*a\n*/ //t"} {
+				sources = append(sources, "rule main = "+strings.ReplaceAll(context, "G", group)+" "+comment+"\nrule b = \"b\"\n")
+			}
+		}
+	}
+	for _, src := range sources {
+		g, err := grammar.Load(grammar.FromString("g.sxir", src))
+		if err != nil {
+			t.Fatalf("%q: %v", src, err)
+		}
+		text := grammar.Format(g)
+		back, err := grammar.Load(grammar.FromString("g.sxir", text))
+		if err != nil {
+			t.Errorf("%q: the formatted grammar does not parse: %v\n%s", src, err, text)
+			continue
+		}
+		if !strings.Contains(text, "//t") || len(back.AllComments()) != len(g.AllComments()) {
+			t.Errorf("%q: formatted as %q, which loses a comment", src, text)
+		}
+		if again := grammar.Format(back); again != text {
+			t.Errorf("%q: formatted as %q, and again as %q", src, text, again)
+		}
+	}
+}
+
+// TestFormatTrailingCommentStrings formats a declaration whose trailing comment strings end in a
+// line terminator before the last: only the last can be a line comment, which ends the line, so
+// the ones before it are written as block comments.
+func TestFormatTrailingCommentStrings(t *testing.T) {
+	for _, comments := range [][]string{
+		{"t\n", "u"}, {"t\n\n", "u\n"}, {"t", "u\n"}, {"t\nv\n", "u"}, {"t\n", "", "u\n"}, {"t\n", "u\n", ""},
+	} {
+		r := &ast.RuleDef{Name: "r", Expr: &ast.Literal{Value: "a"}}
+		r.TrailingComments = comments
+		text := grammar.Format(&ast.Grammar{File: ast.File{Decls: []ast.Decl{r, &ast.RuleDef{Name: "b", Expr: &ast.Literal{Value: "b"}}}}})
+		back, err := grammar.Load(grammar.FromString("g.sxir", text))
+		if err != nil {
+			t.Errorf("%q: the formatted grammar does not parse: %v\n%s", comments, err, text)
+			continue
+		}
+		if rules := back.Rules(); len(rules) != 2 || !strings.Contains(strings.Join(rules[0].TrailingComments, ""), "t") || !strings.Contains(strings.Join(rules[0].TrailingComments, ""), "u") {
+			t.Errorf("%q: formatted as %q, which reads back the rules %v", comments, text, rules)
+		}
+	}
+}
