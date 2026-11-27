@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"testing"
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/testing/starttest"
 )
 
