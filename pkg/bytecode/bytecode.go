@@ -133,6 +133,10 @@ type RuleInfo struct {
 	// Transient reports that the rule is not memoized in ordinary parses (even if Memo is set). In
 	// incremental parsing, Memo applies.
 	Transient bool
+	// Lexical reports that the rule only matches characters: it has no action, is on no cycle of
+	// calls, binds, tests and recovers nothing and calls only lexical rules. A Document does not memoize a rule that is
+	// ValueFreeTwin, Transient and Lexical either.
+	Lexical bool
 	// Rec reports that the rule is on a cycle of calls (or calls itself): its entries count
 	// against the nesting limit, those of other rules do not.
 	Rec bool
@@ -202,4 +206,4 @@ const (
 // ISAVersion is the instruction set of the value model, the only one supported. Earlier
 // versions built the previous syntax trees, so their files are not loaded and need to be
 // compiled again.
-const ISAVersion = 41
+const ISAVersion = 42

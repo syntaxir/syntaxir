@@ -77,8 +77,9 @@ func structuralInputFacts(t *testing.T, path string) int {
 				cyclic++
 			}
 			if opts.Recognition != check.BuildValues {
-				got[i].Vars, got[i].Positional = nil, false
-				want[i].Vars, want[i].Positional = nil, false
+				// A recognizer's typed module has no actions; Lexical reads the grammar's.
+				got[i].Vars, got[i].Positional, got[i].Lexical = nil, false, false
+				want[i].Vars, want[i].Positional, want[i].Lexical = nil, false, false
 			}
 		}
 		if !reflect.DeepEqual(got, want) {

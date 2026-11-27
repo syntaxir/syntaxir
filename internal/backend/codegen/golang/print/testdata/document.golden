@@ -3,10 +3,10 @@
 # Rewrite with: go test ./internal/backend/codegen/golang/print -run Document -update
 # A run checks every entry of its scope: an entry that is missing, stale or different fails. -update replaces the
 # entries of the scope, drops stale ones and logs a summary per case. Review the diff: it is a regression freeze.
-corpus/0/../../examples/calculator/calc.sxir	3414ab9a12e43d589c3a855a
-corpus/0/../../examples/calculator/calc_lr.sxir	2bf687ad7933a6760debbff8
-corpus/0/../../examples/minilang/minilang.sxir	66846d71dc4aed2209709e4d
-corpus/0/../../examples/outline/outline.sxir	ac2b4410d93427e9ee495bfa
+corpus/0/../../examples/calculator/calc.sxir	2797ab68dcf5635b43456a2b
+corpus/0/../../examples/calculator/calc_lr.sxir	a07f105b499ec05055e2f075
+corpus/0/../../examples/minilang/minilang.sxir	6dc457af1bc99cf7a94c19c5
+corpus/0/../../examples/outline/outline.sxir	188ba94bc3e482279b919062
 corpus/0/LR cut inside optional	43f49a844240c6c683f943f0
 corpus/0/Operators Rule explicit default action	db095dc3b41fa8a7d57c8e5c
 corpus/0/Operators Rule operand with a cut in the recovered body	85144bc177c1982c04d0a47b
@@ -17,6 +17,7 @@ corpus/0/a cast binding in an Operators Rule operand	ad4956901b53fee1a2aeeabb
 corpus/0/a failed action leaves nothing it gathered	0caba926c288d08700be3629
 corpus/0/a failed cast in a binding backtracks	c9e2343770075abd45b1339b
 corpus/0/a postfix part calling its rule after an empty operand	fcf95c58149e84e9014dfb45
+corpus/0/a postfix part calling its rule after an empty operand, with the rule declared first	a42aee52fdc0142a6f2777b6
 corpus/0/action environments	807b3bca961f2fd1768286bc
 corpus/0/alias constructors	6a24c16ab7e7fa56afe12caa
 corpus/0/alias singleton unions	307f05f95f60a451bf71e74a
@@ -61,7 +62,7 @@ corpus/0/declared variable initial values	7e17616234f0b92546661534
 corpus/0/declared variables are part of the memo key	40274707a6401aabf3381d0e
 corpus/0/diagnostic attr	76c636cadd4464ec9eeef68b
 corpus/0/direct value-free decoding and anchors	603f02e96f3a287cb52f9594
-corpus/0/direct value-free fallback calls	8951e09c986d0f1a1f2d6ad4
+corpus/0/direct value-free fallback calls	7fe779337a0bb2ed255f9dfc
 corpus/0/direct value-free rollback	06b4b3cc1f2c43dface8cc26
 corpus/0/empty operand and infix	f43897ab3c6fd980c50647b7
 corpus/0/empty operand and right infix	382ad03d45e1dbaaee37d349
@@ -173,7 +174,7 @@ corpus/0/operatorsRule infix action variables	8e70769d2c0fb432a566188c
 corpus/0/operatorsRule operand action	27a2b5f03b52a9ebfcdc961a
 corpus/0/operatorsRule operand action and captures	4fdf9c53e026ff7706a5e22f
 corpus/0/operatorsRule operand action prefix	fa8f0579e7078fa58070fbaf
-corpus/0/operatorsRule operand action variables	4c3e553db212e813a9e5bbbe
+corpus/0/operatorsRule operand action variables	a34071d272f2e2a1fa46465f
 corpus/0/operatorsRule operand reading a capture of a repetition	fcf31d321a4b6dc26741c689
 corpus/0/operatorsRule operand rule call with scalar result	75f2c11c4c92cbd29a333e57
 corpus/0/operatorsRule postfix action variables	d5eb663ad6a06af2d7fd09a6
@@ -186,7 +187,7 @@ corpus/0/positions in values	5b1707c62f248ea766aea214
 corpus/0/positive lookahead	b5bf5bed505be5aa69aedbe5
 corpus/0/projected and indexed repetition	b8aa5487e5339f83cf079fe8
 corpus/0/projected repetition clears its frame	6079996d3a4795889e124030
-corpus/0/recognizer action over a projected repetition	5eea61dd4cb46f1ccfd34478
+corpus/0/recognizer action over a projected repetition	085f2ffb01a2d5be1353df45
 corpus/0/records	6d9b0236195ceb722e8100fa
 corpus/0/recover	35311938c710ee1380a810cc
 corpus/0/recovery after a cut	2b73c02f4a3939b963705a62
@@ -200,7 +201,7 @@ corpus/0/recovery with a far failing choice	b6a105b8af5d0a125e4b6dc3
 corpus/0/recovery with a zero-consumption skip	d6be27a17e3e141bc95d5462
 corpus/0/restricted OperatorsRule prefix memo	44b9e0518c2b3533f873d130
 corpus/0/restricted OperatorsRule prefixes	abd975287b3fbbdd487597d9
-corpus/0/rule action variables	4c3e553db212e813a9e5bbbe
+corpus/0/rule action variables	a34071d272f2e2a1fa46465f
 corpus/0/runtime error	340ba39fbdd39bdee2bcdfb6
 corpus/0/scans	6be1af9591770a54e7708296
 corpus/0/sequence lookahead	7a6b7e696d5e88d99b9e8a62
@@ -212,7 +213,7 @@ corpus/0/terminal constructor predicate error	5e26bc80f6e48520e53868ad
 corpus/0/terminal constructor root	fbdccdae5c944ccc4eb21fdd
 corpus/0/terminal constructor value error	82dd5e82b84efdd81a73ae4a
 corpus/0/terminal singleton union	4103c6040af4ed997227c531
-corpus/0/testdata/typed/calclr.sxir	00a5a84d90fe5ffa220c0724
+corpus/0/testdata/typed/calclr.sxir	7723e22d19ac8558626f7146
 corpus/0/testdata/typed/direct_backtrack.sxir	b0d08a4153c17421f137b0b2
 corpus/0/testdata/typed/direct_errors.sxir	6daa3e6aff61f69e96b7c988
 corpus/0/testdata/typed/direct_lists.sxir	2c6103178622a3f7a42cbba3
@@ -226,8 +227,8 @@ corpus/0/testdata/typed/errlist2.sxir	9242e35400934613cdd0df1f
 corpus/0/testdata/typed/fields.sxir	91d6e39fc94bfa26c9fbe1c1
 corpus/0/testdata/typed/mix.sxir	953c4f0ae5902e4095e1ea57
 corpus/0/testdata/typed/mixf.sxir	c4c0c09389c8b952468412bc
-corpus/0/testdata/typed/operators_rule1.sxir	6cc6ff2443edb6430742cea2
-corpus/0/testdata/typed/operators_rule1f.sxir	6bc26be7eabe20c7837a77bd
+corpus/0/testdata/typed/operators_rule1.sxir	01ca22aa399e4112333d85f0
+corpus/0/testdata/typed/operators_rule1f.sxir	778a38920c4c8482d006c04b
 corpus/0/testdata/typed/order.sxir	61e2f234ca3dec4deff850c0
 corpus/0/testdata/typed/proj1.sxir	0a4ecb8962a4ff3ff9b99dc1
 corpus/0/testdata/typed/proj2.sxir	b06236eaf6af81a866d2a6fd
@@ -245,7 +246,7 @@ corpus/0/testdata/typed/splice_recursive_optional.sxir	80d0f74ae3edb9b320d2114f
 corpus/0/testdata/typed/splice_recursive_repeat.sxir	d46c5285ff014bd9a2de06b1
 corpus/0/testdata/typed/unif.sxir	5bc1c92733e542c0a1364eb0
 corpus/0/top-level cut in a called rule	44ef8e9b5d29c7c373564e99
-corpus/0/transitive action variables	c35aa3119327e3b272d43461
+corpus/0/transitive action variables	953ba6c3dcf0f4170dfdc89c
 corpus/0/tuple literal in struct fields	155298136a11f8d168501cf2
 corpus/0/tuple literal of declared tuple type	b7d7250e33ff25f7f31cdcbe
 corpus/0/tuple literal values	3c094bc0be48d7e638382970
@@ -369,10 +370,10 @@ corpus/0/wide scan minimum 9223372036854775807	3cdcb63140a6418b6190f5c4
 corpus/0/wide unbounded minimum 2147483648	dc22f98e217c2a4badad7964
 corpus/0/wide unbounded minimum 4294967296	dc22f98e217c2a4badad7964
 corpus/0/wide unbounded minimum 9223372036854775807	dc22f98e217c2a4badad7964
-corpus/1/../../examples/calculator/calc.sxir	3414ab9a12e43d589c3a855a
-corpus/1/../../examples/calculator/calc_lr.sxir	2bf687ad7933a6760debbff8
-corpus/1/../../examples/minilang/minilang.sxir	66846d71dc4aed2209709e4d
-corpus/1/../../examples/outline/outline.sxir	ac2b4410d93427e9ee495bfa
+corpus/1/../../examples/calculator/calc.sxir	2797ab68dcf5635b43456a2b
+corpus/1/../../examples/calculator/calc_lr.sxir	a07f105b499ec05055e2f075
+corpus/1/../../examples/minilang/minilang.sxir	6dc457af1bc99cf7a94c19c5
+corpus/1/../../examples/outline/outline.sxir	188ba94bc3e482279b919062
 corpus/1/LR cut inside optional	43f49a844240c6c683f943f0
 corpus/1/Operators Rule explicit default action	db095dc3b41fa8a7d57c8e5c
 corpus/1/Operators Rule operand with a cut in the recovered body	85144bc177c1982c04d0a47b
@@ -383,6 +384,7 @@ corpus/1/a cast binding in an Operators Rule operand	ad4956901b53fee1a2aeeabb
 corpus/1/a failed action leaves nothing it gathered	0caba926c288d08700be3629
 corpus/1/a failed cast in a binding backtracks	c9e2343770075abd45b1339b
 corpus/1/a postfix part calling its rule after an empty operand	fcf95c58149e84e9014dfb45
+corpus/1/a postfix part calling its rule after an empty operand, with the rule declared first	a42aee52fdc0142a6f2777b6
 corpus/1/action environments	32156264d873b7d99e1731ec
 corpus/1/alias constructors	6a24c16ab7e7fa56afe12caa
 corpus/1/alias singleton unions	307f05f95f60a451bf71e74a
@@ -427,7 +429,7 @@ corpus/1/declared variable initial values	7e17616234f0b92546661534
 corpus/1/declared variables are part of the memo key	40274707a6401aabf3381d0e
 corpus/1/diagnostic attr	76c636cadd4464ec9eeef68b
 corpus/1/direct value-free decoding and anchors	603f02e96f3a287cb52f9594
-corpus/1/direct value-free fallback calls	8951e09c986d0f1a1f2d6ad4
+corpus/1/direct value-free fallback calls	7fe779337a0bb2ed255f9dfc
 corpus/1/direct value-free rollback	06b4b3cc1f2c43dface8cc26
 corpus/1/empty operand and infix	f43897ab3c6fd980c50647b7
 corpus/1/empty operand and right infix	382ad03d45e1dbaaee37d349
@@ -539,7 +541,7 @@ corpus/1/operatorsRule infix action variables	8e70769d2c0fb432a566188c
 corpus/1/operatorsRule operand action	27a2b5f03b52a9ebfcdc961a
 corpus/1/operatorsRule operand action and captures	4fdf9c53e026ff7706a5e22f
 corpus/1/operatorsRule operand action prefix	fa8f0579e7078fa58070fbaf
-corpus/1/operatorsRule operand action variables	4c3e553db212e813a9e5bbbe
+corpus/1/operatorsRule operand action variables	a34071d272f2e2a1fa46465f
 corpus/1/operatorsRule operand reading a capture of a repetition	fcf31d321a4b6dc26741c689
 corpus/1/operatorsRule operand rule call with scalar result	75f2c11c4c92cbd29a333e57
 corpus/1/operatorsRule postfix action variables	d5eb663ad6a06af2d7fd09a6
@@ -552,7 +554,7 @@ corpus/1/positions in values	5b1707c62f248ea766aea214
 corpus/1/positive lookahead	b5bf5bed505be5aa69aedbe5
 corpus/1/projected and indexed repetition	b8aa5487e5339f83cf079fe8
 corpus/1/projected repetition clears its frame	6079996d3a4795889e124030
-corpus/1/recognizer action over a projected repetition	5eea61dd4cb46f1ccfd34478
+corpus/1/recognizer action over a projected repetition	085f2ffb01a2d5be1353df45
 corpus/1/records	6d9b0236195ceb722e8100fa
 corpus/1/recover	35311938c710ee1380a810cc
 corpus/1/recovery after a cut	2b73c02f4a3939b963705a62
@@ -566,7 +568,7 @@ corpus/1/recovery with a far failing choice	b6a105b8af5d0a125e4b6dc3
 corpus/1/recovery with a zero-consumption skip	d6be27a17e3e141bc95d5462
 corpus/1/restricted OperatorsRule prefix memo	44b9e0518c2b3533f873d130
 corpus/1/restricted OperatorsRule prefixes	abd975287b3fbbdd487597d9
-corpus/1/rule action variables	4c3e553db212e813a9e5bbbe
+corpus/1/rule action variables	a34071d272f2e2a1fa46465f
 corpus/1/runtime error	340ba39fbdd39bdee2bcdfb6
 corpus/1/scans	6be1af9591770a54e7708296
 corpus/1/sequence lookahead	7a6b7e696d5e88d99b9e8a62
@@ -578,7 +580,7 @@ corpus/1/terminal constructor predicate error	5e26bc80f6e48520e53868ad
 corpus/1/terminal constructor root	fbdccdae5c944ccc4eb21fdd
 corpus/1/terminal constructor value error	82dd5e82b84efdd81a73ae4a
 corpus/1/terminal singleton union	4103c6040af4ed997227c531
-corpus/1/testdata/typed/calclr.sxir	00a5a84d90fe5ffa220c0724
+corpus/1/testdata/typed/calclr.sxir	7723e22d19ac8558626f7146
 corpus/1/testdata/typed/direct_backtrack.sxir	b0d08a4153c17421f137b0b2
 corpus/1/testdata/typed/direct_errors.sxir	6daa3e6aff61f69e96b7c988
 corpus/1/testdata/typed/direct_lists.sxir	2c6103178622a3f7a42cbba3
@@ -592,8 +594,8 @@ corpus/1/testdata/typed/errlist2.sxir	9242e35400934613cdd0df1f
 corpus/1/testdata/typed/fields.sxir	91d6e39fc94bfa26c9fbe1c1
 corpus/1/testdata/typed/mix.sxir	953c4f0ae5902e4095e1ea57
 corpus/1/testdata/typed/mixf.sxir	c4c0c09389c8b952468412bc
-corpus/1/testdata/typed/operators_rule1.sxir	6cc6ff2443edb6430742cea2
-corpus/1/testdata/typed/operators_rule1f.sxir	6bc26be7eabe20c7837a77bd
+corpus/1/testdata/typed/operators_rule1.sxir	01ca22aa399e4112333d85f0
+corpus/1/testdata/typed/operators_rule1f.sxir	778a38920c4c8482d006c04b
 corpus/1/testdata/typed/order.sxir	61e2f234ca3dec4deff850c0
 corpus/1/testdata/typed/proj1.sxir	0a4ecb8962a4ff3ff9b99dc1
 corpus/1/testdata/typed/proj2.sxir	b06236eaf6af81a866d2a6fd
@@ -611,7 +613,7 @@ corpus/1/testdata/typed/splice_recursive_optional.sxir	80d0f74ae3edb9b320d2114f
 corpus/1/testdata/typed/splice_recursive_repeat.sxir	d46c5285ff014bd9a2de06b1
 corpus/1/testdata/typed/unif.sxir	5bc1c92733e542c0a1364eb0
 corpus/1/top-level cut in a called rule	44ef8e9b5d29c7c373564e99
-corpus/1/transitive action variables	c35aa3119327e3b272d43461
+corpus/1/transitive action variables	953ba6c3dcf0f4170dfdc89c
 corpus/1/tuple literal in struct fields	155298136a11f8d168501cf2
 corpus/1/tuple literal of declared tuple type	b7d7250e33ff25f7f31cdcbe
 corpus/1/tuple literal values	3c094bc0be48d7e638382970
@@ -735,23 +737,23 @@ corpus/1/wide scan minimum 9223372036854775807	3cdcb63140a6418b6190f5c4
 corpus/1/wide unbounded minimum 2147483648	dc22f98e217c2a4badad7964
 corpus/1/wide unbounded minimum 4294967296	dc22f98e217c2a4badad7964
 corpus/1/wide unbounded minimum 9223372036854775807	dc22f98e217c2a4badad7964
-grammars/0/cel	5d2da573527d49ebd5db0228
-grammars/0/csv	783759e61a8e6ee45d0d1516
-grammars/0/cue	acb8837aa52e76d7cb933f83
-grammars/0/duckdb	dda570316d843d24b0b3cf3e
-grammars/0/golang	709bdacfa3467d6daa1621ba
-grammars/0/json	6e207994414aebee12b252ee
-grammars/0/python	5f74e1709aa7da9b978dada3
-grammars/0/typescript	aa7bd39fd079f3ca2c81bba9
-grammars/0/xml	be9017e64d65823bee09cee0
-grammars/0/yaml	d72e058f4df7839edb662ab8
-grammars/1/cel	5d2da573527d49ebd5db0228
-grammars/1/csv	783759e61a8e6ee45d0d1516
-grammars/1/cue	9b145d5954a089c5503b4f52
-grammars/1/duckdb	59acde571b6648ae5ec12143
-grammars/1/golang	3b284fa73265adca4456886e
-grammars/1/json	6e207994414aebee12b252ee
-grammars/1/python	7f4e5501550c9eff80bef75c
-grammars/1/typescript	82c49d1097caf274053d0aaa
-grammars/1/xml	be9017e64d65823bee09cee0
-grammars/1/yaml	7921aa55c91ca39a63db87eb
+grammars/0/cel	91ef4516c02500a20d2bc5d4
+grammars/0/csv	4ad5d0f157d16d009e63fb8d
+grammars/0/cue	8eaadb8c1c588277804d19c3
+grammars/0/duckdb	df153307cddd92fae87429e5
+grammars/0/golang	32f976cf0dd7b4de9509ebaa
+grammars/0/json	74a54eca12c75f6eb210a0c1
+grammars/0/python	593c0c15f15c2fcf2b0b6fa2
+grammars/0/typescript	fd59690f51b24cc64d71174e
+grammars/0/xml	e93ec3f7ff61d3788775deae
+grammars/0/yaml	7bbe8d39ab8ff480962aca3e
+grammars/1/cel	91ef4516c02500a20d2bc5d4
+grammars/1/csv	4ad5d0f157d16d009e63fb8d
+grammars/1/cue	12ebc94c3a604843721d5d0a
+grammars/1/duckdb	9b8f113bc56a37b25a764286
+grammars/1/golang	1b6766985b54bfbd70baa410
+grammars/1/json	74a54eca12c75f6eb210a0c1
+grammars/1/python	c6f9a8422b2e710129f552e2
+grammars/1/typescript	e10d66f065e53af3d933b5f0
+grammars/1/xml	e93ec3f7ff61d3788775deae
+grammars/1/yaml	7c846fd39f4402d0062db4ab

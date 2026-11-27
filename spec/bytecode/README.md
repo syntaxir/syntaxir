@@ -16,6 +16,7 @@ A bytecode VM must produce the same results as the closure backend.
 | level | The Operators Rule binding level passed to a rule call (`min`); 0 for an ordinary call |
 | value-free twin | A copy of a rule compiled so that it builds no value ([Rule table](#rule-table)) |
 | transient rule | A rule that is not memoized in normal parses ([Rule calls](#rule-calls)) |
+| value-less lexical rule | A value-free twin of a transient lexical rule, which no parse memoizes ([Rule calls](#rule-calls)) |
 
 ## Values
 
@@ -67,6 +68,7 @@ of a Flow body, which holds the full implementation-int range.
 | Operators Rule | Index into the Operators Rule table, or -1 if there is none |
 | Value-free twin | Whether this entry is a value-free twin (see below). The value of a value-free twin is always nil. |
 | Transient | The rule is not memoized in normal parses ([Rule calls](#rule-calls)) |
+| Lexical | The rule only matches characters: it has no action, is on no cycle of the call graph, and its body binds, tests and recovers nothing and calls only lexical rules |
 | Recursive | The rule is on a cycle of the call graph or calls itself; only calls of such rules count against the nesting limit ([Limits](../runtime/parsing.md#limits)) |
 | Where | The text that names the rule in the message of a failed action, as an index into the string table, or -1 for the name. The hidden rule of an inline action is named by the rule that holds the action. |
 | Splice | The rule makes no node of its own (a hidden rule without an action). Its body returns the tuple node of its elements, if the body builds one, else its one element or nil; the value of the rule is that result as it is, without the captures of the body, and its callers take its elements with `SPREAD`. |
@@ -117,7 +119,7 @@ there is no stack of backtrack entries.
 
 ## Rule Calls
 
-`CALL r, min` calls rule r as follows. The call is memoized if the rule is a leader, or if it is marked for memoization and is not transient. In an incremental parse, a transient rule is memoized when it is marked for memoization, so that results from the previous parse can be reused.
+`CALL r, min` calls rule r as follows. The call is memoized if the rule is a leader, or if it is marked for memoization and is not transient. In an incremental parse, a transient rule is memoized when it is marked for memoization, so that results from the previous parse can be reused, unless it is a value-less lexical rule: a value-free twin that is transient and lexical. Such a rule is not memoized in any parse; an incremental parse reuses the results of the rules that call it ([Documents](../runtime/documents.md)).
 
 A rule is marked transient when it calls no other rule, or when it is referenced only once in the grammar. Re-evaluating the former only scans the input once more; the latter is re-evaluated at the same position only when its single caller is. In both cases a memo entry would never be reused.
 
@@ -472,7 +474,7 @@ A compiled grammar uses container version 10. It stores one execution-only compi
 | Magic | `SXC\x00` (4 bytes) |
 | Version | 1 byte: 10. A loader refuses any other value. |
 | Mode | 1 byte: 0 parse, 1 recognize, 2 document. The module serves the operations of this mode only. A parse-mode or document-mode module is the module of the grammar; a recognize-mode module is the module of its recognizer. A loader refuses any other value. |
-| Instruction-set version | Unsigned integer for this module: 41. Every module uses this version, whatever instructions it contains; a runtime rejects a module of another version and asks for the grammar to be compiled again. |
+| Instruction-set version | Unsigned integer for this module: 42. Every module uses this version, whatever instructions it contains; a runtime rejects a module of another version and asks for the grammar to be compiled again. |
 | String table | Count, then each string (byte length and UTF-8 bytes), all unsigned. The module's string table is a prefix of this table. |
 | Start rule | String index, unsigned: the start rule the saved parser uses. It is a start rule of the module, or the empty string for the module's default start rule. |
 | Module | See below |
@@ -488,7 +490,7 @@ The module is laid out in the following order. A *list* is a count (unsigned) fo
 5. Type table: a list of (name, list of field names, list of the zero descriptors of the fields, underlying node type). A zero descriptor is a string index; it tells how a field that a constructor left unset reads (see `member` in [Action Code](#action-code)), and is written as in the type chapter of the language specification: `i`, `s` and `b` for 0, `""` and false, `n` for nil, `l` for the empty list, the descriptors of the elements in parentheses for a tuple, `{Name}` for the zero value of the struct type Name, and `-` for a type that has no zero value. The underlying node type is a string index, or -1 for a struct type.
 6. Scope table: a list of lists of string indices.
 7. Variable table: a list of (name, type, integer, string). The type is 0 for `int`, 1 for `string` and 2 for `bool`. The integer is the initial value of an `int` variable, and 0 or 1 for a `bool` variable. The string is the string table index of the initial value of a `string` variable, and -1 for the other types.
-8. Rule table: a list of (name, scope, action, node type, memoize, leader, member, cycle, position-dependent, Operators Rule, value-free twin, transient, recursive, where, splice, missing, value shape, variables). The value shape is a boolean, whether there is one, followed by the shape as the immediate of `SCOPEVALUE` if there is.
+8. Rule table: a list of (name, scope, action, node type, memoize, leader, member, cycle, position-dependent, Operators Rule, value-free twin, transient, lexical, recursive, where, splice, missing, value shape, variables). The value shape is a boolean, whether there is one, followed by the shape as the immediate of `SCOPEVALUE` if there is.
 9. Start rules: a list of the rule table indices of the start rules, the rules marked `@start`, in increasing order, followed by the rule table index of the default start rule. Parsing begins only at these rules.
 10. Operators Rule table: a list of (skip body, list of operand lines, list of prefix operators, list of infix and postfix operators). A line is (scope, action, Flow body, shape), the Flow body as a body of the Flow bodies (item 13) without its rule index and the shape as the immediate of `SHAPESINGLE`; an operator is (index, kind, associativity, level, line). A skip body is a boolean, whether there is one, followed by the body if there is, as a line's Flow body.
 11. Action table: a list of action expressions. An action expression is the sizes of its four register files (unsigned: values, integers, sequences, strings); its constants, a list of (kind as 1 byte: 0 nil, 1 int, 2 string, 3 bool; signed integer: the int, the string index, or 0 or 1); its names, a list of string indices; its member reads, a list of (member kind, name, field); its node types, a list of string indices; its casts, a list of (type text, line, column), the type text -1 for a cast that checks nothing; its struct literals, a list of (type name, number of fields); and its code, a list of instructions. Between the register sizes and the constants, a byte whose bits 0 to 5 mark the pools that are not empty (constants, names, member reads, node types, casts, struct literals) precedes them; only those pools are written, and a marked pool is not empty. An instruction is its opcode (1 byte), a byte whose bits 0 to 3 mark the operands D, `A`, `B` and `C` that are not zero, and those operands; a marked operand is not zero.

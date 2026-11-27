@@ -3,6 +3,7 @@ package elaborate_test
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/frontend"
@@ -90,8 +91,16 @@ func TestStructuralFacts(t *testing.T) {
 					t.Fatalf("node structure differs: %d nodes, want %d", len(got), len(want))
 				}
 				tf, uf := corepass.Compute(typed, nil), corepass.Compute(untyped, nil)
-				if !reflect.DeepEqual(uf.Rules[:n], tf.Rules[:n]) {
-					t.Fatalf("rule facts differ:\n%+v\nwant\n%+v", uf.Rules[:n], tf.Rules[:n])
+				want, got := slices.Clone(tf.Rules[:n]), slices.Clone(uf.Rules[:n])
+				if opts.Recognition != check.BuildValues {
+					// A recognizer's typed module runs no action and has none, and Lexical reads the
+					// grammar's actions, which the untyped module keeps.
+					for i := range got {
+						got[i].Lexical, want[i].Lexical = false, false
+					}
+				}
+				if !reflect.DeepEqual(got, want) {
+					t.Fatalf("rule facts differ:\n%+v\nwant\n%+v", got, want)
 				}
 				for i := 0; i < n; i++ {
 					tn, un := typed.Rules[i].Body, untyped.Rules[i].Body

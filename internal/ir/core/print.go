@@ -52,7 +52,7 @@ func (p *printer) rule(r *Rule) {
 	for _, f := range []struct {
 		on   bool
 		name string
-	}{{pol.Memo, "memo"}, {pol.Transient, "transient"}, {pol.Plain, "plain"}, {pol.Leader, "leader"}, {pol.Splice, "splice"}, {pol.NoValue, "novalue"}} {
+	}{{pol.Memo, "memo"}, {pol.Transient, "transient"}, {pol.Lexical, "lexical"}, {pol.Plain, "plain"}, {pol.Leader, "leader"}, {pol.Splice, "splice"}, {pol.NoValue, "novalue"}} {
 		if f.on {
 			p.b.WriteString(" " + f.name)
 		}

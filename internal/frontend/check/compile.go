@@ -175,7 +175,7 @@ func CheckCanonical(g, normalized *ast.Grammar, starts []string, defaultStart st
 			_, isOperatorsRule := r.Def.Expr.(*ast.OperatorsRule)
 			twin = r.Action == nil && !isOperatorsRule && rf.Cycle == 0 && !hasStream(r.Def.Expr, control)
 		}
-		r.Transient, r.Rec, r.Vars = rf.Transient, rf.Rec, rf.Vars
+		r.Transient, r.Lexical, r.Rec, r.Vars = rf.Transient, rf.Lexical, rf.Rec, rf.Vars
 		r.TwinOK = twin
 	}
 	if flags == nil && prog.HasMissing {
@@ -310,7 +310,7 @@ func (c *Compiler) twinOf(r *Rule) *Rule {
 	if r.Twin == nil {
 		prog := c.Model
 		r.Twin = &Rule{ID: len(prog.RuleList) + len(prog.Twins), Name: r.Name, Def: r.Def, Scope: NewScope(),
-			Memo: r.Memo, Missing: r.Missing, Transient: r.Transient, Rec: r.Rec, Vars: r.Vars, Positional: r.Positional, Novalue: true}
+			Memo: r.Memo, Missing: r.Missing, Transient: r.Transient, Lexical: r.Lexical, Rec: r.Rec, Vars: r.Vars, Positional: r.Positional, Novalue: true}
 		prog.Twins = append(prog.Twins, r.Twin)
 	}
 	return r.Twin

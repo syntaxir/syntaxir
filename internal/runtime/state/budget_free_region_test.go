@@ -108,8 +108,9 @@ func TestFreeRegionDoesNotNest(t *testing.T) {
 	none.FreeEnd(none.FreeBegin())
 }
 
-// A rule is memoized only by a Document parse when it is transient and memoized, no leader, and not
-// one that the missing-token mode evaluates again: the memo protocol of such a rule is Document work.
+// A rule is memoized only by a Document parse when it is transient and memoized, no leader, not a
+// value-less lexical rule, and not one that the missing-token mode evaluates again: the memo protocol
+// of such a rule is Document work.
 func TestDocOnlyMemo(t *testing.T) {
 	missing := &MissingTokenState{}
 	for _, c := range []struct {
@@ -127,6 +128,9 @@ func TestDocOnlyMemo(t *testing.T) {
 		{"a missing-token rule without the mode", true, nil, Rule{Memo: true, Transient: true, Missing: true}, true},
 		{"a missing-token rule in the mode", true, missing, Rule{Memo: true, Transient: true, Missing: true}, false},
 		{"another rule in the mode", true, missing, Rule{Memo: true, Transient: true}, true},
+		{"a value-less lexical rule", true, nil, Rule{Memo: true, Transient: true, Lexical: true, Novalue: true}, false},
+		{"a lexical rule that builds its value", true, nil, Rule{Memo: true, Transient: true, Lexical: true}, true},
+		{"a value-free twin that is not lexical", true, nil, Rule{Memo: true, Transient: true, Novalue: true}, true},
 	} {
 		p := &Parser{MemoAll: c.memoAll, Missing: c.missing}
 		if got := p.docOnlyMemo(&c.rule); got != c.want {

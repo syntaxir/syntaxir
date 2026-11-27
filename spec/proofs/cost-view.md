@@ -609,7 +609,8 @@ no reshaped value.
 
 **Documents.** Let $P$ be a parse of a [Document](../runtime/documents.md). It
 memoizes the rules that a parse from scratch memoizes and also the transient
-rules ([Reuse Model](../runtime/documents.md#reuse-model), *Results that are
+rules other than the value-less lexical rules
+([Reuse Model](../runtime/documents.md#reuse-model), *Results that are
 stored*), whereas the parse of $V$ takes the memoized rules of a parse of $G$
 from scratch ([Cost View](../runtime/parsing.md#cost-view)). Split the cost
 of $P$ by the decisions of a parse from scratch: its keyed evaluations and
@@ -617,7 +618,11 @@ growth runs are those of the rules that a parse from scratch memoizes, and a
 call of a transient rule, whose results only a Document stores, counts, in the own cost of its
 caller, as a call of a rule that is not memoized: the call, and the evaluation
 of the body when $P$ makes it. Let $D$ be the lookups and stores of these calls,
-which a parse from scratch does not make.
+which a parse from scratch does not make. A call of a value-less lexical rule
+is a call of a rule that is not memoized in $P$ either: $P$ evaluates it at
+every call and never looks it up or stores it, as a parse from scratch does, so
+it adds its call and its body to the own cost of its caller as in $G^\rho$ and
+nothing to $D$, and the bound below holds for it unchanged.
 
 $P$ also compares examined ranges in contexts of growths, which a parse from
 scratch does not ([Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules)):

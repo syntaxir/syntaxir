@@ -99,7 +99,7 @@ version.
 | Number | Current value | Meaning |
 |:--|--:|:--|
 | Format version | 10 | The outer frame of the file: its header, the order of its sections, and when the insertion part exists (exactly when a rule uses `#missing`). A runtime loads only version 10 and refuses any other version |
-| Instruction-set version | 41 | The encoding of the module's contents, its action code included. Every module declares it |
+| Instruction-set version | 42 | The encoding of the module's contents, its action code included. Every module declares it |
 
 - A runtime refuses a file of another format version with
   `unsupported compiled grammar version N (want 10): compile the grammar again`.

@@ -70,9 +70,9 @@ type Rule struct {
 	NodeType string
 	// Memo to Vars are the policy of the rule (core.Policy); Lean and Novalue decide whether the
 	// body builds its value.
-	Memo, Transient, Plain, Rec, Leader, Splice, Novalue, Lean bool
-	Seen                                                       int
-	Vars                                                       []string
+	Memo, Transient, Lexical, Plain, Rec, Leader, Splice, Novalue, Lean bool
+	Seen                                                                int
+	Vars                                                                []string
 	// Twin is the value-free twin of the rule, if it has one.
 	Twin *Rule
 	// PredCaps is nil for an ordinary rule.

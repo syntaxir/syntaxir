@@ -339,6 +339,7 @@ An ID that is no longer a mechanism stays reserved and is never reused. An imple
 - [148. Moving reused trees of generated Go Documents](logs/148-moving-reused-trees-of-generated-go-documents.md)
 - [149. Kept child stack of generated Go Documents](logs/149-kept-child-stack-of-generated-go-documents.md)
 - [150. Compact memo entries of generated Go](logs/150-compact-memo-entries-of-generated-go.md)
+- [151. Documents without value-less lexical entries](logs/151-documents-without-value-less-lexical-entries.md)
 
 ## Rejected Attempts
 

@@ -389,7 +389,7 @@ A file carries two version numbers after its magic number:
 | Number | Now | Meaning |
 |:--|--:|:--|
 | Format version | 10 | The outer frame of the file: its header and the order of its sections. A runtime loads version 10 only. |
-| Instruction-set version | 41 | The encoding of the compiled grammar inside the frame, its actions included (see the [specification](../../spec/runtime/compiled-grammars.md#versions-and-compatibility)). Every module declares it. |
+| Instruction-set version | 42 | The encoding of the compiled grammar inside the frame, its actions included (see the [specification](../../spec/runtime/compiled-grammars.md#versions-and-compatibility)). Every module declares it. |
 
 The consequences:
 

@@ -186,7 +186,7 @@ deletion that inserts nothing. So one edit joins at most two slots. A store of
 a rule that a parse from scratch memoizes too, under a key that the slot holds,
 adds no entry, and by induction on the edits a slot holds at most one entry
 under such a key plus one for each edit that joined slots into it, at most
-$E + 1$. A store of a transient rule, whose results only a Document stores, looks at the first 32
+$E + 1$. A store of a transient rule other than a value-less lexical one, whose results only a Document stores, looks at the first 32
 entries of the chain only, and when the key is not among them it adds an entry
 in front, so a chain of more than 32 entries can hold more entries under such a
 key. Only one entry under a key matters in a parse: a lookup returns the first
@@ -630,8 +630,13 @@ The memo that this lemma counts is that of
 [Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules). It memoizes
 a leader in every parse. A [Document](../runtime/documents.md#reuse-model)
 also stores results of the transient rules, the rules that the first
-exception above leaves out, but this lemma and the ones after it do not take
-those rules as memoized: a lookup of such a rule walks only the first 32
+exception above leaves out, other than the value-less lexical rules, which it
+evaluates at every call as a parse from scratch does. This lemma and the ones
+after it do not take any transient rule as memoized, so the bounds below hold
+for a Document whichever of them it stores: a value-less lexical rule is not
+memoized in any parse, and its calls are counted by Lemma 10 as they are
+counted in a parse from scratch, with nothing to read differently. For the
+others, a lookup of such a rule walks only the first 32
 entries at its position and misses the others, so with more than 32 keys at
 one position every call of the rule there can miss. Such a call is then
 evaluated as in a parse from scratch, which memoizes none of them, and
@@ -648,7 +653,9 @@ gives the three evaluations.
 
 **Transient calls of a Document.** The claims of the lemmas below on
 activations, owners and own regions read a Document parse as if it evaluated
-every call of a transient rule: where the Document answers such a call from
+every call of a transient rule. A Document does evaluate every call of a
+value-less lexical rule, so the reading is the parse itself for those calls;
+where the Document answers a call of another transient rule from
 its memo, they take in its place the evaluation of its counterpart in the
 reference parse $\mathcal{R}$ (*Counterparts in the reference parse* in
 Lemma 4), with the activations in it and with the calls of memoized rules in
@@ -13800,7 +13807,10 @@ Lemma 12, the walks, removals, hashing and probing of chains and the growth of t
 no unit in any parse. Every other unit is counted: the unit that opens a call, the key of each
 call of a rule that a parse from scratch memoizes, the evaluation of the body of a rule, the
 examination of the input, the values that the parse builds, and the operations on the recovered
-errors of an entry, which Lemma 14 bounds by a constant times $C$. A call of a transient rule,
+errors of an entry, which Lemma 14 bounds by a constant times $C$. A call of a value-less lexical rule looks
+nothing up and stores nothing in any parse, so it counts exactly the units that a parse from
+scratch counts for it: its unit, the evaluation of its body and the examination of the input,
+and no key. A call of another transient rule,
 whose results only a Document stores (a parse from scratch memoizes none of them), pays no key,
 as in a parse from scratch; its lookup compares each string variable of the key by the
 assignment that bound its value, at a constant cost, and a string that another assignment bound
@@ -13822,7 +13832,8 @@ looks the key up, so the deferral of the memoization of a rule does not change t
 parse of a Document is the parse from scratch plus the Document work, and a parse after edits
 evaluates a call again where an entry lagged behind by more than 128 edits. This holds for the
 three backends of the engine and for generated Go, whose Documents memoize the same rules as a
-parse from scratch and also store the results of the transient rules. So a Document parse under
+parse from scratch and also store the results of the transient rules other than the value-less
+lexical ones. So a Document parse under
 the default budget is argued not to fail where the parse from scratch of its text does not. Its
 default budget, raised by the Document units, is at most that budget plus the bound on the
 Document units above (the terms $W$, $B$, $G$ and $Q$ are bounded by the retained state, not by
@@ -13859,7 +13870,7 @@ of the parse reaches it. No lemma bounds $W$, $B$, $G$ or $Q$ by $n$, $K$ and $L
 of a rule that a parse from scratch memoizes too ([Setting](#setting)), so $Q$ is
 at most $E + 1$ times the number of such keys at its position, plus the entries
 of the transient rules, which can be several under one key on a
-chain of more than 32 entries; these include keys of earlier texts, which the
+chain of more than 32 entries (a Document stores none for a value-less lexical rule); these include keys of earlier texts, which the
 $K$ of the parse does not count. $G$ grows with deletions and shrinks with insertions.
 
 **Over a sequence of parses.** Let $P_1, \dots, P_m$ be the Document parses, in

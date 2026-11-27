@@ -88,7 +88,7 @@ func checkProgramFlags(prog *check.Model, f *corepass.Facts) error {
 	for i, r := range prog.RuleList {
 		x := &f.Rules[i]
 		if r.Leader != x.Leader || r.Member != x.Member || r.Cycle != x.Cycle || r.Positional != x.Positional ||
-			r.Transient != x.Transient || r.Rec != x.Rec || !slices.Equal(r.Vars, x.Vars) || r.Memo != x.Memo {
+			r.Transient != x.Transient || r.Lexical != x.Lexical || r.Rec != x.Rec || !slices.Equal(r.Vars, x.Vars) || r.Memo != x.Memo {
 			return fmt.Errorf("rule %s: flags %+v, facts %+v", r.Name, *r, *x)
 		}
 		ins := check.RuleFlags{Leader: r.Leader, Member: r.Member, Cycle: r.Cycle}

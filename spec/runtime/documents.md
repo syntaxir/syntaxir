@@ -263,7 +263,8 @@ normative, and the same on every backend:
 
 - the results that a parse stores, under the rules of
   [Evaluations of Rules](parsing.md#evaluations-of-rules) and the transient
-  rules that only a Document memoizes ([Reuse Model](#reuse-model));
+  rules that only a Document memoizes, which are not value-less lexical rules
+  ([Reuse Model](#reuse-model));
 - the examined range that each entry records, as [Reuse Model](#reuse-model)
   defines it;
 - what each edit does to an entry: keep it, shift it or drop it
@@ -383,7 +384,16 @@ every entry and run ([Edits](#edits)).
 [Evaluations of Rules](parsing.md#evaluations-of-rules), except that it also
 memoizes the rules that the first exception there leaves unmemoized in an
 ordinary parse (the transient rules); since a leader is memoized in every
-case, no leader is memoized only by a Document. The key of a transient rule
+case, no leader is memoized only by a Document. A Document does not memoize a
+**value-less lexical rule** either: the
+[value-free twin](parsing.md#evaluations-of-rules) of a transient rule that
+only matches characters. Such a rule has no action, is on no cycle of calls,
+and its body is made only of literals, character classes, `.`, anchors, `_`,
+`_|_`, sequences, choices, options, repetitions, discards, lookaheads,
+`#atomic`, captures and calls of such rules. A call of it builds nothing, binds nothing
+and reads no variable, so its result is the slots it examines and evaluating
+it again only matches them once more; a Document reuses the results of the
+rules that call it instead. The key of a transient rule
 holds, for each string variable that the rule reads, the assignment that bound
 its value: each assignment of a string that changes the variable is one of its
 own over the life of the Document, and backtracking restores the assignments of

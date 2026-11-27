@@ -31,7 +31,7 @@ func (r *Result) CoreInput() *elaborate.Input {
 	byRule := make(map[*check.Rule]*elaborate.Rule, len(all))
 	for i, r := range all {
 		br := &elaborate.Rule{ID: r.ID, Name: r.Name, Where: r.Where, Def: r.Def, Body: r.BodyExpr(), Action: r.Action, NodeType: r.NodeType,
-			Memo: r.Memo, Transient: r.Transient, Plain: r.Plain, Rec: r.Rec, Leader: r.Leader, Splice: r.Splice, Novalue: r.Novalue,
+			Memo: r.Memo, Transient: r.Transient, Lexical: r.Lexical, Plain: r.Plain, Rec: r.Rec, Leader: r.Leader, Splice: r.Splice, Novalue: r.Novalue,
 			Lean: r.Lean, Seen: r.Seen, Vars: r.Vars}
 		if r.PredCaps != nil {
 			br.PredCaps = r.PredCaps
@@ -195,7 +195,7 @@ func runtimeRule(r *check.Rule) *program.Rule {
 		NodeType: r.NodeType, OpNodeType: r.OpNodeType, Memo: r.Memo, Missing: r.Missing,
 		Leader: r.Leader, Member: r.Member, Cycle: r.Cycle, LeaderIndex: r.LeaderIndex,
 		Stream: r.Stream, Positional: r.Positional, Vars: r.Vars,
-		Transient: r.Transient, Seen: r.Seen, Plain: r.Plain, Rec: r.Rec, Novalue: r.Novalue,
+		Transient: r.Transient, Lexical: r.Lexical, Seen: r.Seen, Plain: r.Plain, Rec: r.Rec, Novalue: r.Novalue,
 	}
 }
 

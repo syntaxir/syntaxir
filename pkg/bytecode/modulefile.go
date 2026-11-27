@@ -79,6 +79,7 @@ func (w *Encoder) WriteModule(m *Module) {
 		w.Int(r.OperatorsRule)
 		w.Bool(r.ValueFreeTwin)
 		w.Bool(r.Transient)
+		w.Bool(r.Lexical)
 		w.Bool(r.Rec)
 		w.Int(r.Where)
 		w.Bool(r.Splice)
@@ -487,7 +488,7 @@ func (r *Decoder) ReadModule() *Module {
 		ri := RuleInfo{
 			Name: int(r.int32()), Scope: r.ints(), Action: int(r.int32()),
 			NodeType: int(r.int32()),
-			Memo:     r.Bool(), Leader: r.Bool(), Member: r.Bool(), Cycle: int(r.int32()), PositionDependent: r.Bool(), OperatorsRule: int(r.int32()), ValueFreeTwin: r.Bool(), Transient: r.Bool(), Rec: r.Bool(), Where: int(r.int32()), Splice: r.Bool(), Missing: r.Bool(),
+			Memo:     r.Bool(), Leader: r.Bool(), Member: r.Bool(), Cycle: int(r.int32()), PositionDependent: r.Bool(), OperatorsRule: int(r.int32()), ValueFreeTwin: r.Bool(), Transient: r.Bool(), Lexical: r.Bool(), Rec: r.Bool(), Where: int(r.int32()), Splice: r.Bool(), Missing: r.Bool(),
 		}
 		if r.Bool() && r.Err == nil {
 			if x, ok := r.flowImm(FlowImmShape).(FlowShapeOf); ok {

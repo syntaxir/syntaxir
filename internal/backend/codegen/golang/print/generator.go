@@ -829,7 +829,7 @@ func (g *Generator) rules() {
 			if r.Novalue {
 				flags = append(flags, "RuleNovalue")
 			}
-			if g.Document && (r.Leader || r.Memo) {
+			if g.Document && (r.Leader || r.Memo && !r.ValuelessLexical()) {
 				flags = append(flags, "RuleDocMemo")
 			}
 			if g.Document && r.Positional {

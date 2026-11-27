@@ -39,6 +39,8 @@ type RuleFact struct {
 	Positional bool
 	// Transient reports that ordinary parses do not memoize the rule.
 	Transient bool
+	// Lexical reports that the rule only reads characters (corepass.Rule.Lexical).
+	Lexical bool
 	// Rec reports that the rule is on a cycle of calls.
 	Rec bool
 	// Vars are the variables the rule or a rule it calls reads, sorted.

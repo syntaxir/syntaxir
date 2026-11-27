@@ -597,3 +597,23 @@ func TestDocumentMemoizesTransientRules(t *testing.T) {
 		t.Errorf("a Document parse answered %d calls of the transient rule from the memo, want 2: %+v", st.MemoHits, st)
 	}
 }
+
+// TestDocumentEvaluatesValuelessLexicalRules checks the exception of spec/runtime/documents.md (Reuse
+// Model, Results that are stored): a Document parse does not memoize a value-less lexical rule. The
+// discards call the value-free twin of x, which only matches characters, so each alternative of main
+// evaluates it again, as a parse from scratch does, and the memo answers no call; the units are those
+// of the parse from scratch, which neither looks x up nor stores it.
+func TestDocumentEvaluatesValuelessLexicalRules(t *testing.T) {
+	t.Parallel()
+	prog := mustCompile(t, "rule main = -x \"a\" / -x \"b\" / -x \"c\"\nrule x = \"x\"+")
+	doc, err := prog.NewDocument("main", "xxc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := doc.Parse(); err != nil {
+		t.Fatal(err)
+	}
+	if st := doc.Stats(); st.MemoHits != 0 || st.Evaluated != 4 {
+		t.Errorf("a Document parse answered %d calls of the value-less lexical rule from the memo and evaluated %d rules, want 0 and 4 (main and x three times): %+v", st.MemoHits, st.Evaluated, st)
+	}
+}

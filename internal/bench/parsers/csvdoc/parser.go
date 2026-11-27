@@ -75,7 +75,7 @@ var rulesSpec = [...]ruleSpec{
 	{"record", &sh15, rt.RuleDocMemo, 0, 2, 0},
 	{"field", &sh2, rt.RuleDocMemo, 0, 0, 0},
 	{"eol", &sh2, rt.RuleDocMemo, 0, 0, 0},
-	{"eol", &sh2, rt.RuleNovalue | rt.RuleDocMemo, 0, 0, 0},
+	{"eol", &sh2, rt.RuleNovalue, 0, 0, 0},
 }
 
 var rulesStrs = [...][]string{

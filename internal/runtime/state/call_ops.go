@@ -40,13 +40,14 @@ func (p *Parser) GrowKey(r *Rule, min int) MemoKey {
 // memoized reports whether the results of rule r, which leads no left-recursive cycle, are memoized
 // in the parse (Memoizes).
 func (p *Parser) memoized(r *Rule) bool {
-	return r.Memo && (!r.Transient || p.MemoAll) && !(p.Missing != nil && r.Missing)
+	return r.Memo && (!r.Transient || p.MemoAll && !r.ValuelessLexical()) && !(p.Missing != nil && r.Missing)
 }
 
 // docOnlyMemo reports whether the parse memoizes rule r and a parse from scratch does not: a transient
-// rule in a Document parse. The memo protocol of such a rule is Document work.
+// rule other than a value-less lexical one in a Document parse. The memo protocol of such a rule is
+// Document work.
 func (p *Parser) docOnlyMemo(r *Rule) bool {
-	return p.MemoAll && r.Memo && r.Transient && !r.Leader && !(p.Missing != nil && r.Missing)
+	return p.MemoAll && r.Memo && r.Transient && !r.ValuelessLexical() && !r.Leader && !(p.Missing != nil && r.Missing)
 }
 
 // SkipGuarded reports whether a choice may skip an alternative whose guard rejects the next

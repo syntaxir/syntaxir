@@ -275,17 +275,18 @@ go run ./jsondoc testdata/grammars/json/json.sxir
 ```text
 282783 bytes
 Parse:                ...
-first Document.Parse: ... {315007 10001 10001 0}
+first Document.Parse: ... {325008 0 0 0}
 Edit:                 ...
-reparse:              ... {11 15020 15020 0}
+reparse:              ... {10025 5006 5006 0}
 ```
 
 The times vary with the machine and the run: about 16 ms for `Parse`, 31 ms for the first `Document.Parse`, 60 µs for
 the edit and 1.2 ms for the reparse on the machine above.
 
 The numbers in braces are the `ParseStats` of the Document: evaluated, reused, memo hits and resumed repetition
-elements. The full parse evaluates 315,007 rule bodies; after the edit 11 run and 15,020 results are reused, all of
-them from the memo table.
+elements. The full parse evaluates 325,008 rule bodies; after the edit 10,025 run and 5,006 results are reused, all of
+them from the memo table. Most of the bodies that run again match the blanks between the elements: a Document matches
+such a run of characters again rather than keep and look up its result, as a parse from scratch does.
 
 ## Limits
 

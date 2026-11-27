@@ -53,6 +53,9 @@ type Rule struct {
 	// Transient reports that the rule is not memoized in ordinary parses (it is memoized only by
 	// the incremental Document) (transientRules).
 	Transient bool
+	// Lexical reports that the rule only reads characters (corepass.Rule.Lexical). A Document does
+	// not memoize the value-free twin of a transient lexical rule (program.Rule.ValuelessLexical).
+	Lexical bool
 	// Seen is the rule's index among the rules whose memoization is deferred to the second call at a
 	// position (rule.seen, the firstCall composition), or -1.
 	Seen int

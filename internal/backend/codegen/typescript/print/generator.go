@@ -588,7 +588,7 @@ func (g *Generator) rules() {
 		if r.Splice {
 			fmt.Fprintf(init, "%s.splice = true;\n", g.ruleVar(r))
 		}
-		if g.Document && (r.Leader || r.Memo) {
+		if g.Document && (r.Leader || r.Memo && !r.ValuelessLexical()) {
 			fmt.Fprintf(init, "%s.docMemo = true;\n", g.ruleVar(r))
 		}
 		if g.Document && r.Positional {

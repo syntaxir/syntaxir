@@ -105,6 +105,10 @@ type Rule struct {
 	Vars []string
 	// Transient reports that the rule is memoized only by the incremental Document.
 	Transient bool
+	// Lexical reports that the rule only matches characters: it has no action, is on no cycle of
+	// calls, and calls only lexical rules; its body binds, tests and recovers nothing
+	// (corepass.Rule.Lexical).
+	Lexical bool
 	// Seen is the rule's index among the rules whose memoization is deferred to the second call at
 	// a position, or -1 (NumberSeen).
 	Seen int
@@ -116,6 +120,11 @@ type Rule struct {
 	// Novalue reports that this is a value-free rule (its value is always nil).
 	Novalue bool
 }
+
+// ValuelessLexical reports a value-less lexical rule: the value-free twin of a transient rule that
+// only reads characters. No parse memoizes it, a Document's included: a Document reuses the results
+// of the rules that call it.
+func (r *Rule) ValuelessLexical() bool { return r.Novalue && r.Transient && r.Lexical }
 
 // WhereName returns the name of the rule in the message of a failed action.
 func (r *Rule) WhereName() string {

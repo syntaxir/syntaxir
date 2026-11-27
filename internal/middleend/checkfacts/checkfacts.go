@@ -35,7 +35,7 @@ func (Source) RuleFacts(am *pass.AnalysisManager[*core.Module], m *core.Module, 
 		r := &f.Rules[i]
 		rf := check.RuleFact{Cycle: r.Cycle, Leader: r.Leader, Member: r.Member,
 			CycleIns: r.CycleIns, LeaderIns: r.LeaderIns, MemberIns: r.MemberIns,
-			Positional: r.Positional, Transient: r.Transient, Rec: r.Rec, Vars: r.Vars}
+			Positional: r.Positional, Transient: r.Transient, Lexical: r.Lexical, Rec: r.Rec, Vars: r.Vars}
 		if r.Recovering >= 0 {
 			rf.Recovering = m.Rules[r.Recovering].Name
 		}

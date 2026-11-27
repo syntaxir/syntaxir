@@ -118,6 +118,9 @@ func SlotNames(s []Slot) []string {
 type Policy struct {
 	// Memo reports that ordinary parses memoize the rule; Transient that only Documents do.
 	Memo, Transient bool
+	// Lexical reports that the rule only reads characters. Documents do not memoize a value-free
+	// twin of a transient lexical rule either (program.Rule.ValuelessLexical).
+	Lexical bool
 	// Plain reports that the rule is never memoized outside Documents and has no captures.
 	Plain bool
 	// Rec reports that the rule is on a cycle of the call graph: its entries count against the

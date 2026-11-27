@@ -68,6 +68,14 @@ type Rule struct {
 	Memo, Transient bool
 	// Missing reports that the rule or a rule it calls has a #missing insertion.
 	Missing bool
+	// Lexical reports that the rule only matches characters: it has no action, is on no cycle of
+	// calls, and its body is made only of literals, character classes, `.`, anchors, `_`, `_|_`,
+	// sequences, choices, options, repetitions, discards, lookaheads, #atomic, captures (and the
+	// scans, class runs and terminal regions lowered from them) and calls of lexical rules. Documents
+	// do not memoize the value-free twin of a transient lexical rule (program.Rule.ValuelessLexical).
+	// A capture only names a part of the value, which a twin does not build. The action is the
+	// grammar's: a recognizer's typed module, which runs no action, may have none.
+	Lexical bool
 }
 
 // Cyclic reports a rule on a left-recursion cycle.
@@ -97,6 +105,7 @@ func Compute(m *core.Module, control *cancel.Control) *Facts {
 	c.recovering()
 	c.vars()
 	c.memo()
+	c.lexical()
 	for _, r := range m.Rules {
 		if r != nil {
 			r.Policy.Leader = c.rules[c.canon[r.ID]].Leader
@@ -127,11 +136,14 @@ type computer struct {
 	// inserts reports that the module has a Missing node, so that the left calls with token
 	// insertion enabled may differ from those without.
 	inserts bool
+	// unlexical holds the rules whose bodies have a node that does not only match characters or
+	// capture (see lexical).
+	unlexical []bool
 }
 
 func newComputer(m *core.Module, control *cancel.Control) *computer {
 	c := &computer{m: m, control: control, rules: make([]Rule, len(m.Rules)), canon: make([]int, len(m.Rules)),
-		calls: make([][]int, len(m.Rules)), sure: make([]bool, len(m.Rules))}
+		calls: make([][]int, len(m.Rules)), sure: make([]bool, len(m.Rules)), unlexical: make([]bool, len(m.Rules))}
 	for i := range c.canon {
 		c.canon[i] = i
 	}
@@ -151,8 +163,14 @@ func newComputer(m *core.Module, control *cancel.Control) *computer {
 			if k, ok := c.callee(n); ok {
 				c.calls[r.ID] = append(c.calls[r.ID], k)
 			}
-			if _, ok := n.(*core.Missing); ok {
-				c.inserts = true
+			switch n.(type) {
+			case *core.Lit, *core.ClassNode, *core.Any, *core.Anchor, *core.Succeed, *core.FailNode,
+				*core.Seq, *core.Choice, *core.Opt, *core.Repeat, *core.Drop, *core.Look, *core.Text,
+				*core.Capture, *core.Call, *core.Nest, *core.Scan, *core.ClassRun, *core.Terminal:
+			case *core.Missing:
+				c.inserts, c.unlexical[r.ID] = true, true
+			default:
+				c.unlexical[r.ID] = true
 			}
 		})
 	}
@@ -580,6 +598,21 @@ func (c *computer) actionExprs(r *core.Rule, f func(core.ActionExpr)) {
 			}
 		}
 	})
+}
+
+// lexical sets Lexical: a rule that reads only characters. A rule is not lexical when it has an
+// action, is on a cycle of calls (Rec), has a node other than those that only match characters or
+// capture (unlexical, found by the walk that collects the calls), or calls a rule that is not
+// lexical.
+func (c *computer) lexical() {
+	not := make([]bool, len(c.m.Rules))
+	for _, id := range c.order {
+		not[id] = c.unlexical[id] || c.rules[id].Rec || c.m.Rules[id].Finish.Action != nil
+	}
+	c.propagate(not)
+	for _, id := range c.order {
+		c.rules[id].Lexical = !not[id]
+	}
 }
 
 // propagate adds to set every rule that calls a rule of set, directly or not.
