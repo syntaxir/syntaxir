@@ -600,7 +600,12 @@ to N and skips the later ones. A run is one pass on one unit, so a pass that run
 function. The passes of a module of many functions, such as the module of a planned table, run pass by pass: the first
 pass on each function in the order of the module, then the second, so the numbers, and the dumps after each pass, follow
 the passes and, within a pass, the functions. Each application of a pattern, such as one of `canonicalize`, takes a
-number of its own, required pass or not, so that skipping a number skips that one application.
+number of its own, required pass or not, so that skipping a number skips that one application. The printing steps and
+the passes with a count decide their settings site by site in the same way: each body or literal table that a printer
+shares, each feature that the library of a parser leaves out and the pruning of an embedded library, each storage
+setting of a parser once, each literal that `inline-literals` compares in place and each class that `class-tables`
+matches by its table. A skipped decision prints that site as the setting off would, so a limit of 0 builds the parser
+of every setting off and a limit past the last decision the parser of the settings.
 Required passes always run, so the output stays a valid parser whatever N is. Each decision is reported with its number,
 the name of the pass, the unit and whether the pass ran, as `opt-bisect: <number> run|skip <instance> [<unit>]`. The
 numbers run on over every stage and table of a build. In Go, the limit is `OptBisectLimit` of `Debug`, a pointer that is
@@ -610,7 +615,8 @@ A generator that runs the pipeline more than once would number the runs of each 
 first run lowers rules that the second leaves out. Under a limit it therefore generates once: the Go generator keeps
 the rules that the printed code cannot reach, and the TypeScript generator does not generate
 again without the rules that only its unprinted calls reach. The output of a bisection is a valid parser with the same
-behavior unless a skipped pass is wrong, but its files are not those of a build without a limit. A differential test against the closure reference parser can then search for the smallest N at which the generated parser
+behavior unless a skipped pass is wrong, but its files are not those of a build without a limit: they differ only in
+rules that the code never enters. Reach pruning is therefore outside the bisection. A differential test against the closure reference parser can then search for the smallest N at which the generated parser
 differs from the reference, and that run names the pass, and the unit, that introduced the difference.
 
 ### Textual Pipelines

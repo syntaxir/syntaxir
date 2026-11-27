@@ -55,8 +55,8 @@ deleted branch.
 - Every optimization has a lifecycle state and a record that decided it. Every attempt ends in a record.
 - The effect of every setting is re-measured on the deterministic axes at each collection and in time in each
   measurement window, and a stale timing is visible where the timings are kept, in the benchmark repository.
-- The bisection limit reaches every setting: a limit of 0 builds the same parser as every setting off. Reference
-  controls are outside it.
+- The bisection limit reaches every setting: a limit of 0 builds the same parser as every setting off, in the
+  bisection mode (see "Bisection"). Reference controls are outside it.
 - **Release criterion**: no mechanism is unclassified, and every optimization mechanism has at least one control with
   its parity tests. A check enforces it (see "Checks").
 
@@ -292,10 +292,26 @@ miscompilation in them. They become decision points of the same manager:
 - Reference controls are build tags, fixed for the whole program, and are not bisected.
 - Decisions are numbered in the order of the pipeline and, within a step, in the order the step visits its input,
   which is deterministic because generation is (the determinism metric of `bench/metrics` checks it).
+- A decision is asked once per site. The features that a TypeScript parser leaves out are decided by the step that
+  specializes its library, and the printer prints the parser for the features that step decided, so the two cannot
+  disagree under a limit.
 
-Tests check the invariants that make the bisection usable: a limit of 0 generates the same parser as every
-optimization off, a limit beyond the last decision generates the default parser, and the same limit twice gives the
-same parser and the same decision log.
+Under a limit, a build generates once, so that one sequence numbers every decision: the bisection mode. The Go parser
+keeps every rule, and the TypeScript parser keeps the rules of the plan's reach instead of generating again with the
+reach of its printed code. A second generation would number other sites with the same numbers, and its printed code
+could call a rule that the reach given to it leaves out. So reach pruning sits outside the bisection, like the
+reference controls. The parser of the bisection mode differs from the parser of the same settings without a limit only
+in rules that its code never enters, and the numbering is fixed over a reach that does not depend on the decisions
+that the numbering counts. (Amended 2026-11-27: the invariants first compared with the default parser and the parser of
+every optimization off built without a limit, which keep fewer rules.)
+
+Tests check the invariants that make the bisection usable, within the bisection mode: a limit of 0 generates the same
+parser as every setting off, a limit beyond the last decision generates the parser of the settings, and the same limit
+twice gives the same parser and the same decision log. Limit 0 skips every application of `canonicalize` too, which
+every setting off still runs, so the first invariant also checks that canonicalization changes no parser (record 142).
+A further test checks that the parser at a limit beyond the last decision is the parser of the same settings built
+without a limit that keeps the unentered rules (the Go parser's unreachable rules, the TypeScript parser's plan reach),
+and that keeping them changes the parser only where a grammar has such rules.
 
 ### Runtime Mechanisms
 

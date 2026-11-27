@@ -153,7 +153,8 @@ type Debug struct {
 	// OptBisectLimit, if set, runs only the runs of optional passes numbered up to the limit, in the
 	// order the pipeline makes them, and skips the later ones; the required steps always run, so the
 	// output stays a valid parser. A run is one pass on one unit, such as one function, and each
-	// application of a pattern of a pass takes a number of its own. Each decision is written to
+	// application of a pattern of a pass, and each site of a printer or storage setting, takes a
+	// number of its own; a skipped site is generated as with its setting off. Each decision is written to
 	// Output with its number, the pass and the unit. Under a limit the generators generate once, so
 	// the output may keep rules that it would otherwise leave out. A negative limit is an error.
 	OptBisectLimit *int

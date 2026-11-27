@@ -50,8 +50,8 @@ pipeline program -> output {
                     terminals
                     guarded-classes
                     class-runs
-                    class-tables
-                    inline-literals
+                    class-tables[class-tables]
+                    inline-literals[inline-literals]
                     canonicalize![fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
                   }
                 }
@@ -73,7 +73,7 @@ pipeline program -> output {
           }
         }
       }
-      print-go!
+      print-go![method-sharing,literal-sharing,used-features,typed-object-slabs,typed-list-slabs,typed-output-bootstrap,typed-chunk-growth]
     }
   }
 }

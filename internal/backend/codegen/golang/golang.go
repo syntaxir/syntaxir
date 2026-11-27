@@ -382,12 +382,17 @@ func (d *Decision) tableIR(s tableSpec, m *core.Module) *plandata.TableIR {
 		Resume: o.Document, Traced: s.traced})
 }
 
+// printingParams are the parameters of print-go, each also a pattern: the decisions of its sites.
+var printingParams = append(slices.Clone(codegen.Params), TypedObjectSlabs, TypedListSlabs, TypedOutputBootstrap, TypedChunkGrowth)
+
 // Printing is the step print-go: it prints the files of the Go parser of the target of the pipeline
 // (codegen.TargetFeature) from its tables at the Exec stage, with the Go printer, which receives the
-// values of the step's parameters (print.Params).
+// values of the step's parameters (print.Params). Each parameter is a pattern of the step too, whose
+// decisions a bisection limit can skip (pipe.Ctx.Allow): the sites of the printer's parameters
+// (common.Params), and each storage parameter that is on, decided once for a typed parser.
 var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 	Decl: pipe.Decl{Name: "print-go", Required: true, Obligation: "The files are the Go parser of the tables.", Features: []pipe.FeatureID{codegen.TargetFeature.ID()},
-		Params: append(slices.Clone(codegen.Params), TypedObjectSlabs, TypedListSlabs, TypedOutputBootstrap, TypedChunkGrowth)},
+		Params: printingParams, Patterns: printingParams},
 	In: execdata.TablesIR, Out: result.IR,
 	Run: func(c *pipe.Ctx[*execdata.Tables], t *execdata.Tables) (result.Output, pass.PreservedSet, error) {
 		target, ok := pipe.Feature(c, codegen.TargetFeature).(*Target)
@@ -402,7 +407,11 @@ var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 		if target.hooks != nil {
 			h = *target.hooks
 		}
-		params := print.Params{Params: codegen.ParamsOf(c.Value), TypedObjectSlabs: c.Value(TypedObjectSlabs) != 0, TypedListSlabs: c.Value(TypedListSlabs) != 0, TypedOutputBootstrap: c.Value(TypedOutputBootstrap) != 0, TypedChunkGrowth: c.Value(TypedChunkGrowth) != 0, Control: cancel.New(c.Context())}
+		// A storage parameter acts on typed output only, so only a typed parser decides it.
+		storage := func(flag string) bool { return c.Value(flag) != 0 && (!d.Parser.Opts.Types || c.Allow(flag)) }
+		params := print.Params{Params: codegen.ParamsOf(c.Value, c.Allow), Control: cancel.New(c.Context())}
+		params.TypedObjectSlabs, params.TypedListSlabs = storage(TypedObjectSlabs), storage(TypedListSlabs)
+		params.TypedOutputBootstrap, params.TypedChunkGrowth = storage(TypedOutputBootstrap), storage(TypedChunkGrowth)
 		files, err := print.Print(&d.Parser, params, t, h)
 		if err != nil {
 			return nil, pass.PreserveNone(), err

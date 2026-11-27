@@ -34,16 +34,11 @@ type Derived struct {
 // target holds the program.
 var TargetFeature = pipe.NewFeature("target", common.Target.Backend, nil)
 
-// The parameters that the Go and TypeScript printing steps share.
+// The parameters that the Go and TypeScript printing steps share (common.Params).
 const (
-	// MethodSharing emits one helper for generated bodies that are exactly equal.
-	MethodSharing = "method-sharing"
-	// LiteralSharing emits one table for equal literals.
-	LiteralSharing = "literal-sharing"
-	// UsedFeatures narrows a parser's library to the features that the analysis finds
-	// (common.ParserFeatures); with it off, a parser has common.AllFeatures, the differential
-	// baseline of the pruning.
-	UsedFeatures = "used-features"
+	MethodSharing  = common.MethodSharing
+	LiteralSharing = common.LiteralSharing
+	UsedFeatures   = common.UsedFeatures
 )
 
 func init() {
@@ -67,11 +62,13 @@ func init() {
 var Params = []string{MethodSharing, LiteralSharing, UsedFeatures}
 
 // ParamsOf returns the values of Params that value, the parameter reader of a printing step's context
-// (pipe.Ctx.Value), gives.
-func ParamsOf(value func(string) int) common.Params {
+// (pipe.Ctx.Value), gives, with the decisions of their sites to allow (pipe.Ctx.Allow), the step's
+// decision of the pattern named like each parameter (Params, which the step declares as patterns too).
+func ParamsOf(value func(string) int, allow func(string) bool) common.Params {
 	return common.Params{
 		MethodSharing:  value(MethodSharing) != 0,
 		LiteralSharing: value(LiteralSharing) != 0,
 		UsedFeatures:   value(UsedFeatures) != 0,
+		Allow:          allow,
 	}
 }

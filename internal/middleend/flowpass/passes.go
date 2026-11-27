@@ -99,6 +99,7 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 			Obligation: "matchClass consumes the same character and records the same expectation as the class's peek and test.",
 			Features:   []pipe.FeatureID{TargetFeature.ID()},
 			Params:     []string{PassClassTables},
+			Patterns:   []string{PassClassTables},
 		},
 		In: code.FlowStage, Out: code.FlowStage,
 		Applies: func(c *pipe.Ctx[Unit]) bool {
@@ -107,7 +108,7 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 		Run: func(c *pipe.Ctx[Unit], u Unit) (Unit, pass.PreservedSet, error) {
 			t := prim.TablesOf(u.Module())
 			return run(PassClassTables, func(fn *code.Func, a *flow.Attrs, c *pipe.Ctx[Unit]) {
-				classTables(fn, a, t, c.Value(PassClassTables), cancel.New(c.Context()))
+				classTables(fn, a, t, c.Value(PassClassTables), func() bool { return c.Allow(PassClassTables) }, cancel.New(c.Context()))
 			})(c, u)
 		},
 	}),
@@ -117,6 +118,7 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 			Obligation: "A literal compared in place (hasLit) consumes what matchLit consumes; matchLit stays the alternative that records the expectation when they differ.",
 			Features:   []pipe.FeatureID{TargetFeature.ID()},
 			Params:     []string{PassInlineLiterals},
+			Patterns:   []string{PassInlineLiterals},
 		},
 		In: code.FlowStage, Out: code.FlowStage,
 		Applies: func(c *pipe.Ctx[Unit]) bool {
@@ -124,7 +126,7 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 				funcIs(c, func(a *flow.Attrs) bool { return !a.Traced })
 		},
 		Run: run(PassInlineLiterals, func(fn *code.Func, _ *flow.Attrs, c *pipe.Ctx[Unit]) {
-			inlineLiterals(fn, c.Value(PassInlineLiterals), cancel.New(c.Context()))
+			inlineLiterals(fn, c.Value(PassInlineLiterals), func() bool { return c.Allow(PassInlineLiterals) }, cancel.New(c.Context()))
 		}),
 	}),
 }
@@ -239,11 +241,13 @@ func classRuns(fn *code.Func, a *flow.Attrs, control *cancel.Control) {
 }
 
 // classTables matches each class of at least the pass's number of ranges through its membership
-// table, in a function of typed rules in the ordinary form; t are the tables of its module.
-func classTables(fn *code.Func, a *flow.Attrs, t *prim.Tables, min int, control *cancel.Control) {
+// table, in a function of typed rules in the ordinary form; t are the tables of its module. Each such
+// class is one decision (allow, the pattern class-tables); a skipped one keeps its ranges, as with a
+// count of 0.
+func classTables(fn *code.Func, a *flow.Attrs, t *prim.Tables, min int, allow func() bool, control *cancel.Control) {
 	for _, cl := range a.Forms.Classes {
 		control.Poll()
-		if !cl.Live() || len(t.Class(cl.Class).Ranges) < min {
+		if !cl.Live() || len(t.Class(cl.Class).Ranges) < min || !allow() {
 			continue
 		}
 		match := failIf(cl, code.Not(&code.Call{Callee: flow.OpMatchClass, Imm: cl.Class}))
@@ -260,7 +264,9 @@ func classTables(fn *code.Func, a *flow.Attrs, t *prim.Tables, min int, control 
 
 // inlineLiterals compares each exact literal of at most the pass's number of code points in place
 // first, outside the traced copies, which read every literal through the operation that records it.
-func inlineLiterals(fn *code.Func, max int, control *cancel.Control) {
+// Each such literal is one decision (allow, the pattern inline-literals); a skipped one is matched as
+// with a count of 0.
+func inlineLiterals(fn *code.Func, max int, allow func() bool, control *cancel.Control) {
 	var stmts func(list []code.Stmt)
 	block := func(b *code.Block) {
 		if b != nil {
@@ -279,7 +285,7 @@ func inlineLiterals(fn *code.Func, max int, control *cancel.Control) {
 				block(st.Body)
 				block(st.Finally)
 			case *code.If:
-				if lit, k := inlineLiteral(st, max); k > 0 {
+				if lit, k := inlineLiteral(st, max); k > 0 && allow() {
 					list[i] = &code.If{Cond: &code.Call{Callee: flow.OpHasLit, Imm: lit},
 						Then: &code.Block{Stmts: []code.Stmt{&code.Do{Call: &code.Call{Callee: flow.OpAdvance, Args: []code.Expr{code.Int(int64(k))}}}}},
 						Else: &code.Block{Stmts: []code.Stmt{st}}}

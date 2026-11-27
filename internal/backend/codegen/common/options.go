@@ -163,7 +163,8 @@ type Debug struct {
 	TimePasses bool
 	// OptBisectLimit, if set, runs only the runs of the optional passes and the applications of
 	// their patterns numbered up to the limit, in the order the pipeline makes them, and skips the
-	// later ones; the required steps always run. Each decision is written to Output with its number.
+	// later ones; the required steps always run, and the sites of their settings are patterns too
+	// (Params.Allow). Each decision is written to Output with its number.
 	// The generator generates once under a limit, so that one sequence numbers every run: the Go
 	// generator keeps the unreachable rules (GenOptions.KeepUnreachable), and the TypeScript generator
 	// does not generate again without the rules that only its unprinted calls reach.

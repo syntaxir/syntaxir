@@ -54,12 +54,14 @@ var LibraryLens = pipe.RegisterLens(execdata.TablesIR, execdata.TablesIR, librar
 // requests of the TypeScript library for the features of the parser of the target, as the plan's
 // used-features analysis reports them (common.ParserFeatures); with used-features off, for every
 // feature. The requests of the templates that the parser's code prints (print.TemplateRequests)
-// follow them.
+// follow them. The step decides the features of the parser: each feature that the analysis leaves out
+// is a decision of the pattern used-features, and the library records the features it decided
+// (library.Library.Features), for which print-ts prints the parser.
 var Library = pipe.New(pipe.Def[*execdata.Tables, *execdata.Tables]{
 	Decl: pipe.Decl{Name: "ts-library", Required: true,
 		Obligation: "The library of the tables requests the TypeScript library's compositions for the features of the parser.",
 		Features:   []pipe.FeatureID{codegen.TargetFeature.ID()},
-		Params:     []string{codegen.UsedFeatures}},
+		Params:     []string{codegen.UsedFeatures}, Patterns: []string{codegen.UsedFeatures}},
 	In: execdata.TablesIR, Out: execdata.TablesIR,
 	Run: func(c *pipe.Ctx[*execdata.Tables], t *execdata.Tables) (*execdata.Tables, pass.PreservedSet, error) {
 		target, ok := pipe.Feature(c, codegen.TargetFeature).(*Target)
@@ -70,7 +72,7 @@ var Library = pipe.New(pipe.Def[*execdata.Tables, *execdata.Tables]{
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}
-		fs, err := common.ParserFeatures(p.Tables(), target.Opts, common.Params{UsedFeatures: c.Value(codegen.UsedFeatures) != 0}, t.Plan)
+		fs, err := common.ParserFeatures(p.Tables(), target.Opts, common.Params{UsedFeatures: c.Value(codegen.UsedFeatures) != 0, Allow: c.Allow}, t.Plan)
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}
@@ -80,7 +82,7 @@ var Library = pipe.New(pipe.Def[*execdata.Tables, *execdata.Tables]{
 		}
 		rs = append(rs, print.TemplateRequests(!target.Opts.NoLimitControls, fs.Has(common.FeatureMissing))...)
 		out := *t
-		out.Library = &library.Library{Module: compositions(), Requests: rs}
+		out.Library = &library.Library{Module: compositions(), Requests: rs, Features: uint64(fs)}
 		return &out, pass.PreserveNone(), nil
 	},
 })
@@ -92,7 +94,7 @@ func LibrarySource() (*library.Library, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &library.Library{Module: compositions(), Requests: rs}, nil
+	return &library.Library{Module: compositions(), Requests: rs, Features: common.AllFeatures}, nil
 }
 
 // LibraryPrinting is the step print-ts-lib: it prints the file of the TypeScript library alone

@@ -50,6 +50,10 @@ type Library struct {
 	Funcs []*code.Func
 	// Made are the functions that the passes after specialize made, in the order they made them.
 	Made []Made
+	// Features is the feature set that the requests serve, as the bits of the feature set of the
+	// backend that made them (common.FeatureSet), so that the printer of a parser prints it for the
+	// features that its library was specialized for, as the step that made the requests decided them.
+	Features uint64
 }
 
 // IR is the kind library. It has no printer: the specialized functions are printed by the library's
@@ -132,7 +136,7 @@ func verify(l *Library) error {
 // clone returns a copy of l that a pass may change without changing l: new requests and new
 // functions; the module, which no pass changes, is shared.
 func clone(l *Library) *Library {
-	c := &Library{Module: l.Module, Requests: make([]Request, len(l.Requests))}
+	c := &Library{Module: l.Module, Requests: make([]Request, len(l.Requests)), Features: l.Features}
 	for i, r := range l.Requests {
 		c.Requests[i] = r
 		c.Requests[i].On = slices.Clone(r.On)

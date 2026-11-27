@@ -233,10 +233,15 @@ func (t *Target) Cores(mods []*core.Module) (*plandata.Cores, error) {
 // (plandata.ReachFeature) and the printed code enters other rules than it reaches, the step returns
 // the reach of the printed code (common.Replan) instead of the files, unless a bisection limit is
 // set (common.Debug.OptBisectLimit), under which one run numbers the runs of the optional passes.
+// The parameters of the printer (common.Params) and sparse-memo are patterns of the step too, whose
+// decisions a bisection limit can skip (pipe.Ctx.Allow): the sites of the printer's parameters, with
+// those of ts-literal-sharing decided as literal-sharing, and sparse-memo, if on, decided once.
+// used-features is decided by ts-library, except the shaking of the embedded library.
 var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 	Decl: pipe.Decl{Name: "print-ts", Required: true, Obligation: "The files are the TypeScript parser of the tables.",
 		Features: []pipe.FeatureID{codegen.TargetFeature.ID(), plandata.ReachFeature.ID()},
-		Params:   append(slices.Clone(codegen.Params), TSLiteralSharing, SparseMemo)},
+		Params:   append(slices.Clone(codegen.Params), TSLiteralSharing, SparseMemo),
+		Patterns: append(slices.Clone(codegen.Params), SparseMemo)},
 	In: execdata.TablesIR, Out: result.IR,
 	Run: func(c *pipe.Ctx[*execdata.Tables], t *execdata.Tables) (result.Output, pass.PreservedSet, error) {
 		target, ok := pipe.Feature(c, codegen.TargetFeature).(*Target)
@@ -247,7 +252,7 @@ var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}
-		params := print.Params{Params: codegen.ParamsOf(c.Value), SparseMemo: c.Value(SparseMemo) != 0, Control: cancel.New(c.Context())}
+		params := print.Params{Params: codegen.ParamsOf(c.Value, c.Allow), SparseMemo: c.Value(SparseMemo) != 0 && c.Allow(SparseMemo), Control: cancel.New(c.Context())}
 		// A TypeScript parser shares its literal tables only with ts-literal-sharing too.
 		params.LiteralSharing = params.LiteralSharing && c.Value(TSLiteralSharing) != 0
 		out, err := print.Print(p, params, t, pipe.Feature(c, plandata.ReachFeature) != nil, target.hooks)

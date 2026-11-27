@@ -177,7 +177,8 @@ func Run(m *code.Module, o RunOptions) (*code.Module, []string, error) {
 	return out.Module(), ob.ran, nil
 }
 
-// ranObserver records the passes that ran, and dumps the unit after each of them.
+// ranObserver records the passes that ran, and dumps the unit after each of them. The decisions
+// that a pass asks for (pipe.Ctx.Allow) are not passes: they are left out.
 type ranObserver struct {
 	dump func(pass string, m *code.Module)
 	ran  []string
@@ -187,7 +188,7 @@ func (o *ranObserver) Needs() pipe.Needs                       { return pipe.Nee
 func (o *ranObserver) Before(pipe.Event, func(io.Writer)) bool { return true }
 
 func (o *ranObserver) After(e pipe.Event, r *pipe.Result) {
-	if !r.Ran || r.Err != nil {
+	if !r.Ran || r.Err != nil || e.Step.Pattern {
 		return
 	}
 	o.ran = append(o.ran, e.Step.Instance)

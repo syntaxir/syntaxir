@@ -156,7 +156,10 @@ type Decl struct {
 	Obligation string      // what the pass preserves, in one sentence
 	Features   []FeatureID // the features it reads (Feature panics on any other)
 	Params     []string    // the registry flags it reads (Ctx.Value panics on any other)
-	Patterns   []string    // the names of its sub-pass decisions, which have no flag (Ctx.Allow panics on any other)
+	// Patterns names its sub-pass decisions (Ctx.Allow panics on any other), which have no flag of
+	// their own: a rewrite pattern, or the sites of one of its Params, named like it, which a skipped
+	// decision treats as the parameter off.
+	Patterns []string
 	// Counters names the statistics the pass counts (Ctx.Count panics on any other), in the order
 	// that reports list them. The manager keeps runs, changed and the decisions of the patterns of
 	// every pass itself (Stats), so a pass declares only what is specific to it.
@@ -359,8 +362,9 @@ func (c *Ctx[M]) Count(counter string, n int) {
 }
 
 // Allow reports whether one application of a declared pattern may run. The manager numbers each
-// decision as a run of its own, which an observer may veto (bisection). A pattern has no flag: the
-// flag of its pass, if the pass is optional, turns off the pass and all its decisions.
+// decision as a run of its own, which an observer may veto (bisection). A pattern has no flag of its
+// own: the flag of its pass, if the pass is optional, turns off the pass and all its decisions, and a
+// pattern named like a parameter of the pass is asked only at a site where the parameter is on.
 func (c *Ctx[M]) Allow(pattern string) bool {
 	if !contains(c.s.pass.Patterns, pattern) {
 		panic(fmt.Sprintf("pipe: pass %s asks about the undeclared pattern %s", c.s.pass.Name, pattern))

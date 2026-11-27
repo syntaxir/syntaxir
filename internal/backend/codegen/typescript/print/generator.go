@@ -53,6 +53,10 @@ type Hooks struct {
 	// generate through a target without the option: the table of the stream and the resumable
 	// functions of its parse, printed as generators after the batch code, and createStream.
 	Stream bool
+	// KeepPlanReach prints the rules of the plan's reach even where the printed code enters fewer of
+	// them, without asking for the reach of the printed code (common.Replan), as under a bisection
+	// limit: the tests compare the parser under a limit with one generated so without a limit.
+	KeepPlanReach bool
 }
 
 // Validate checks the options of a TypeScript parser that do not depend on the grammar, other than
@@ -274,11 +278,15 @@ export function recognizeWithOptions(input: string | Uint8Array, options?: %[1]s
 	tsg.insertionLinks(&out, p)
 	out.WriteString("\n")
 	out.WriteString(tsg.Methods.String())
-	features, err := common.ParserFeatures(p.Tables(), opts, tsg.Params, tsg.tables.Plan)
-	if err != nil {
-		return nil, err
+	// The features are those that ts-library decided and specialized the library for; leaving out the
+	// declarations of the library that the parser carries but does not name is one more decision of
+	// used-features.
+	if tsg.tables.Library == nil {
+		return nil, fmt.Errorf("internal error: the tables of the TypeScript parser have no library")
 	}
-	return tsFiles(opts, features, prog.Run.HasMissing, tsg.Params.UsedFeatures, tsg.tables.Library, out.String(), types)
+	features := common.FeatureSet(tsg.tables.Library.Features)
+	shake := tsg.Params.UsedFeatures && opts.Lib != common.LibImport && tsg.Params.Decide(common.UsedFeatures)
+	return tsFiles(opts, features, prog.Run.HasMissing, shake, tsg.tables.Library, out.String(), types)
 }
 
 // useSparseMemo reports whether the parser keeps the representation selector of its first-call table:

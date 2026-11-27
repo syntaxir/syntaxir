@@ -192,9 +192,21 @@ func reachedRules(p *Program, table string, plan *plandata.Program) ([]*Rule, er
 
 // ParserFeatures returns the features of the parser generated with opts and the parameters p from
 // the tables planned as plan: those Analyze finds, or AllFeatures with the parameter UsedFeatures off.
+// Each feature that the analysis leaves out is one decision of UsedFeatures (Params.Decide), asked in
+// the order of the features' bits; a skipped one is kept, as with the parameter off. A printing step
+// calls it once per parser, so that one decision stands for each feature.
 func ParserFeatures(tables []RuleTable, opts GenOptions, p Params, plan *plandata.Program) (FeatureSet, error) {
 	if !p.UsedFeatures {
 		return FeatureSet(AllFeatures), nil
 	}
-	return Analyze(tables, opts, plan)
+	fs, err := Analyze(tables, opts, plan)
+	if err != nil {
+		return 0, err
+	}
+	for f := Feature(1); f&AllFeatures != 0; f <<= 1 {
+		if !fs.Has(f) && !p.Decide(UsedFeatures) {
+			fs |= FeatureSet(f)
+		}
+	}
+	return fs, nil
 }

@@ -105,13 +105,18 @@ type generatedMethod struct {
 }
 
 // MethodName returns an existing exact helper or reserves the next name.
-// The signature keeps Node, typed Go and TypeScript functions distinct.
+// The signature keeps Node, typed Go and TypeScript functions distinct. Each body that it would
+// share is one decision of the parameter MethodSharing (Params.Decide); a skipped one gets a name of
+// its own, as with the parameter off.
 func (g *Generator) MethodName(signature, body string) (string, bool) {
 	if !g.Params.MethodSharing {
 		return g.Name("e"), false
 	}
 	key := generatedMethod{signature, body}
 	if name, ok := g.methodNames[key]; ok {
+		if !g.Params.Decide(MethodSharing) {
+			return g.Name("e"), false
+		}
 		return name, true
 	}
 	if g.methodNames == nil {
@@ -124,12 +129,17 @@ func (g *Generator) MethodName(signature, body string) (string, bool) {
 }
 
 // LiteralName shares immutable literal tables by decoded text. Descriptions
-// belong to each matcher, so spellings with different expectations stay distinct.
+// belong to each matcher, so spellings with different expectations stay distinct. Each table that it
+// would share is one decision of the parameter LiteralSharing (Params.Decide); a skipped one gets a
+// table of its own, as with the parameter off.
 func (g *Generator) LiteralName(value string) (string, bool) {
 	if !g.Params.LiteralSharing {
 		return g.Name("lit"), false
 	}
 	if name, ok := g.literalNames[value]; ok {
+		if !g.Params.Decide(LiteralSharing) {
+			return g.Name("lit"), false
+		}
 		return name, true
 	}
 	if g.literalNames == nil {

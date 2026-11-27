@@ -24,7 +24,7 @@ func defaultParams(t *testing.T, ts bool) common.Params {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := codegen.ParamsOf(s.Value)
+	p := codegen.ParamsOf(s.Value, nil)
 	if ts {
 		p.LiteralSharing = p.LiteralSharing && s.On(tsbackend.TSLiteralSharing)
 	}

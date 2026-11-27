@@ -462,12 +462,14 @@ pipeline program -> output {
 
 `-opt-bisect-limit <n>` finds the pass that breaks a parser. The generator numbers the runs of optional passes in the
 order it makes them, one run being one pass on one unit, and each application of a pattern of a pass takes a number
-of its own; it runs those numbered up to `n` and skips the others, and the required steps always run, so the output is
+of its own, as does each site of a printer or storage setting, such as each body that `method-sharing` shares; a
+skipped site is generated as with its setting off. It runs those numbered up to `n` and skips the others, and the required steps always run, so the output is
 a parser whatever `n` is. Each decision is written as `opt-bisect: <number> run|skip <pass> [<unit>]`. If a parser
 built with `-opt-bisect-limit 0` behaves and the default one does not, the smallest `n` that misbehaves names the
 run that broke it. To keep the numbers the same from one `n` to the next, the generator generates once under a limit:
 the Go generator keeps the rules that the printed code cannot reach, and the TypeScript generator keeps those that
-only its unprinted calls reach.
+only its unprinted calls reach. Apart from those rules, `-opt-bisect-limit 0` generates the parser of every setting
+off, and a limit past the last decision the parser of the settings.
 
 ### From Go
 

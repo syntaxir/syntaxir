@@ -48,8 +48,8 @@ type Params struct {
 
 // Print prints the parser p from its tables at the Exec stage with the parameters params and the
 // hooks of a test, or returns the reach of the printed code (common.Replan) if it differs from
-// that of the plan, unless the compilation gave the plan its reach (given) or a bisection limit is
-// set.
+// that of the plan, unless the compilation gave the plan its reach (given), a bisection limit is set
+// or the hooks keep the plan's reach (Hooks.KeepPlanReach).
 func Print(p *Parser, params Params, tables *execdata.Tables, given bool, hooks *Hooks) (result.Output, error) {
 	live := liveOf(tables.Plan)
 	tsg := newGenerator(p.Prog, p.Opts, live)
@@ -57,7 +57,8 @@ func Print(p *Parser, params Params, tables *execdata.Tables, given bool, hooks 
 	if err := tsg.generate(p); err != nil {
 		return nil, err
 	}
-	if printed := tsg.printedReach(p); !given && p.Opts.Debug.OptBisectLimit == nil && !printed.equal(live) {
+	keep := given || p.Opts.Debug.OptBisectLimit != nil || hooks != nil && hooks.KeepPlanReach
+	if printed := tsg.printedReach(p); !keep && !printed.equal(live) {
 		return &common.Replan{Lang: result.TypeScript, Reach: printed.entries()}, nil
 	}
 	if hooks != nil && hooks.Generator != nil {
