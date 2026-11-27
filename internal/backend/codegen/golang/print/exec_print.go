@@ -6,12 +6,13 @@
 // statements, and the Exit prints as a goto, which never skips a declaration because every local a
 // goto could skip is inside braces that end before the label. An Exit or a Break of a loop prints
 // as a break, and a Continue as a continue, labeled only when the loop is not the innermost one.
-// Statements at an unreachable point are not printed, but their expressions are still formed, so
-// that a target that names declarations as it prints them names them in the same order: after a
-// jump the point is unreachable up to the end of the block, the point after a labeled block is
-// reachable again if a reachable jump exits it, the point after an If is reachable if the point
-// before it is, and the point after a loop always is; a loop prints its braces whatever the
-// reachability. Labels are unique in a printed function. Arithmetic on i32, u32 and u64 maps to int32, uint32 and uint64, whose operations wrap
+// Statements at an unreachable point are neither printed nor formed, so that code no path reaches
+// names no declaration of the target and the names of the rest do not depend on it: after a jump the
+// point is unreachable up to the end of the block, the point after a labeled block is reachable
+// again if a reachable jump exits it, the point after an If is reachable if the point before it is,
+// and the point after a loop entered at a reachable point is reachable. A loop at an unreachable
+// point prints nothing; one at a reachable point prints its braces even when its body ends at an
+// unreachable point. Labels are unique in a printed function. Arithmetic on i32, u32 and u64 maps to int32, uint32 and uint64, whose operations wrap
 // as Exec IR's do; int maps to int.
 
 package print

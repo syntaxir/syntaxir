@@ -115,7 +115,8 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 	case prim.OpAppendError:
 		return fmt.Sprintf("p.PushRecovered(%s)", args[0])
 	case prim.OpDeclareNames:
-		// Declared whatever the reachability.
+		// The lowering places the declaration after the repetition whose frames use the names, a
+		// point that is reachable wherever one of those uses is, so it is printed wherever they are.
 		n := c.Imm.(*prim.Names)
 		p.scopeNames(n)
 		p.declare(n)

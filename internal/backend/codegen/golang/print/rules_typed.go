@@ -26,9 +26,9 @@ import (
 // the frames it owns (finishFrameBody). A rule that the plan leaves out is reported as an error
 // (Unprintable): no table has another route.
 //
-// The printer follows reachability: a statement at an unreachable point is left out,
-// but its text is still formed, so that the package variables it names (literals, expectations,
-// class tables, shapers, scopes) are declared in the same order. A variable that no printed statement
+// The printer follows reachability: a statement at an unreachable point is left out and its text is
+// not formed, so it declares none of the package variables (literals, expectations, class tables,
+// shapers, scopes) that it would name, and the names of the others do not depend on it. A variable that no printed statement
 // reads is not declared and its assignments are left out (flowVars); one that must stay is assigned to the
 // blank identifier on the first line.
 
