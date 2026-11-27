@@ -805,45 +805,63 @@ func TestNavigation(t *testing.T) {
 		t.Fatal("Project navigation section is missing")
 	}
 	projectHTML := string(projectBlock[1])
-	groupStart := `<details class="nav-fold nav-subfold">`
-	groupRe := regexp.MustCompile(`(?s)<details class="nav-fold nav-subfold">(.*?)</details>`)
-	groupAt := groupRe.FindStringSubmatchIndex(projectHTML)
-	if groupAt == nil {
+	// The Project section holds only named groups, in this order; Design Records is the one closed group.
+	groupRe := regexp.MustCompile(`(?s)<details class="nav-fold nav-subfold"( open)?>\s*<summary><span>([^<]*)</span></summary>(.*?)</details>`)
+	groups := groupRe.FindAllStringSubmatchIndex(projectHTML, -1)
+	var groupTitles []string
+	var recordsAt []int
+	ungrouped := projectHTML
+	for i := len(groups) - 1; i >= 0; i-- {
+		g := groups[i]
+		title := projectHTML[g[4]:g[5]]
+		groupTitles = append([]string{title}, groupTitles...)
+		if title == "Design Records" {
+			recordsAt = g
+		}
+		ungrouped = ungrouped[:g[0]] + ungrouped[g[1]:]
+	}
+	if want := []string{"About", "Design", "Design Records", "Performance", "Contributing"}; !slices.Equal(groupTitles, want) {
+		t.Errorf("Project groups = %v, want %v", groupTitles, want)
+	}
+	if links := sidebarLinkRe.FindAllStringSubmatch(ungrouped, -1); len(links) != 0 {
+		t.Errorf("Project navigation has %d links outside its groups", len(links))
+	}
+	if recordsAt == nil {
 		t.Fatal("Project navigation has no nested numbered-record disclosure")
 	}
-	if got := strings.TrimSpace(projectHTML[:groupAt[0]]); got != "<ul><li>" {
-		t.Errorf("Design Records disclosure is not the first Project item: prefix %q", got)
-	}
-	if strings.Count(projectHTML, groupStart) != 1 {
-		t.Errorf("Project navigation has %d Design Records disclosures, want one", strings.Count(projectHTML, groupStart))
-	}
-	ordinaryHTML := projectHTML[:groupAt[0]] + projectHTML[groupAt[1]:]
-	ordinaryLinks := sidebarLinkRe.FindAllStringSubmatch(ordinaryHTML, -1)
-	ordinary := map[string]string{}
-	for _, link := range ordinaryLinks {
-		href := site(link[1])
-		ordinary[href] = html.UnescapeString(link[3])
-		if strings.HasPrefix(href, "docs/design/records/") && href != "docs/design/records/" {
-			t.Errorf("numbered design record is directly exposed outside its disclosure: %s", href)
+	inGroup, linkText := map[string]string{}, map[string]string{}
+	for _, g := range groups {
+		title := projectHTML[g[4]:g[5]]
+		if title != "Design Records" && g[2] < 0 {
+			t.Errorf("Project group %s is closed, want open", title)
 		}
-		if strings.HasPrefix(href, "docs/optimizations/") && href != "docs/optimizations/" {
-			t.Errorf("individual optimization appears in the sidebar: %s", href)
+		if title == "Design Records" {
+			continue
+		}
+		for _, link := range sidebarLinkRe.FindAllStringSubmatch(projectHTML[g[6]:g[7]], -1) {
+			href := site(link[1])
+			inGroup[href] = title
+			linkText[href] = html.UnescapeString(link[3])
+			if strings.HasPrefix(href, "docs/design/records/") {
+				t.Errorf("design record link %s is outside its disclosure", href)
+			}
+			if strings.HasPrefix(href, "docs/optimizations/") && href != "docs/optimizations/" {
+				t.Errorf("individual optimization appears in the sidebar: %s", href)
+			}
 		}
 	}
-	if ordinary["docs/design/records/"] != "" || ordinary["docs/optimizations/"] != "Optimizations" || ordinary["docs/development/"] != "Development" {
-		t.Errorf("ordinary Project links are missing: %v", ordinary)
+	for href, title := range map[string]string{"SECURITY/": "About", "docs/design/": "Design", "docs/optimizations/": "Performance", "docs/development/": "Contributing"} {
+		if inGroup[href] != title {
+			t.Errorf("Project link %s is in group %q, want %q", href, inGroup[href], title)
+		}
 	}
-	group := groupRe.FindStringSubmatch(projectHTML)
-	if group == nil {
-		t.Fatal("numbered-record disclosure is not closed properly")
+	if linkText["docs/optimizations/"] != "Optimizations" || linkText["docs/development/"] != "Development" || linkText["SECURITY/"] != "Security Policy" {
+		t.Errorf("ordinary Project links are missing: %v", linkText)
 	}
-	openTag := regexp.MustCompile(`<details class="nav-fold nav-subfold"[^>]*>`).FindString(projectHTML)
-	if strings.Contains(openTag, " open") {
+	if recordsAt[2] >= 0 {
 		t.Error("numbered-record disclosure opened automatically on a record page")
 	}
-	if !strings.Contains(group[1], "Design Records") {
-		t.Error("numbered-record disclosure has no visible summary")
-	}
+	group := []string{projectHTML[recordsAt[0]:recordsAt[1]], projectHTML[recordsAt[6]:recordsAt[7]]}
 	groupLinks := sidebarLinkRe.FindAllStringSubmatch(group[1], -1)
 	if len(groupLinks) == 0 || html.UnescapeString(groupLinks[0][3]) != "Overview" || site(groupLinks[0][1]) != "docs/design/records/" {
 		t.Errorf("Design Records disclosure does not start with its Overview link: %v", groupLinks)
@@ -890,12 +908,11 @@ func TestNavigation(t *testing.T) {
 	if indexProject == nil {
 		t.Fatal("Project section is missing from the design overview")
 	}
-	indexGroup := regexp.MustCompile(`(?s)<details class="nav-fold nav-subfold">(.*?)</details>`).FindSubmatch(indexProject[1])
-	if indexGroup == nil || !regexp.MustCompile(`<a href="[^"]*" aria-current="page">Overview</a>`).Match(indexGroup[1]) {
+	indexGroup := regexp.MustCompile(`(?s)<details class="nav-fold nav-subfold"( open)?>\s*<summary><span>Design Records</span></summary>(.*?)</details>`).FindSubmatch(indexProject[1])
+	if indexGroup == nil || !regexp.MustCompile(`<a href="[^"]*" aria-current="page">Overview</a>`).Match(indexGroup[2]) {
 		t.Error("Design Records overview is not marked active inside its disclosure")
 	}
-	indexDetails := regexp.MustCompile(`<details class="nav-fold nav-subfold"[^>]*>`).Find(indexProject[1])
-	if strings.Contains(string(indexDetails), " open") {
+	if indexGroup != nil && len(indexGroup[1]) != 0 {
 		t.Error("Design Records disclosure opened automatically on the overview page")
 	}
 	pager := regexp.MustCompile(`(?s)<nav class="pager"[^>]*>(.*?)</nav>`).FindSubmatch(record)

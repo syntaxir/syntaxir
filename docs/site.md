@@ -297,7 +297,9 @@ decoding excludes compression/encoding, browser DOM, worker and WebAssembly cost
   Add a section match there for a new documentation directory; unmatched pages otherwise appear under Other.
   Front matter can control publication, navigation, search, titles and routes without changing Markdown bodies.
 - **The order** of the tutorial, the guides and the specification follows the links in `docs/tutorial/README.md`,
-  `docs/guide/README.md` and `spec/README.md`; other sections are sorted by file name. The Project section and its ordinary links remain visible.
+  `docs/guide/README.md` and `spec/README.md`; other sections are sorted by file name. The Project section groups its pages under About (with the security
+  policy), Design, Design Records, Performance and Contributing; a new project page goes into one of these groups in
+  [`site/config.json`](../site/config.json), and a page that matches none appears ungrouped above them.
   The Reference section's nested groups and page order are configured with `children` and `first` in
   [`site/config.json`](../site/config.json): Go API pages sit under the collapsed Go API Reference group, while
   the CLI Reference remains directly in Reference.

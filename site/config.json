@@ -544,27 +544,49 @@
         "docs/optimizations/*.md",
         "docs/optimizations/mechanisms/*.md"
       ],
-      "first": [
-        "docs/why-syntaxir.md",
-        "docs/strategy.md",
-        "examples/README.md",
-        "docs/development.md",
-        "docs/releasing.md",
-        "SECURITY.md",
-        "docs/design/README.md",
-        "docs/design/architecture.md",
-        "docs/design/intermediate-representations.md",
-        "docs/design/pass-pipeline.md",
-        "docs/design/layering.md",
-        "docs/design/public-api.md",
-        "docs/design/host-code-generation.md",
-        "docs/design/observability.md",
-        "docs/design/cost-analysis.md",
-        "docs/benchmarks.md",
-        "docs/performance.md",
-        "docs/optimizations/README.md"
-      ],
       "children": [
+        {
+          "title": "About",
+          "match": [
+            "docs/why-syntaxir.md",
+            "docs/strategy.md",
+            "examples/README.md",
+            "SECURITY.md"
+          ],
+          "first": [
+            "docs/why-syntaxir.md",
+            "docs/strategy.md",
+            "examples/README.md",
+            "SECURITY.md"
+          ]
+        },
+        {
+          "title": "Design",
+          "match": [
+            "docs/design/README.md",
+            "docs/design/architecture.md",
+            "docs/design/intermediate-representations.md",
+            "docs/design/pass-pipeline.md",
+            "docs/design/layering.md",
+            "docs/design/public-api.md",
+            "docs/design/host-code-generation.md",
+            "docs/design/observability.md",
+            "docs/design/cost-analysis.md",
+            "docs/ref-cpython-pegen-packrat-parsing.md"
+          ],
+          "first": [
+            "docs/design/README.md",
+            "docs/design/architecture.md",
+            "docs/design/intermediate-representations.md",
+            "docs/design/pass-pipeline.md",
+            "docs/design/layering.md",
+            "docs/design/public-api.md",
+            "docs/design/host-code-generation.md",
+            "docs/design/observability.md",
+            "docs/design/cost-analysis.md",
+            "docs/ref-cpython-pegen-packrat-parsing.md"
+          ]
+        },
         {
           "title": "Design Records",
           "match": [
@@ -574,6 +596,36 @@
             "docs/design/records/README.md"
           ],
           "collapsed": true
+        },
+        {
+          "title": "Performance",
+          "match": [
+            "docs/performance.md",
+            "docs/benchmarks.md",
+            "docs/optimizations/README.md"
+          ],
+          "first": [
+            "docs/performance.md",
+            "docs/benchmarks.md",
+            "docs/optimizations/README.md"
+          ]
+        },
+        {
+          "title": "Contributing",
+          "match": [
+            "docs/development.md",
+            "docs/releasing.md",
+            "docs/commit-messages.md",
+            "docs/documentation-style.md",
+            "docs/site.md"
+          ],
+          "first": [
+            "docs/development.md",
+            "docs/releasing.md",
+            "docs/commit-messages.md",
+            "docs/documentation-style.md",
+            "docs/site.md"
+          ]
         }
       ]
     }
