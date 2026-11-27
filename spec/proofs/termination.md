@@ -536,19 +536,20 @@ recovery whose skip holds the call, the expression failed, so the bindings in
 them were undone. In a repetition the call is in the first iteration (Lemma 4).
 In a lookahead that holds the call, the bindings before the call are those of
 its expression before it. In an Operators Rule, the lines run in the order of
-(E9): the skip line first, then the operand lines as a choice, then the prefix
-lines at the start of an operand and the infix and postfix lines after it. The
-skip line is a sequence, and the operand lines are a choice, as above. A prefix
-line is tried after the operand lines that failed, and when an operand line is
-nullable (Lemma 2), its left call is at the rule's position after the bindings
-of the operand lines and of the infix and postfix lines that run before it,
-since the right operand of such a line calls the prefix lines after its own
-bindings. An infix or postfix line is tried after the operand lines, with their
-bindings before it, and its right operand calls the operand and prefix lines
-after the bindings of that line, so those calls see them as well. So the binding
-is in the part that (B) counts for the
-call $C_{k+1}$, a call into the cycle that runs before consuming input, in the
-body of a rule of the cycle. (B) makes it a compile-time error if its variable
+(E9): the skip line first, then at the start of an operand the prefix lines
+and, if no prefix applies, the operand lines as a choice, and the infix and
+postfix lines after an operand. The skip line is a sequence, and the operand
+lines are a choice, as above. A prefix line is tried at the start of an
+operand, before the operand lines, and the bindings of a prefix line that
+failed are undone. When an operand line is nullable (Lemma 2), a prefix line's
+left call can also be at the rule's position after the bindings of the operand
+lines and of the infix and postfix lines that run before it, since the right
+operand of such a line calls the prefix lines after its own bindings. An infix
+or postfix line is tried after the operand lines, with their bindings before
+it, and its right operand calls the operand and prefix lines after the bindings
+of that line, so those calls see them as well. So the binding is in the part
+that (B) counts for the call $C_{k+1}$, a call into the cycle that runs before
+consuming input, in the body of a rule of the cycle. (B) makes it a compile-time error if its variable
 is one that the cycle reads, so it binds no such variable. $\square$
 
 ## Lemma 10 (Variables of a Rule)
