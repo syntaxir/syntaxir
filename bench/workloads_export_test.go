@@ -2,7 +2,6 @@ package bench
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -68,13 +67,6 @@ var tsWorkloads = []struct {
 	{"Outline", "examples/outline/outline.sxir", func() string { return inputs.OutlineInput(5000) }},
 }
 
-// matrixScaled are the matrix grammars that also get a generated input of about 256 KiB.
-var matrixScaled = map[string]func() string{
-	"json": func() string { return inputs.JSONInput(256 << 10) },
-	"csv":  func() string { return inputs.CSVInput(5000) },
-	"xml":  func() string { return inputs.XMLInput(256 << 10) },
-}
-
 // exportWorkloads writes the manifest and its inputs into dir, with root the root of the checkout.
 func exportWorkloads(root, dir string) (*workloadManifest, error) {
 	m := &workloadManifest{Version: workloadManifestVersion}
@@ -98,30 +90,16 @@ func exportWorkloads(root, dir string) (*workloadManifest, error) {
 			return nil, err
 		}
 		r := matrixRowSpec{Name: g, Grammar: "testdata/grammars/" + g + "/" + g + ".sxir", Gen: gen, Program: "parse"}
-		txt, err := filepath.Glob(filepath.Join(root, "testdata", "grammars", g, "*.txt"))
+		in, err := probe.MatrixInputs(root, g)
 		if err != nil {
 			return nil, err
 		}
-		for _, f := range txt {
-			data, err := os.ReadFile(f)
-			if err != nil {
-				return nil, err
-			}
-			rel := "matrix/" + g + "/" + filepath.Base(f)
-			if err := write(rel, string(data)); err != nil {
+		for _, f := range in {
+			rel := "matrix/" + g + "/" + f.Name
+			if err := write(rel, f.Text); err != nil {
 				return nil, err
 			}
 			r.Inputs = append(r.Inputs, rel)
-		}
-		if scaled, ok := matrixScaled[g]; ok {
-			rel := "matrix/" + g + "/scaled.in"
-			if err := write(rel, scaled()); err != nil {
-				return nil, err
-			}
-			r.Inputs = append(r.Inputs, rel)
-		}
-		if len(r.Inputs) == 0 {
-			return nil, fmt.Errorf("matrix row %s has no inputs", g)
 		}
 		m.Matrix = append(m.Matrix, r)
 	}

@@ -9,6 +9,7 @@
 package linearity
 
 import (
+	"math"
 	"runtime"
 	"runtime/debug"
 	"testing"
@@ -113,6 +114,27 @@ func Allocs(work func()) (objects, bytes uint64) {
 	work()
 	runtime.ReadMemStats(&after)
 	return after.Mallocs - before.Mallocs, after.TotalAlloc - before.TotalAlloc
+}
+
+// LeastAllocs returns the objects and bytes that a run of work allocates (Allocs): the least count
+// of rounds measurements, with the bytes of that measurement, after warm runs of work.
+//
+// The runtime adds allocations of its own to a run now and then, at random (Allocs lists them). Each
+// only adds to a count, so with GOMAXPROCS at 1 the least count of several measurements after the warm
+// runs is the count of the work alone. The caches fill slowly: in 30 parses of the Minilang workload
+// into typed values, the first ten rebuilt a cache in about half the runs and the last ten in about
+// one in ten, hence the warm runs.
+func LeastAllocs(warm, rounds int, work func()) (objects, bytes uint64) {
+	for range warm {
+		work()
+	}
+	objects = math.MaxUint64
+	for range rounds {
+		if o, b := Allocs(work); o < objects {
+			objects, bytes = o, b
+		}
+	}
+	return objects, bytes
 }
 
 // drainFinalizers returns when every finalizer queued by a collection before the call has run.

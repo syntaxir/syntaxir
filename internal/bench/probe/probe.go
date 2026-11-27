@@ -13,10 +13,50 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"syntaxir.dev/sxir/internal/bench/inputs"
 )
 
 // Grammars lists the language grammars of testdata/grammars that the size and profile reports cover.
 var Grammars = []string{"json", "csv", "xml", "yaml", "cel", "cue", "golang", "python", "typescript", "duckdb"}
+
+// ScaledInputs are the grammars of Grammars that also get a generated input of about 256 KiB beside
+// the inputs in their directories of testdata/grammars, as the language-grammar matrix measures them.
+var ScaledInputs = map[string]func() string{
+	"json": func() string { return inputs.JSONInput(256 << 10) },
+	"csv":  func() string { return inputs.CSVInput(5000) },
+	"xml":  func() string { return inputs.XMLInput(256 << 10) },
+}
+
+// An Input is an input of a grammar of the language-grammar matrix, by its file name.
+type Input struct {
+	Name, Text string
+}
+
+// MatrixInputs returns the inputs of grammar name that the language-grammar matrix measures: the
+// .txt files of its directory of testdata/grammars, in the order of their names, and the generated
+// input of ScaledInputs, named scaled.in, if it has one.
+func MatrixInputs(root, name string) ([]Input, error) {
+	files, err := filepath.Glob(filepath.Join(root, "testdata", "grammars", name, "*.txt"))
+	if err != nil {
+		return nil, err
+	}
+	var in []Input
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			return nil, err
+		}
+		in = append(in, Input{filepath.Base(f), string(data)})
+	}
+	if scaled, ok := ScaledInputs[name]; ok {
+		in = append(in, Input{"scaled.in", scaled()})
+	}
+	if len(in) == 0 {
+		return nil, fmt.Errorf("grammar %s of the matrix has no inputs", name)
+	}
+	return in, nil
+}
 
 // ExecOut runs a command in dir, with extra environment variables, and returns its standard output.
 func ExecOut(dir string, env []string, name string, args ...string) (string, error) {

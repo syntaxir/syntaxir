@@ -53,28 +53,12 @@ var (
 	same  = metrics.Policy{Kind: metrics.Equal}
 )
 
-// leastAllocs returns the objects and bytes that a run of work allocates (Allocs of package
-// linearity): the least count of allocRounds measurements, with the bytes of that measurement, after
-// warm runs of work.
-//
-// The runtime adds allocations of its own to a run now and then, at random: type-assertion cache
-// rebuilds, background timers and new threads (Allocs of package linearity lists them). Each only
-// adds to a count, and GOMAXPROCS is 1 while TestMetrics runs, so the least count of several runs
-// after the warm ones is the count of the work alone. The caches fill slowly: in 30 parses of the
-// Minilang workload into typed values, the first ten rebuilt a cache in about half the runs and the
-// last ten in about one in ten, hence the warm runs. A single measurement varied by up to 4 objects
-// between processes; this count did not vary in six A/A runs.
+// leastAllocs returns the objects and bytes that a run of work allocates: the least count of
+// allocRounds measurements after warm runs of work (LeastAllocs of package linearity). GOMAXPROCS is
+// 1 while TestMetrics runs. A single measurement varied by up to 4 objects between processes; this
+// count did not vary in six A/A runs.
 func leastAllocs(warm int, work func()) (objects, bytes uint64) {
-	for range warm {
-		work()
-	}
-	objects = math.MaxUint64
-	for range allocRounds {
-		if o, b := linearity.Allocs(work); o < objects {
-			objects, bytes = o, b
-		}
-	}
-	return objects, bytes
+	return linearity.LeastAllocs(warm, allocRounds, work)
 }
 
 // parseWarmRuns is the number of warm runs of a parse before leastAllocs measures it.
