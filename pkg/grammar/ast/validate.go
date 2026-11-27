@@ -54,7 +54,9 @@ type validationFrame struct {
 // comment string that Format writes as a block comment: the error of a deeper
 // one is "nesting too deep", as the reference parser reports for its text. So
 // is the error of a tree with a node deeper than MaxNestingDepth, which the
-// parser rejects too. Validation imposes no size limit.
+// parser rejects too. Every string of a valid AST (each literal value, string constant, string
+// argument of an attribute and comment string) is valid UTF-8, so that its JSON and its text read back to the same tree.
+// Validation imposes no size limit.
 func Validate(g *Grammar) error {
 	return validate(g, nil)
 }
@@ -314,6 +316,8 @@ func validate(g *Grammar, control *validationControl) error {
 			return fail(field, "a header comment holds no line terminator (LF, CR or CRLF): the header of a declaration or field stands on one line")
 		} else if field := tooDeepComment(f.node, control); field != "" {
 			return fail(field, msgNestingTooDeep)
+		} else if field := invalidUTF8(f.node); field != "" {
+			return fail(field, msgInvalidUTF8)
 		}
 		// Leaf nodes need no cycle tracking. Non-leaf nodes stay active until
 		// their exit frame, distinguishing a pointer cycle from a shared child.
@@ -512,23 +516,28 @@ func validate(g *Grammar, control *validationControl) error {
 				keys = append(keys, key)
 			}
 			sort.Strings(keys)
-			validValue := func(value any) bool {
-				switch value.(type) {
-				case nil, int, string, bool, Expr:
-					return true
+			invalidValue := func(value any) string {
+				switch v := value.(type) {
+				case string:
+					if !utf8.ValidString(v) {
+						return msgInvalidUTF8
+					}
+					return ""
+				case nil, int, bool, Expr:
+					return ""
 				}
-				return false
+				return "attribute value must be a scalar or parser expression"
 			}
 			for _, key := range keys {
 				control.poll()
-				if !validValue(n.KwArgs[key]) {
-					return fail("kwArgs["+strconv.Quote(key)+"]", "attribute value must be a scalar or parser expression")
+				if message := invalidValue(n.KwArgs[key]); message != "" {
+					return fail("kwArgs["+strconv.Quote(key)+"]", message)
 				}
 			}
 			for i, value := range n.Args {
 				control.poll()
-				if !validValue(value) {
-					return fail("args["+strconv.Itoa(i)+"]", "attribute value must be a scalar or parser expression")
+				if message := invalidValue(value); message != "" {
+					return fail("args["+strconv.Itoa(i)+"]", message)
 				}
 			}
 			for i := len(keys) - 1; i >= 0; i-- {
@@ -969,4 +978,27 @@ var binaryOperators = map[string]struct{}{
 	"==": {}, "!=": {}, "<": {}, "<=": {}, ">": {}, ">=": {},
 	"+": {}, "-": {}, "*": {}, "/": {}, "%": {},
 	"[]": {},
+}
+
+// msgInvalidUTF8 is the error of a string of an AST that is not valid UTF-8.
+const msgInvalidUTF8 = "string is not valid UTF-8: JSON and grammar text hold only valid UTF-8"
+
+// invalidUTF8 returns the field of the first string of node that is not valid UTF-8, or "": the
+// value of a literal or a string constant, or a comment string. Validation checks the string
+// arguments of an attribute with the other attribute values. Neither JSON nor grammar text can
+// hold such a string: encoding it as JSON, or formatting it and parsing the text, replaces each
+// invalid byte with U+FFFD, so neither round trip would be exact. The parser never produces one.
+// Identifiers, operators and the other names are ASCII, which their own checks require.
+func invalidUTF8(node any) string {
+	switch n := node.(type) {
+	case *Literal:
+		if !utf8.ValidString(n.Value) {
+			return "value"
+		}
+	case *StringLit:
+		if !utf8.ValidString(n.Value) {
+			return "value"
+		}
+	}
+	return commentField(node, func(text string, _ bool) bool { return !utf8.ValidString(text) })
 }

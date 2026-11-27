@@ -3,10 +3,7 @@ package codegentest
 import (
 	"fmt"
 	"strconv"
-	"strings"
-	"testing"
 
-	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -49,17 +46,26 @@ func ReplaceFirstLiteral(e ast.Expr, val string) *ast.Literal {
 	return lit
 }
 
-// RawLiteralValues are literal values that are not valid UTF-8, which the raw literals of the tests
-// carry.
+// RawLiteralValues are literal values that are not valid UTF-8. Validation rejects a grammar AST
+// that holds one; the literal of their replacement characters matches each of their bytes.
 func RawLiteralValues() []string {
 	return []string{"\xc3", "\x80", "\xff", "\xc0\xaf", "\xed\xa0\x80", "é\xc3x", "abcdefghijk\xffxyz"}
 }
 
-// RawLiteralGenCorpus returns the cases of the generators with raw literal values.
-func RawLiteralGenCorpus() []Case {
-	var cases []Case
+// ReplacementLiteralCorpus returns the cases of the generators with the literals of the replacement
+// characters of RawLiteralValues, in several shapes, each with the raw values among its inputs.
+func ReplacementLiteralCorpus() []Case {
+	var canonicals []string
+	raws := map[string][]string{}
 	for _, raw := range RawLiteralValues() {
 		canonical := string([]rune(raw))
+		if raws[canonical] == nil {
+			canonicals = append(canonicals, canonical)
+		}
+		raws[canonical] = append(raws[canonical], raw)
+	}
+	var cases []Case
+	for _, canonical := range canonicals {
 		for _, shape := range []string{"exact", "suffix", "choice", "predicate"} {
 			expr := strconv.Quote(canonical)
 			predicate := ""
@@ -71,33 +77,17 @@ func RawLiteralGenCorpus() []Case {
 			case "choice":
 				expr = "(" + expr + ` / "other")`
 			}
-			cases = append(cases, Case{Name: fmt.Sprintf("raw AST/%x/%s", raw, shape),
+			var inputs []string
+			for _, raw := range raws[canonical] {
+				inputs = append(inputs, raw, raw+"x")
+			}
+			inputs = append(inputs, canonical, canonical+"x", "é", "éx", "other", "", "\xffx", "\x80x")
+			cases = append(cases, Case{Name: fmt.Sprintf("replacement literal/%x/%s", canonical, shape),
 				Src:    "type N = { T node[string] }\nrule main N = t:" + expr + predicate + " $$ => N{T:$t}",
-				Inputs: []string{raw, canonical, raw + "x", canonical + "x", "é", "éx", "other", "", "\xffx", "\x80x"}})
+				Inputs: inputs})
 		}
 	}
 	return cases
-}
-
-// LiteralCorpusGrammar parses the source of the case tc, and for a raw AST case sets the literal to the raw value the name of the case gives.
-func LiteralCorpusGrammar(t *testing.T, tc Case) *ast.Grammar {
-	t.Helper()
-	g, err := compiletest.Parse(tc.Src)
-	if err != nil {
-		t.Fatalf("%s: %v", tc.Name, err)
-	}
-	if strings.HasPrefix(tc.Name, "raw AST/") {
-		for _, raw := range RawLiteralValues() {
-			if strings.HasPrefix(tc.Name, fmt.Sprintf("raw AST/%x/", raw)) {
-				if ReplaceFirstLiteral(g.Rules()[0].Expr, raw) == nil {
-					t.Fatal("missing literal")
-				}
-				return g
-			}
-		}
-		t.Fatal("unknown raw literal case")
-	}
-	return g
 }
 
 // InvalidLiteralCorpus returns the cases of literals that match bytes which are not valid UTF-8.
@@ -118,5 +108,5 @@ rule main N = t:("x" / "�") $$ => N{T: $t}`, Inputs: []string{"\xff", "\x80", 
 		{Name: "class", Src: `type N = { T node[string] }
 rule main N = t:[�] $$ => N{T: $t}`, Inputs: []string{"\xff", "\x80", "\xc3", "�", "é"}},
 	}
-	return append(cases, RawLiteralGenCorpus()...)
+	return append(cases, ReplacementLiteralCorpus()...)
 }

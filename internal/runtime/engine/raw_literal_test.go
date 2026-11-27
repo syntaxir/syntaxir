@@ -1,124 +1,51 @@
 package engine
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 	"testing"
 
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
-	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
-	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
-	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
+// TestRawInvalidASTLiterals requires compilation to reject a grammar AST whose literal or string
+// constant is not valid UTF-8, which only an AST built in Go can hold, with the validation error
+// at the path of that string, and without changing the AST. The literal of its replacement characters
+// compiles; it matches each invalid input byte (TestInvalidUTF8LiteralMatching).
 func TestRawInvalidASTLiterals(t *testing.T) {
 	t.Parallel()
 	for _, raw := range codegentest.RawLiteralValues() {
 		for _, shape := range []string{`t:"�"`, `t:"�" .`, `t:("�" / "other")`, `t:("�" #repeat(2)) #atomic`} {
 			t.Run(fmt.Sprintf("%x/%s", raw, shape), func(t *testing.T) {
 				src := "type N = { T node[string]; S string }\nrule main N = " + shape + ` $$ => N{T:$t, S:"constant"}`
+				rejected := func(g *ast.Grammar, path string, value func() string) {
+					t.Helper()
+					_, err := Compile(g, checkpkg.Options{})
+					if err == nil || !strings.Contains(err.Error(), " "+path) || !strings.Contains(err.Error(), "not valid UTF-8") {
+						t.Fatalf("got %v; want the invalid UTF-8 error of a string under %s", err, path)
+					}
+					if value() != raw {
+						t.Fatal("Compile changed the AST")
+					}
+				}
 				g := mustParse(src)
 				lit := codegentest.ReplaceFirstLiteral(g.Rules()[0].Expr, raw)
 				if lit == nil {
 					t.Fatal("missing placeholder")
 				}
-				// Share the raw string with an action constant/string-table entry. VM
-				// preparation must normalize matching data without changing action values.
-				g.Rules()[0].Action.(*ast.Constructor).Fields[1].Value.(*ast.StringLit).Value = raw
-				p, err := Compile(g, checkpkg.Options{})
-				if err != nil {
-					t.Fatal(err)
-				}
-				if lit.Value != raw {
-					t.Fatal("Compile mutated the AST")
-				}
+				rejected(g, "$.file.decls[1].expr", func() string { return lit.Value })
+
+				g = mustParse(src)
+				constant := g.Rules()[0].Action.(*ast.Constructor).Fields[1].Value.(*ast.StringLit)
+				constant.Value = raw
+				rejected(g, "$.file.decls[1].action", func() string { return constant.Value })
+
 				canonical := mustParse(src)
 				codegentest.ReplaceFirstLiteral(canonical.Rules()[0].Expr, string([]rune(raw)))
-				canonical.Rules()[0].Action.(*ast.Constructor).Fields[1].Value.(*ast.StringLit).Value = raw
-				want, err := Compile(canonical, checkpkg.Options{})
-				if err != nil {
+				if _, err := Compile(canonical, checkpkg.Options{}); err != nil {
 					t.Fatal(err)
-				}
-				programs := map[string]*Program{"AST": p}
-				modes := map[string]CompiledMode{}
-				var recognizer *Program // the program loaded in recognize mode
-				for _, mode := range allModes {
-					data, err := p.Marshal("main", mode)
-					if err != nil {
-						t.Fatal(err)
-					}
-					loaded, _, err := LoadProgram(data)
-					if err != nil {
-						t.Fatal(err)
-					}
-					again, err := loaded.Marshal("main", mode)
-					if err != nil || !bytes.Equal(data, again) {
-						t.Fatalf("module bytes changed: %v", err)
-					}
-					if mode == CompiledRecognize {
-						recognizer = loaded
-						continue
-					}
-					name := "saved/" + mode.String()
-					programs[name], modes[name] = loaded, mode
-				}
-				for name, prog := range programs {
-					for _, backend := range []Backend{Default, Closure, Bytecode, BytecodeIterative} {
-						if prog.Static() == nil && backend == Closure {
-							_, err := prog.ParseWith("main", raw, servedBy(modes[name], ParseOptions{Backend: backend}))
-							wantClosureRefused(t, err)
-							continue
-						}
-						for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
-							for _, input := range []string{raw, string([]rune(raw)), raw + "x", string([]rune(raw)) + "x", raw + raw, string([]rune(raw)) + string([]rune(raw)), "é", "éx", "other", "", "\xffx", "\x80x"} {
-								opts := ParseOptions{Backend: backend, Unit: unit}
-								n, err := prog.ParseWith("main", input, servedBy(modes[name], opts))
-								wn, we := want.ParseWith("main", input, opts)
-								if (err == nil) != (we == nil) {
-									t.Errorf("%s %s/%s input=%x: %v, want success=%t", name, backend, unit, input, err, we == nil)
-									continue
-								}
-								{
-									recognizing := prog
-									if prog.Static() == nil {
-										recognizing = recognizer
-									}
-									opts.Recognize = true
-									_, re := recognizing.ParseWith("main", input, opts)
-									if fmt.Sprint(re) != fmt.Sprint(err) {
-										t.Errorf("%s recognition differs: %v / %v", name, re, err)
-									}
-								}
-								if err == nil {
-									// JSON replaces malformed strings, so compare raw match text too.
-									gotMatch, wantMatch := n.Field("T").(*value.Node), wn.Field("T").(*value.Node)
-									if nodes.D(gotMatch).Text != nodes.D(wantMatch).Text || nodes.D(gotMatch).Start != nodes.D(wantMatch).Start || nodes.D(gotMatch).End != nodes.D(wantMatch).End {
-										t.Errorf("%s %s/%s input=%x: match %x [%d,%d), want %x [%d,%d)", name, backend, unit, input, nodes.D(gotMatch).Text, nodes.D(gotMatch).Start, nodes.D(gotMatch).End, nodes.D(wantMatch).Text, nodes.D(wantMatch).Start, nodes.D(wantMatch).End)
-									}
-									if got, w := codegentest.ResultJSON(n, nil), codegentest.ResultJSON(wn, nil); got != w {
-										t.Errorf("%s %s/%s input=%x\ngot %s\nwant %s", name, backend, unit, input, got, w)
-									}
-									if n.Field("S") != raw {
-										t.Errorf("%s action constant changed", name)
-									}
-								}
-							}
-						}
-					}
-					if prog.Static() != nil {
-						if first := codegentest.FirstLiteral(prog.Static().Grammar.Rules()[0].Expr); first == nil || first.Value != raw {
-							t.Fatal("loaded AST changed literal bytes")
-						}
-					}
-				}
-				if lit.Value != raw {
-					t.Fatal("serialization or execution mutated caller AST")
-				}
-				if !strings.Contains(strings.Join(p.Module().Strings, "\n"), raw) {
-					t.Fatal("module lost original raw string")
 				}
 			})
 		}

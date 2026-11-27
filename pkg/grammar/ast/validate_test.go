@@ -237,6 +237,62 @@ func TestValidateASCIIIdentifiers(t *testing.T) {
 	}
 }
 
+func TestValidateInvalidUTF8(t *testing.T) {
+	const bad = "a\xc3"
+	rule := func(r *RuleDef) *Grammar {
+		if r.Name == "" {
+			r.Name = "p"
+		}
+		if r.Expr == nil {
+			r.Expr = &Literal{Value: "a"}
+		}
+		return &Grammar{File: File{Decls: []Decl{r}}}
+	}
+	for _, tc := range []struct {
+		name string
+		g    *Grammar
+		path string
+	}{
+		{"literal", expressionGrammar(&Literal{Value: bad}), "$.file.decls[0].expr.value"},
+		{"ignorecase literal", expressionGrammar(&Literal{Value: bad, IgnoreCase: true}), "$.file.decls[0].expr.value"},
+		{"action string", actionGrammar(&StringLit{Value: bad}), "$.file.decls[0].action.value"},
+		{"attribute keyword argument", expressionGrammar(&Attributed{Expr: &Top{}, Attrs: []*Attribute{{Name: "error", KwArgs: map[string]any{"message": bad}}}}), "$.file.decls[0].expr.attrs[0].kwArgs[\"message\"]"},
+		{"attribute argument", expressionGrammar(&Attributed{Expr: &Top{}, Attrs: []*Attribute{{Name: "error", Args: []any{1, bad}}}}), "$.file.decls[0].expr.attrs[0].args[1]"},
+		{"leading comment", rule(&RuleDef{SourceInfo: SourceInfo{LeadingComments: bad}}), "$.file.decls[0].source.leadingComments"},
+		{"trailing comment", rule(&RuleDef{SourceInfo: SourceInfo{TrailingComments: []string{"ok", bad}}}), "$.file.decls[0].source.trailingComments[1]"},
+		{"detached comment", rule(&RuleDef{SourceInfo: SourceInfo{LeadingDetachedComments: []string{bad}}}), "$.file.decls[0].source.leadingDetachedComments[0]"},
+		{"expression comment", expressionGrammar(&Literal{Value: "a", SourceInfo: SourceInfo{LeadingComments: bad}}), "$.file.decls[0].expr.source.leadingComments"},
+		{"keyword comment", rule(&RuleDef{KeywordComments: bad}), "$.file.decls[0].keywordComments"},
+		{"keyword detached comment", rule(&RuleDef{KeywordDetachedComments: []string{bad}}), "$.file.decls[0].keywordDetachedComments[0]"},
+		{"header comment", rule(&RuleDef{HeaderComments: []string{bad}}), "$.file.decls[0].headerComments[0]"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := Validate(tc.g)
+			assertValidationError(t, err, tc.path)
+			if !strings.Contains(err.Error(), "not valid UTF-8") {
+				t.Fatalf("got %v; want an invalid UTF-8 error", err)
+			}
+		})
+	}
+	// The replacement character itself, and every other scalar value, stays valid.
+	for _, s := range []string{"\uFFFD", "名前😀", "\x00", "\U0010FFFF"} {
+		if err := Validate(expressionGrammar(&Literal{Value: s})); err != nil {
+			t.Fatalf("literal %q rejected: %v", s, err)
+		}
+		if err := Validate(actionGrammar(&StringLit{Value: s})); err != nil {
+			t.Fatalf("string constant %q rejected: %v", s, err)
+		}
+	}
+}
+
+func TestValidateEmptyCharClass(t *testing.T) {
+	for _, negated := range []bool{false, true} {
+		for _, ranges := range [][]CharRange{nil, {}} {
+			assertValidationError(t, Validate(expressionGrammar(&CharClass{Ranges: ranges, Negated: negated})), "$.file.decls[0].expr.ranges")
+		}
+	}
+}
+
 func TestJSONMalformedAndOverflow(t *testing.T) {
 	for _, tc := range []struct{ input, want string }{
 		{"null", "$"},

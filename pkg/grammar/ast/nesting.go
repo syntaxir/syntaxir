@@ -320,38 +320,45 @@ func commentNesting(text string, control *validationControl) int {
 // comment unless it ends in a line terminator; a trailing comment over several lines is one block
 // comment, and so is each header comment.
 func tooDeepComment(node any, control *validationControl) string {
-	deep := func(text string, block bool) bool {
+	return commentField(node, func(text string, block bool) bool {
 		return block && commentNesting(text, control) > MaxNestingLevels
-	}
+	})
+}
+
+// commentField returns the field of the first comment string of node for which bad, given the text
+// and whether Format writes it as a block comment, is true, or "". The comment strings are those
+// of the node's SourceInfo (leading, leading detached and trailing comments) and its keyword,
+// keyword detached and header comments.
+func commentField(node any, bad func(text string, block bool) bool) string {
 	ends := endsLine
 	indexed := func(name string, i int) string { return name + "[" + strconv.Itoa(i) + "]" }
 	source := func(prefix string, s *SourceInfo) string {
-		if deep(s.LeadingComments, !ends(s.LeadingComments)) {
+		if bad(s.LeadingComments, !ends(s.LeadingComments)) {
 			return prefix + "source.leadingComments"
 		}
 		for i, text := range s.LeadingDetachedComments {
-			if deep(text, !ends(text)) {
+			if bad(text, !ends(text)) {
 				return prefix + "source." + indexed("leadingDetachedComments", i)
 			}
 		}
 		for i, text := range s.TrailingComments {
-			if deep(text, !ends(text) || lineTerminators(text) > 1) {
+			if bad(text, !ends(text) || lineTerminators(text) > 1) {
 				return prefix + "source." + indexed("trailingComments", i)
 			}
 		}
 		return ""
 	}
 	keyword := func(prefix, text string, detached, header []string) string {
-		if deep(text, !ends(text)) {
+		if bad(text, !ends(text)) {
 			return prefix + "keywordComments"
 		}
 		for i, text := range detached {
-			if deep(text, !ends(text)) {
+			if bad(text, !ends(text)) {
 				return prefix + indexed("keywordDetachedComments", i)
 			}
 		}
 		for i, text := range header {
-			if deep(text, true) {
+			if bad(text, true) {
 				return prefix + indexed("headerComments", i)
 			}
 		}

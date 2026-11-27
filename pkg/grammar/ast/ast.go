@@ -428,9 +428,9 @@ type LevelGaps struct {
 	Open, Before, After, Close *Gap
 }
 
-// Literal is a string literal "...". Matching uses its decoded rune sequence:
-// malformed UTF-8 bytes become U+FFFD in both position units. Compilation and
-// generation derive matching data without changing Value.
+// Literal is a string literal "...". Value is valid UTF-8, as every string of a
+// valid AST is, and matches as its sequence of characters; the literal "\uFFFD"
+// matches each byte of the input that is not valid UTF-8.
 //
 // IgnoreCase is set by the suffix i ("..."i): the ASCII letters of the literal
 // match either case. The #ignorecase pragma sets it on the literals of its

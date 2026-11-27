@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"syntaxir.dev/sxir/pkg/grammar"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -40,10 +41,13 @@ func TestFormatRoundTripRandom(t *testing.T) {
 		t.Run(run.name, func(t *testing.T) {
 			t.Parallel()
 			g := &astGen{r: rand.New(rand.NewPCG(run.seed, 0)), wide: run.wide, blocks: run.blocks}
-			valid, failures := 0, 0
+			valid, failures, invalidUTF8 := 0, 0, 0
 			for i := 0; i < run.n && failures < 5; i++ {
 				ast1 := g.grammar(1 + g.r.IntN(run.depth))
-				if ast.Validate(ast1) != nil {
+				if err := ast.Validate(ast1); err != nil {
+					if strings.Contains(err.Error(), "not valid UTF-8") {
+						invalidUTF8++
+					}
 					continue
 				}
 				valid++
@@ -51,6 +55,10 @@ func TestFormatRoundTripRandom(t *testing.T) {
 					failures++
 					t.Errorf("case %d: %s", i, msg)
 				}
+			}
+			// In the wide runs, some strings are not valid UTF-8, which validation must reject.
+			if run.wide && invalidUTF8 == 0 {
+				t.Error("no random grammar has a string that is not valid UTF-8")
 			}
 			// The generator must keep producing valid grammars, or the run checks nothing.
 			if failures == 0 && valid < run.n/10 {
@@ -64,6 +72,22 @@ func TestFormatRoundTripRandom(t *testing.T) {
 // roundTrip formats g, parses the text and compares the trees, and returns a description of the
 // first difference, or "".
 func roundTrip(g *ast.Grammar) string {
+	// Neither JSON nor grammar text holds a string that is not valid UTF-8, and the comparisons
+	// below go through JSON, which would hide one: a valid AST holds none.
+	if path := invalidString(reflect.ValueOf(g), "$"); path != "" {
+		return "a valid grammar holds a string that is not valid UTF-8 at " + path
+	}
+	data, err := ast.MarshalJSON(g)
+	if err != nil {
+		return fmt.Sprintf("the grammar does not encode as JSON: %v", err)
+	}
+	decoded, err := ast.UnmarshalJSON(data)
+	if err != nil {
+		return fmt.Sprintf("the JSON of the grammar does not decode: %v\n%s", err, data)
+	}
+	if again, err := ast.MarshalJSON(decoded); err != nil || !bytes.Equal(again, data) {
+		return fmt.Sprintf("the JSON of the grammar, decoded and encoded again, differs: %v\n%s\n%s", err, data, again)
+	}
 	text := grammar.Format(g)
 	back, err := grammar.Load(grammar.FromString("random.sxir", text))
 	if err != nil {
@@ -79,6 +103,44 @@ func roundTrip(g *ast.Grammar) string {
 	}
 	if want, got := normalTree(back, false), normalTree(back2, false); !reflect.DeepEqual(want, got) {
 		return fmt.Sprintf("the parsed grammar, formatted again, differs at %s\n%s", firstDiff("", want, got), again)
+	}
+	return ""
+}
+
+// invalidString returns the path of the first string under v that is not valid UTF-8, or "".
+func invalidString(v reflect.Value, path string) string {
+	switch v.Kind() {
+	case reflect.String:
+		if !utf8.ValidString(v.String()) {
+			return path
+		}
+	case reflect.Pointer, reflect.Interface:
+		if !v.IsNil() {
+			return invalidString(v.Elem(), path)
+		}
+	case reflect.Struct:
+		for i := range v.NumField() {
+			if f := v.Type().Field(i); f.IsExported() {
+				if p := invalidString(v.Field(i), path+"."+f.Name); p != "" {
+					return p
+				}
+			}
+		}
+	case reflect.Slice, reflect.Array:
+		for i := range v.Len() {
+			if p := invalidString(v.Index(i), fmt.Sprintf("%s[%d]", path, i)); p != "" {
+				return p
+			}
+		}
+	case reflect.Map:
+		for it := v.MapRange(); it.Next(); {
+			if p := invalidString(it.Key(), path+"[key]"); p != "" {
+				return p
+			}
+			if p := invalidString(it.Value(), fmt.Sprintf("%s[%q]", path, it.Key())); p != "" {
+				return p
+			}
+		}
 	}
 	return ""
 }
@@ -114,13 +176,20 @@ func (g *astGen) str() string {
 	var b strings.Builder
 	for range g.r.IntN(4) {
 		b.WriteString(pick(g, "a", "\"", "\\", "\n", "\t", "é", "😀", "\x00", " ", "{", "}", "$", "'", "\x7f", "\ufeff"))
+		if g.wide && g.r.IntN(16) == 0 {
+			b.WriteString(pick(g, "\xc3", "\xff", "\xed\xa0\x80")) // not valid UTF-8
+		}
 	}
 	return b.String()
 }
 
 func (g *astGen) charClass() *ast.CharClass {
 	c := &ast.CharClass{Negated: g.r.IntN(2) == 0}
-	for range 1 + g.r.IntN(3) {
+	n := 1 + g.r.IntN(3)
+	if g.wide && g.r.IntN(16) == 0 {
+		n = 0 // an empty class, which has no spelling
+	}
+	for range n {
 		bound := func() rune {
 			return pick[rune](g, 'a', 'z', '-', ']', '^', '\\', '\n', 0, 'é', 0x10FFFF, 0x7f, 0x1F600, ' ', '[')
 		}
@@ -478,6 +547,9 @@ func (g *astGen) grammar(d int) *ast.Grammar {
 	}
 	if g.r.IntN(3) == 0 {
 		rule.Type = g.typ(d)
+	}
+	if g.wide && g.r.IntN(4) == 0 {
+		rule.LeadingComments = "c" + g.str()
 	}
 	out.File.Decls = append(out.File.Decls, rule)
 	return out

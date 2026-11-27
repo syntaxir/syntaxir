@@ -740,12 +740,13 @@ that the parser reads is valid.
 | A node deeper than `ast.MaxNestingDepth` (50,000), with the error `nesting too deep`. A declaration, and an attribute of the package clause, is 1 deep, and each node below it one deeper than its parent, except a `Group`, `ActionGroup` or `TypeGroup`, which adds nothing, and a negative `IntLit` other than the minimum `int`, which adds two, as its text reads back as a `Unary` of an `IntLit`. The parser applies the same bound, so the text of a valid AST reads back | Any number of siblings, such as the items of a sequence, which add no depth |
 | A header comment, of `headerComments` of a declaration, the package clause or a struct field, that holds a line terminator (LF, CR or CRLF), which its header, standing on one line, cannot hold | A header comment without a line terminator, the empty one included, which is written `/**/` |
 | A comment string that `grammar.Format` writes as a block comment and that nests more than `ast.MaxNestingLevels` block comments, counting the comment and the pairs of `/*` and `*/` in the string, with the error `nesting too deep` | A comment string written as line comments, and the unpaired `/*` and `*/` that `grammar.Format` breaks apart |
+| A string that is not valid UTF-8: the value of a `Literal` or `StringLit`, a string argument of an attribute, or a comment string (the leading, detached and trailing comments of `source`, and the keyword, keyword detached and header comments of a declaration, the package clause or a struct field). Neither JSON nor grammar text holds one: encoding it as JSON, or formatting it and parsing the text, would replace each invalid byte with U+FFFD | Any string of Unicode scalar values, U+FFFD and U+0000 included |
 | A `Binary` operator other than `\|\|`, `&&`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `+`, `-`, `*`, `/`, `%` and `[]` (an index); a `Unary` operator other than `-` and `!` | |
 
 Validation is structural. It does not resolve names, check the types of actions,
 validate attribute arguments or enforce the semantics of an Operators Rule;
 compilation does. It does not validate source layout, and checks comments only for
-their nesting and for line terminators in headers. Compilation and the
+their nesting, their encoding and for line terminators in headers. Compilation and the
 generators run structural validation themselves. `grammar.Format` and
 `ast.MarshalJSON` expect a structurally valid AST.
 
@@ -803,17 +804,14 @@ AST does not change the parser. `Grammar.Clone()` returns an independent copy.
 
 ### Literal Matching Values
 
-A `ast.Literal.Value` matches as its decoded sequence of runes, in which each
-malformed UTF-8 byte becomes U+FFFD. A value that contains `"\xc3"` matches a
-replacement character and cannot match the leading byte of `"é"`. Both position
-units, saved modules and generated parsers share this rule. Compilation and
-generation derive the matching data without rewriting the caller's AST, binary
-serialization preserves the original value, and JSON strings follow the replacement
-behavior of `encoding/json`. String constants in actions are separate from
-matching literals. Matched text follows the input: with byte positions it keeps the
-consumed bytes, and with code-point positions it is decoded; so in byte mode
-`text($capture)` distinguishes a valid U+FFFD from an invalid input byte that the
-same literal matched.
+An `ast.Literal.Value` is valid UTF-8, as every string of a valid AST is, and
+matches as its sequence of characters. A Go string such as `"\xc3"`, which holds a
+byte that is not valid UTF-8, is rejected by validation, and so by compilation and
+generation; the literal `"\uFFFD"` (`"�"`) matches each invalid byte of the input.
+String constants in actions are separate from matching literals. Matched text
+follows the input: with byte positions it keeps the consumed bytes, and with
+code-point positions it is decoded; so in byte mode `text($capture)` distinguishes
+a valid U+FFFD from an invalid input byte that the same literal matched.
 
 ### Context-Aware Formatting and Collection
 

@@ -15,6 +15,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
@@ -45,7 +46,10 @@ func TestGeneratedTSInvalidUTF8Literals(t *testing.T) {
 			continue
 		}
 		t.Run(tc.Name, func(t *testing.T) {
-			g := codegentest.LiteralCorpusGrammar(t, tc)
+			g, err := compiletest.Parse(tc.Src)
+			if err != nil {
+				t.Fatal(err)
+			}
 			prog, err := entry.Compile(g, entry.Options{})
 			if err != nil {
 				t.Fatal(err)
@@ -81,5 +85,20 @@ func TestGeneratedTSInvalidUTF8Literals(t *testing.T) {
 				t.Fatalf("strict tsc: %v\n%s", err, out)
 			}
 		})
+	}
+}
+
+// The generator rejects a grammar AST whose literal is not valid UTF-8, which validation rejects.
+func TestGeneratedRawLiteralRejected(t *testing.T) {
+	t.Parallel()
+	for _, raw := range codegentest.RawLiteralValues() {
+		g, err := compiletest.Parse("type N = { T node[string] }\nrule main N = t:\"x\" $$ => N{T:$t}")
+		if err != nil {
+			t.Fatal(err)
+		}
+		codegentest.ReplaceFirstLiteral(g.Rules()[0].Expr, raw)
+		if _, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", Recognize: true}); err == nil || !strings.Contains(err.Error(), "not valid UTF-8") {
+			t.Errorf("%x: got %v; want the invalid UTF-8 error of the literal", raw, err)
+		}
 	}
 }

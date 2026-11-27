@@ -54,7 +54,6 @@ func TestTSPrintableAdmitsTheCorpora(t *testing.T) {
 		codegentest.JoinMemberCases(),
 		codegentest.TypedJoinMemberCases(),
 		codegentest.SkipRunCases(4),
-		codegentest.RawLiteralGenCorpus(),
 		codegentest.InvalidLiteralCorpus(),
 		codegentest.TopBottomCases(),
 		codegentest.ScanSiteCases(4),
