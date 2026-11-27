@@ -47,10 +47,13 @@ func repoEnv() []string {
 
 // scriptEnv returns the environment of the queue scripts under test, with their state in state. It drops
 // SXIR_IN_TESTSLOT, which the tests inherit when they run in a test slot job: the scripts under test run
-// against their own state, not inside the caller's slot.
+// against their own state, not inside the caller's slot. It drops the caller's TESTSLOT_N and
+// TESTSLOT_STALL too, which each test sets for its own state.
 func scriptEnv(t *testing.T, state string) []string {
 	t.Helper()
-	env := slices.DeleteFunc(inheritedEnv(), func(kv string) bool { return strings.HasPrefix(kv, "SXIR_IN_TESTSLOT=") })
+	env := slices.DeleteFunc(inheritedEnv(), func(kv string) bool {
+		return strings.HasPrefix(kv, "SXIR_IN_TESTSLOT=") || strings.HasPrefix(kv, "TESTSLOT_N=") || strings.HasPrefix(kv, "TESTSLOT_STALL=")
+	})
 	env = append(env,
 		"SXIR_AGENT_STATE="+state, "BENCHLOCK_POLL=1",
 		// The power guard of benchlock.sh reads a machine on AC power with a full battery, whatever

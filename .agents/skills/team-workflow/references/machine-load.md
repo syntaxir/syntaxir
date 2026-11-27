@@ -14,6 +14,13 @@ quiet machine. So runs fall into four classes.
 Heavy test runs, including the root `go test ./...`, go only through the queue. Docs and site
 checks and count probes run directly, throttled.
 
+The number of test slots is one value shared by every lane, kept in `slots/count` of the
+state directory: the first `testslot.sh` call creates it from `TESTSLOT_N`, or 1 when that is
+unset. Leave `TESTSLOT_N` unset or set it to that count; a call with another value exits 2
+before it queues, since a caller counting more slots than the others would claim slots they do
+not have, ahead of the queue and beside their holders. Change the count by editing the file
+while no slot is held.
+
 ## The queue
 
 - `.agents/scripts/benchlock.sh <tag> <command...>` waits for the heavy-run lock and then runs

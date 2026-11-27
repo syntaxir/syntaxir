@@ -6,9 +6,10 @@
 # Only records of live wrappers count as queued or running. A record without class= (an earlier
 # benchlock.sh) is exclusive. Earlier versions cannot take back the slot of a dead shared holder,
 # so with only their waiters queued the queue stays stuck until a current benchlock.sh runs.
-# The test slots follow: the slots held, and the testslot.sh waiters in rank order (slots/queue,
-# first served first; a record whose waiter is gone is shown as gone and is not a failure, the next
-# claim removes it), and testslot-stalls.log, which counts as stalls do.
+# The test slots follow: the slots held out of the shared count (slots/count), and the testslot.sh
+# waiters in rank order (slots/queue, first served first; a record whose waiter is gone is shown as
+# gone and is not a failure, the next claim removes it), and testslot-stalls.log, which counts as
+# stalls do.
 # Then the power of the machine (sxir_power in lib.sh) and the last lines of benchlock-power.log, the
 # refusals and invalid runs of the power guard of the exclusive jobs.
 # Exit status 1 when stuck, when anything is stale, when the stall log is not empty, or when an
@@ -68,7 +69,8 @@ for f in "$D"/runs/*; do
 done
 held=0
 for e in "$D"/slots/[0-9]*; do [ -d "$e" ] && held=$((held + 1)); done
-echo "test slots: $held held"
+count=$(cat "$D/slots/count" 2>/dev/null || true)
+echo "test slots: $held held of ${count:-an unset count}"
 for f in "$D"/slots/queue/[0-9]*; do
   [ -f "$f" ] || continue
   read -r wpid wstart < "$f" || true

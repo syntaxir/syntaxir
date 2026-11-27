@@ -972,6 +972,61 @@ func TestBenchlockStallBackstop(t *testing.T) {
 	}
 }
 
+// The slot count is shared by every caller of one state directory. A caller with another TESTSLOT_N
+// would count slots that the others do not have: one with 4 beside callers with 1 sees slots 2 to 4
+// free while slot 1 is held, and once the stall backstop fires it claims one ahead of the queue and runs
+// beside the holder. Such a caller exits 2 before it queues instead. A caller without TESTSLOT_N takes
+// the count of the state, 1 when the first caller set none.
+func TestTestslotSharedCount(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
+	needTools(t)
+	state := t.TempDir()
+	env := scriptEnv(t, state)
+	work, run := overlapWork(t)
+	hold := filepath.Join(run, "hold")
+	holder := startQueued(t, append(env, "WORK_HOLD="+hold), run, scriptPath(t, "testslot.sh"), work, run, "h", "0.1")
+	head := startScript(t, append(env, "TESTSLOT_N=1"), scriptPath(t, "testslot.sh"), work, run, "w", "0.1")
+	waitRecords(t, state, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	other := exec.CommandContext(ctx, "bash", scriptPath(t, "testslot.sh"), work, run, "x", "0.1")
+	other.Env = append(env, "TESTSLOT_N=4", "TESTSLOT_STALL=1")
+	out, err := other.CombinedOutput()
+	var exit *exec.ExitError
+	if !errors.As(err, &exit) || exit.ExitCode() != 2 || !strings.Contains(string(out), "differs from the slot count 1") {
+		t.Errorf("a caller with TESTSLOT_N=4 beside the count 1: %v, %q; want exit 2 naming the shared count", err, out)
+	}
+	write(t, hold, "", 0o644)
+	waitConcurrency(t, "shared count", run, 2, 1, holder, head)
+	if ev := events(t, run); !before(ev, "end h", "start w") {
+		t.Errorf("the head waiter did not follow the holder: %q", ev)
+	}
+	noStall(t, "shared count", state)
+}
+
+// A live holder in a slot past the count, which a caller of an earlier version that counted more slots
+// leaves, takes its share of the count: a claim waits for it although slot 1 is free. The stall
+// backstop does not grant a slot past the count either: the waiter is behind a live record and its
+// backstop fires after a second, and still it waits.
+func TestTestslotCountsHoldersPastTheCount(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
+	needTools(t)
+	state := t.TempDir()
+	env := append(scriptEnv(t, state), "TESTSLOT_N=1", "TESTSLOT_STALL=1")
+	frontRecord(t, state)
+	pid := os.Getpid()
+	slot := filepath.Join(state, "slots", "2")
+	write(t, filepath.Join(slot, "pid"), fmt.Sprintf("%d\n", pid), 0o644)
+	write(t, slot+".start", fmt.Sprintf("%d %s\n", pid, procStart(t, pid)), 0o644)
+	work, run := overlapWork(t)
+	c := startScript(t, env, scriptPath(t, "testslot.sh"), work, run, "w", "0.1")
+	noneStarted(t, "a holder in slot 2", run, 3*time.Second)
+	if err := os.RemoveAll(slot); err != nil {
+		t.Fatal(err)
+	}
+	waitWithin(t, "after slot 2 was freed", c, 30*time.Second)
+}
+
 // waitRecords returns once the queue of testslot.sh holds n records of waiters.
 func waitRecords(t *testing.T, state string, n int) {
 	t.Helper()

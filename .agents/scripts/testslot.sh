@@ -1,9 +1,18 @@
 #!/usr/bin/env bash
 # Usage: testslot.sh <cmd...>
-# Counting semaphore (TESTSLOT_N slots, default 4) for targeted `go test` runs. Each slot is a
+# Counting semaphore for targeted `go test` runs. Each slot is a
 # directory slots/<i> holding a `pid` file; a slot whose holder is dead is reclaimed. The holder
 # is identified by its pid and its start time (slots/<i>.start), so a reused pid is not taken
 # for the holder. An old holder, which writes only the pid, is judged by the pid alone.
+#
+# The number of slots is one value that every caller shares, kept in slots/count. The first caller
+# creates the file with TESTSLOT_N, or 1 when TESTSLOT_N is unset; a caller without TESTSLOT_N takes
+# the count from the file, and a caller whose TESTSLOT_N differs from it exits 2 at once, before it
+# queues: callers that each counted their own slots would see slots free that the others' count does
+# not have, and claim them beside the holders. To change the count, edit the file while no slot is
+# held. A claim is admitted only while fewer holders than the count are alive in any slots/<i>, so a
+# holder in a slot past the count (one left by a caller of an earlier version with more slots) still
+# takes its share.
 #
 # Claiming is serialized between these scripts by an flock on slots/.lock, which the kernel
 # drops when its holder dies, so reclaiming a dead holder's slot or a dead mutex is one step
@@ -39,12 +48,30 @@ set -euo pipefail
 # shellcheck source=lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 D=$sxir_state/slots
-n=${TESTSLOT_N:-4}
 [ $# -gt 0 ] || { echo "usage: testslot.sh <cmd...>" >&2; exit 2; }
 command -v perl >/dev/null 2>&1 || { echo "testslot.sh: perl is required for the claim lock and is not installed" >&2; exit 127; }
 Q=$D/queue
 stall=${TESTSLOT_STALL:-300}
 mkdir -p "$D" "$Q"
+# slot_count prints the shared slot count, creating slots/count when it is absent. The file is written
+# aside and linked into place, so that it appears with its value and the first link wins.
+slot_count() {
+  local c=
+  if [ ! -e "$D/count" ]; then
+    printf '%s\n' "${TESTSLOT_N:-1}" > "$D/.count.$$"
+    ln "$D/.count.$$" "$D/count" 2>/dev/null || true
+    rm -f "$D/.count.$$"
+  fi
+  read -r c < "$D/count" || true
+  echo "$c"
+}
+case ${TESTSLOT_N-1} in ''|*[!0-9]*|0*) echo "testslot.sh: TESTSLOT_N must be a positive integer, not '$TESTSLOT_N'" >&2; exit 2 ;; esac
+n=$(slot_count)
+case $n in ''|*[!0-9]*|0*) echo "testslot.sh: $D/count holds '$n', not a positive slot count" >&2; exit 2 ;; esac
+if [ -n "${TESTSLOT_N:-}" ] && [ "$TESTSLOT_N" != "$n" ]; then
+  echo "testslot.sh: TESTSLOT_N=$TESTSLOT_N differs from the slot count $n that every caller shares ($D/count); unset TESTSLOT_N or set it to $n" >&2
+  exit 2
+fi
 mine=
 rec=
 child=
@@ -99,15 +126,8 @@ first_waiter() {
   done
   return 1
 }
-# slot_free: under the claim flock, some slot is unheld.
-slot_free() {
-  local i=1
-  while [ "$i" -le "$n" ]; do
-    if [ ! -d "$D/$i" ] || slot_dead "$D/$i"; then return 0; fi
-    i=$((i + 1))
-  done
-  return 1
-}
+# slot_free: under the claim flock, fewer holders than the count are alive, counting every slots/<i>.
+slot_free() { [ "$(sxir_slots_held)" -lt "$n" ]; }
 # try_flock returns 1 when the lock is held by another claimer, and stops the script when it cannot
 # be asked for at all (the perl status 2), which a retry would not mend.
 try_flock() {
@@ -134,6 +154,7 @@ claim_once() {
   if mkdir "$D/.mutex" 2>/dev/null; then
     echo "$me" > "$D/.mutex/owner"
     local i=1 s
+    slot_free || i=$((n + 1))
     while [ "$i" -le "$n" ]; do
       s=$D/$i
       if [ -d "$s" ] && slot_dead "$s"; then rm -f "$s/pid" "$s.start"; rmdir "$s" 2>/dev/null || true; fi
@@ -144,7 +165,7 @@ claim_once() {
   fi
   if [ -n "$mine" ]; then
     if [ "$free" -ge "$stall" ]; then
-      printf '%s stall: slot free %ss, %s took it ahead of the queue: %s\n' "$(date +%FT%T)" "$free" "$$" \
+      printf '%s stall: slot free %ss, %s took %s of %s ahead of the queue: %s\n' "$(date +%FT%T)" "$free" "$$" "${mine##*/}" "$n" \
         "$(cat "$Q"/* 2>/dev/null | tr '\n' '|')" >> "$sxir_state/testslot-stalls.log"
     fi
     rm -f "$rec"; rec=
