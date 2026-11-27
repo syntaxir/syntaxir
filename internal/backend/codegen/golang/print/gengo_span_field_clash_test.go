@@ -1,6 +1,9 @@
 package print_test
 
 import (
+	"path/filepath"
+	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -43,5 +46,35 @@ rule main Thing = a:"a" => Thing{Start: 7, End: 8}`)
 		if slices.Contains(fields, bad) {
 			t.Errorf("a field %s shadows the promoted field of Span", bad)
 		}
+	}
+}
+
+// TestGeneratedTypedFieldsNamedLikeTheLibrary checks the names of struct fields named like the names
+// that the generated structs have for the typed library: each Go field gets a trailing underscore,
+// the embedded Span keeps its span, and the typed values are the engine's, so each field reads back
+// under its grammar name.
+func TestGeneratedTypedFieldsNamedLikeTheLibrary(t *testing.T) {
+	t.Parallel()
+	codegentest.EachMode(t, testGeneratedTypedFieldsNamedLikeTheLibrary)
+}
+
+func testGeneratedTypedFieldsNamedLikeTheLibrary(t *testing.T) {
+	c := codegentest.LibraryNamedFieldsCase()
+	g, err := parseTest(c.Src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: "p", Start: "main", Types: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Start_ int", "End_ int", "Range_ int", "Span_ int", "TName_ string"} {
+		if !regexp.MustCompile(`(?m)^\t` + strings.Replace(want, " ", ` +`, 1) + `$`).Match(code) {
+			t.Errorf("the generated Thing has no field %q", want)
+		}
+	}
+	goBin := filepath.Join(runtime.GOROOT(), "bin", "go")
+	for _, m := range codegentest.GeneratedTypesMismatches(t, goBin, []codegentest.Case{c}, common.GenOptions{ConvertTypes: true}, nil, 1) {
+		t.Error(m)
 	}
 }

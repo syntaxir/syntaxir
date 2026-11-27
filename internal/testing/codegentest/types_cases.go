@@ -102,3 +102,13 @@ rule p string = (l:p "." x:[a-z] => $l + text($x)) / (x:[a-z] => text($x))`, Inp
 rule q = p "!"
 rule p string = (l:p "." x:[a-z] => $l + text($x)) / (x:[a-z] => text($x))`, Inputs: []string{"a!", "a.b!", "a.b.c!", "!", "a."}},
 }
+
+// LibraryNamedFieldsCase is a typed grammar whose struct has fields named like the names of the
+// generated Go structs for the typed library (LibMethodNames of the Go generator: the fields and
+// methods of the embedded Span and the methods of the typed values), which Go renames with a
+// trailing underscore and TypeScript keeps.
+func LibraryNamedFieldsCase() Case {
+	return Case{Name: "fields named like the typed library", Src: `type Thing = { Start int; End int; Range int; Span int; TName string }
+@start
+rule main Thing = a:"a" => Thing{Start: 7, End: 8, Range: 9, Span: 10, TName: "n"}`, Inputs: []string{"a", "b"}}
+}

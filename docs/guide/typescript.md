@@ -361,14 +361,14 @@ Use `instanceof Node` first when narrowing a union containing Node, whose
 `type` property is a general string. Top-level scalar-producing rules remain
 rejected by the existing type checker; scalar fields and aliases are supported.
 
-Grammar names are allocated in sorted order. Every top-level library and
-generated declaration is reserved, including private `Parser`, `Actx`, `Rule`,
-`OperatorsRuleLine`, generated symbols such as `R0`, globals used by the library, and
-new helpers `Span`, `StringNode`, `TupleNode`, `ListNode`, `RecoveredError`, `TypedValue`, `TypedParseResult`.
-Collisions append underscores until the name is free: grammar `Parser` exports
-`Parser_`; `R0` and `R0_` can export `R0_` and `R0__`. Discriminators retain the
-original grammar name. Regeneration can therefore change a collision cascade
-and require consumer import/type spelling updates. The original grammar spelling is retained.
+Grammar types keep their names. `types.ts` is a module of its own, which `parser.ts`
+imports as `Types`, so a grammar type named like a declaration of the library or of
+`parser.ts`, such as `Parser` or `R0`, is `Types.Parser` or `Types.R0`. A grammar type
+named like a declaration of `types.ts` itself (`Span`, `TNode`, `StringNode`, `TupleNode`,
+`ListNode`, `RecoveredError`, `TypedParseResult`, `TypedValue` or `RuntimeNode`, and in a
+grammar with `#missing` also `Missing` and `ErrorValue`) makes generation fail, naming the
+type. Struct fields keep their grammar names as well, including `Start`, `End`, `Range` and
+`Span`, which Go renames with a trailing underscore: the span reads as `start` and `end`.
 
 Conversion uses an explicit work stack and a per-call cache keyed by Node and
 canonical conversion representation. Deep fold/LR output does not add recursive

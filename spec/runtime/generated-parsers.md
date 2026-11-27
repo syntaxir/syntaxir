@@ -289,10 +289,15 @@ mapping is:
 | Join of node types, declared by an alias or written in place | The TypeScript types of the members, `RecoveredError` (and `Missing` in a grammar with `#missing`) and null, which narrow by `type`; a value converts to its member as in Go |
 | Join with a member that is no node type, `_` | `TypedValue`, following the conversion of `any` in Go; a join whose members all convert alike has the type of its members, as in Go |
 
-Names collide the same way as in Go, with trailing underscores. In a grammar with `#missing`,
-`types.ts` also declares `Missing` and `ErrorValue = RecoveredError | Missing`, and generation fails,
-naming the type, if a grammar type has one of these names; other grammars may use them. Typed parsing by
-rule name is not available in TypeScript.
+TypeScript keeps every grammar name. A struct field named `Start`, `End`, `Range`, `Span` or like a
+method of the typed Go values, which Go renames with a trailing underscore, keeps its name, since
+the span is read as the lowercase `start` and `end` and field names begin with an uppercase letter.
+A grammar type named like a declaration of `types.ts` (`Span`, `TNode`, `StringNode`, `TupleNode`,
+`ListNode`, `RecoveredError`, `TypedParseResult`, `TypedValue` or `RuntimeNode`) makes generation
+fail, naming the type. In a grammar with `#missing`, `types.ts` also declares `Missing` and
+`ErrorValue = RecoveredError | Missing`, and generation fails, naming the type, if a grammar type
+has one of these names; other grammars may use them. Typed parsing by rule name is not available in
+TypeScript.
 
 ### Recognition
 
