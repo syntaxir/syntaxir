@@ -68,8 +68,8 @@ rule e Expr = #operators {
 }`
 
 // NullableOperandCases returns Operators Rules whose operand can match nothing, with a rule that an operator
-// part calls and that calls the Operators Rule again: the infix and postfix parts are tried where the rule
-// started, so the rule they call is on a left-recursion cycle with it (Rule Facts in spec/core-ir/attributes.md),
+// part calls and that calls the Operators Rule again: the infix and postfix parts are tried before the rule
+// consumes input, so the rule they call is on a left-recursion cycle with it (Rule Facts in spec/core-ir/attributes.md),
 // by a postfix part and by an infix part.
 func NullableOperandCases() []Case {
 	return []Case{
@@ -79,6 +79,12 @@ rule e = #operators {
     level a { postfix x }
 }
 rule x = e "+"`, []string{"+", "++", "+++", "", "x", "+x"}},
+		{"a postfix part calling its rule after an empty operand, with the rule declared first", `rule main = e $$
+rule x = e "+"
+rule e = #operators {
+    operand ""
+    level a { postfix x }
+}`, []string{"+", "++", "+++", "", "x", "+x"}},
 		{"an infix part calling its rule after an empty operand", `rule main = e $$
 rule e = #operators {
     operand "n" / ""
