@@ -26,6 +26,7 @@ var bindingCases = []struct{ name, src string }{
 	{"through a lookahead is accepted", "var k int\n@start\nrule main = R $$\nrule R = &({k := k + 1}) \"a\" R \"x\" / \"x\""},
 	{"after input is accepted", "var k int\n@start\nrule main = R $$\nrule R = \"a\" {k := k + 1} R \"x\" / \"x\""},
 	{"two rules", "var k int\n@start\nrule main = A $$\nrule A = {k := k + 1} B \"x\" / \"x\"\nrule B = A \"y\""},
+	{"an infix part before a prefix part", "var k int\nrule main = e $$\nrule e = #operators {\n\toperand \"\"\n\tlevel { infix left {k := 1} }\n\tlevel { prefix p }\n}\nrule p = e \"-\" {k == 1}"},
 }
 
 func TestBindingErrorsMatchCompile(t *testing.T) {
@@ -68,6 +69,40 @@ func TestBindingErrorsMatchCompile(t *testing.T) {
 				t.Error("errors with bindings accepted")
 			}
 		})
+	}
+}
+
+// TestInfixBindingBeforePrefixError pins the binding that an infix part makes before the prefix part
+// of the same Operators Rule. The operand is empty, so the infix part is a left call at the start of
+// the rule, and its right operand calls the prefix part after its binding. Both the compiler and the
+// facts must reject it, with the same message.
+func TestInfixBindingBeforePrefixError(t *testing.T) {
+	const src = "var k int\nrule main = e $$\nrule e = #operators {\n\toperand \"\"\n\tlevel { infix left {k := 1} }\n\tlevel { prefix p }\n}\nrule p = e \"-\" {k == 1}"
+	const want = "5:22: rule e binds variable k before its left-recursive call of p; the left recursion reads k"
+	g, err := compiletest.Parse(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, cerr := compiletest.Compile(g, check.Options{})
+	if got := errorLines(cerr); !slices.Equal(got, []string{want}) {
+		t.Errorf("compile errors %q, want %q", got, want)
+	}
+	prog, err := compiletest.Compile(g, check.Options{LeftRecursionBindings: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := elaborate.CoreFrom(prog, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := corepass.Compute(m, nil)
+	var got []string
+	for _, e := range f.Errors(m, true) {
+		p := m.Origin.Of(e.Node).(*ast.Predicate).Action.(*ast.Bind).Diagnostic()
+		got = append(got, fmt.Sprintf("%d:%d: %s", p.Line, p.Col, e.Msg))
+	}
+	if !slices.Equal(got, []string{want}) {
+		t.Errorf("facts errors %q, want %q", got, want)
 	}
 }
 

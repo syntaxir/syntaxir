@@ -163,23 +163,47 @@ func (f *Facts) leftBindings(n core.Node, in []*core.BindNode, ins bool, visit f
 		if n.Skip != nil {
 			in = f.leftBindings(n.Skip.Body, in, ins, visit)
 		}
-		out := in
-		for _, l := range n.Operands {
-			out = unionBinds(out, f.leftBindings(l.Body, in, ins, visit))
-			if f.Succeeds(l.Body) {
+		nullOperand := slices.ContainsFunc(n.Operands, func(l *core.OpLine) bool { return nullable(l.Body) })
+		// The operand lines start the rule. When an operand can match nothing, the infix and postfix
+		// parts are left calls too, and the right operand of an infix or postfix part calls the
+		// operand and prefix lines again after the bindings of that part. So the operand lines are
+		// checked again with those bindings, and the prefix lines after the operand, until no line
+		// binds anything new. Every list only grows, so this ends.
+		start := in
+		var afterOperand []*core.BindNode
+		for {
+			out := start
+			for _, l := range n.Operands {
+				out = unionBinds(out, f.leftBindings(l.Body, start, ins, visit))
+				if f.Succeeds(l.Body) {
+					break
+				}
+			}
+			afterOperand = out
+			var infixOut []*core.BindNode
+			if nullOperand {
+				for _, op := range n.Ops {
+					if op.Kind != "prefix" {
+						infixOut = unionBinds(infixOut, f.leftBindings(op.Line.Body, afterOperand, ins, visit))
+					}
+				}
+			}
+			next := unionBinds(start, infixOut)
+			if len(next) == len(start) {
 				break
 			}
+			start = next
 		}
-		// The infix and postfix parts are left calls only after an operand that matched nothing,
-		// which may have bound; a prefix part that applied consumed input.
-		afterOperand := out
-		nullOperand := slices.ContainsFunc(n.Operands, func(l *core.OpLine) bool { return nullable(l.Body) })
+		// A prefix part that applied consumed input; one tried after an operand that matched nothing
+		// sees the bindings of that operand and of the infix and postfix parts before it.
+		prefixIn := in
+		if nullOperand {
+			prefixIn = afterOperand
+		}
+		out := afterOperand
 		for _, op := range n.Ops {
-			switch {
-			case op.Kind == "prefix":
-				out = unionBinds(out, f.leftBindings(op.Line.Body, in, ins, visit))
-			case nullOperand:
-				out = unionBinds(out, f.leftBindings(op.Line.Body, afterOperand, ins, visit))
+			if op.Kind == "prefix" {
+				out = unionBinds(out, f.leftBindings(op.Line.Body, prefixIn, ins, visit))
 			}
 		}
 		in = out
