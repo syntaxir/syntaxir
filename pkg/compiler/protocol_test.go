@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -26,16 +27,39 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+// parserProtocol matches the reference of a parser to the protocol constant of the library it imports.
+var parserProtocol = regexp.MustCompile(`(?m)^const _ = rt\.Protocol([1-9][0-9]*)$`)
+
 // protocolName matches the declaration of a protocol constant of the library or of value/impl.
 var protocolName = regexp.MustCompile(`\bconst Protocol([1-9][0-9]*) = ([1-9][0-9]*)\b`)
 
-// bumpProtocol replaces the protocol constants that src declares with those of the version after
-// them (by = 1) or before them (by = -1).
-func bumpProtocol(src []byte, by int) []byte {
+// protocolVersions returns the protocol versions that the sources declare, a constant ProtocolN for each.
+func protocolVersions(srcs ...[]byte) []int {
+	var out []int
+	for _, src := range srcs {
+		for _, m := range protocolName.FindAllSubmatch(src, -1) {
+			n, _ := strconv.Atoi(string(m[1]))
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// shiftProtocol replaces each protocol constant that src declares with that of the version by places after
+// it (by > 0) or before it (by < 0). Shifting every source of a set of declarations by the span of the
+// versions they declare, the highest minus the lowest plus one, gives a set that declares only versions
+// past the highest of the set, or below its lowest: a set that implements none of the versions it did,
+// whichever of them a parser refers to.
+func shiftProtocol(src []byte, by int) []byte {
 	return protocolName.ReplaceAllFunc(src, func(m []byte) []byte {
 		n, _ := strconv.Atoi(string(protocolName.FindSubmatch(m)[1]))
 		return []byte("const Protocol" + strconv.Itoa(n+by) + " = " + strconv.Itoa(n+by))
 	})
+}
+
+// protocolSpan returns the span of the versions, the highest minus the lowest plus one.
+func protocolSpan(versions []int) int {
+	return slices.Max(versions) - slices.Min(versions) + 1
 }
 
 // protocolBuild writes a module syntaxir.dev/sxir in dir/sxir that holds this module's runtime
@@ -90,26 +114,26 @@ func protocolBuild(t *testing.T, files, libFiles []compiler.File, lib string, va
 	return string(out), err
 }
 
-// libProtocol returns the name of the newest protocol constant that the library files declare.
-func libProtocol(t *testing.T, libFiles []compiler.File) string {
+// libVersions returns the protocol versions that the library files declare.
+func libVersions(t *testing.T, libFiles []compiler.File) []int {
 	t.Helper()
-	best := 0
+	var srcs [][]byte
 	for _, f := range libFiles {
-		for _, m := range protocolName.FindAllSubmatch(f.Content, -1) {
-			if n, _ := strconv.Atoi(string(m[1])); n > best {
-				best = n
-			}
-		}
+		srcs = append(srcs, f.Content)
 	}
-	if best == 0 {
+	versions := protocolVersions(srcs...)
+	if len(versions) == 0 {
 		t.Fatal("the library declares no protocol constant")
 	}
-	return "Protocol" + strconv.Itoa(best)
+	return versions
 }
 
-// TestImportProtocol builds a parser generated with LibImport against the library that the
-// generator carries, which builds, and against the same library declaring the next protocol
-// version instead, which must fail to build on the protocol constant the parser refers to.
+// TestImportProtocol checks that a parser generated with LibImport refers to the newest protocol
+// version of the library that the generator carries, which declares it, and builds against that
+// library; and that it fails to build, on the protocol constant it refers to, against the same library
+// declaring only versions past all of those it declares, as a later library that implements none of
+// them would. The library may declare older versions besides the newest, which parsers of those
+// versions build against.
 func TestImportProtocol(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds a generated parser")
@@ -124,23 +148,36 @@ rule main = [a-z]+ "=" [0-9]+`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	protocol := libProtocol(t, libFiles)
+	versions := libVersions(t, libFiles)
 	var parser []byte
 	for _, f := range files {
 		if f.Path == "parser.go" {
 			parser = f.Content
 		}
 	}
-	if want := "const _ = rt." + protocol + "\n"; !bytes.Contains(parser, []byte(want)) {
-		t.Fatalf("parser.go does not refer to the protocol with %q", want)
+	m := parserProtocol.FindSubmatch(parser)
+	if m == nil {
+		t.Fatal("parser.go refers to no protocol constant")
+	}
+	own, _ := strconv.Atoi(string(m[1]))
+	protocol := "Protocol" + strconv.Itoa(own)
+	if !slices.Contains(versions, own) {
+		t.Fatalf("the library declares the protocol versions %v, not %d, which the parser refers to", versions, own)
+	}
+	if own != slices.Max(versions) {
+		t.Fatalf("the parser refers to %s, not to the newest protocol version %d that the library declares", protocol, slices.Max(versions))
 	}
 	const lib = "sxir/pkg/runtime/libgo"
 	if out, err := protocolBuild(t, files, libFiles, lib, nil); err != nil {
 		t.Fatalf("the parser does not build against the library of its generator: %v\n%s", err, out)
 	}
+	span := protocolSpan(versions)
 	bumped := make([]compiler.File, len(libFiles))
 	for i, f := range libFiles {
-		bumped[i] = compiler.File{Path: f.Path, Content: bumpProtocol(f.Content, 1)}
+		bumped[i] = compiler.File{Path: f.Path, Content: shiftProtocol(f.Content, span)}
+	}
+	if later := libVersions(t, bumped); slices.Min(later) <= slices.Max(versions) {
+		t.Fatalf("the later library declares the versions %v, not only versions past %v", later, versions)
 	}
 	out, err := protocolBuild(t, files, bumped, lib, nil)
 	if err == nil {
@@ -186,8 +223,9 @@ rule main = [a-z]+ "=" [0-9]+`)
 		t.Fatal("value/impl declares no protocol constant")
 	}
 	want := "undefined: valueimpl.Protocol" + string(m[1])
-	for _, by := range []int{1, -1} {
-		out, err := protocolBuild(t, files, nil, "", func(src []byte) []byte { return bumpProtocol(src, by) })
+	span := protocolSpan(protocolVersions(src))
+	for _, by := range []int{span, -span} {
+		out, err := protocolBuild(t, files, nil, "", func(src []byte) []byte { return shiftProtocol(src, by) })
 		if err == nil {
 			t.Fatalf("the copy of the library builds against a value/impl of protocol %+d", by)
 		}
