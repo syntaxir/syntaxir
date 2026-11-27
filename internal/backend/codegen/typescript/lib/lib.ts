@@ -5885,7 +5885,8 @@ export class Parser {
 
   // nodesEqual reports whether two trees are equal, comparing at most budget.n pairs of distinct
   // nodes (false beyond: two results that are not shown equal get different identities, which costs
-  // only reuse).
+  // only reuse). Trees are equal by their values, as the engine compares them: fresh, which says
+  // whether the rule that made a node may still change it, is no part of its value.
   nodesEqual(a: Node | null, b: Node | null, budget: { n: number }): boolean {
     if (a === b) {
       return true;
@@ -5897,7 +5898,7 @@ export class Parser {
       return false;
     }
     if (Object.getPrototypeOf(a) !== Object.getPrototypeOf(b) || a.type !== b.type || a.rule !== b.rule || a.start !== b.start || a.end !== b.end ||
-      a.text !== b.text || a.fresh !== b.fresh || a.terminal !== b.terminal || a.labeled !== b.labeled || a.box !== null || b.box !== null ||
+      a.text !== b.text || a.terminal !== b.terminal || a.labeled !== b.labeled || a.box !== null || b.box !== null ||
       (a instanceof TypedNode && a.base !== (b as TypedNode).base) ||
       a.children.length !== b.children.length || a.fields.length !== b.fields.length) {
       return false;
