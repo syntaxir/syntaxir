@@ -1262,12 +1262,15 @@ type memoEntry struct {
 	node *sxirvalue.Node
 	next *memoEntry // next entry at the same position
 	memoSide
-	end int
+	end int32
 	// from and examined are the input [from, examined) that a Document call examined (memo.examine):
 	// from is the entry's position, or the unit before it when the call examined that unit.
-	from     int
-	examined int
-	far      int
+	// examined is unsigned because it is one past the last unit the result depends on: a call that
+	// read the end of an input of 2^31-1 units, the longest, examined up to 2^31, which an int32
+	// cannot hold and a uint32 holds exactly.
+	from     int32
+	examined uint32
+	far      int32
 	rule     int32
 	min      int32
 	ok       bool

@@ -153,3 +153,36 @@ func TestDocumentParseMaxInput(t *testing.T) {
 		}
 	}
 }
+
+// The input a Document call examined ends one past the last unit its result depends on, so a call
+// that fails at the end of an input of 2^31−1 units examined up to 2^31. The entry keeps that end
+// exactly, and an edit before it drops the entry. The rule's body moves to the end of the input
+// without reading it and fails to match a literal there; its caller then succeeds at the end, so
+// that the parse makes no syntax error, which would read the input for its line.
+func TestDocumentEntryExaminedPastMaxInput(t *testing.T) {
+	text := unreadableText(t, maxInputUnits)
+	scan := &Rule{Id: 1, Name: "scan", Memo: true, DocMemo: true, Seen: -1}
+	scan.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
+		p.Pos = maxInputUnits
+		return p.MatchLiteral([]rune("a"), "a", IdAny, true)
+	}
+	main := &Rule{Id: 0, Name: "main", Memo: true, DocMemo: true, Seen: -1}
+	main.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
+		if _, ok := p.Call(scan, 0); ok {
+			t.Error("the literal matched")
+		}
+		p.Pos = p.n
+		return nil, true
+	}
+	d := testDocumentState(main, text, sxirinput.Bytes)
+	if _, err := d.parse(parseOptions{unit: sxirinput.Bytes, maxDepth: defaultMaxDepth}); err != nil {
+		t.Fatal(err)
+	}
+	e := d.memo.get(scan.Id, 0, 0, nil)
+	if e == nil || e.from != 0 || int(e.examined) != maxInputUnits+1 {
+		t.Fatalf("entry %+v, want the input [0, 2^31) examined", e)
+	}
+	if (&Parser{}).advanceEntry(e, []documentEdit{{start: maxInputUnits - 2, end: maxInputUnits - 1, delta: -1}}) {
+		t.Errorf("an entry that examined [0, 2^31) is valid after an edit of [2^31−3, 2^31−2): %+v", e)
+	}
+}

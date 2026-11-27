@@ -69,7 +69,7 @@ func TestPrivateDocumentLiteralExaminedEnd(t *testing.T) {
 					at = c.skip
 				}
 				e := d.memo.get(lit.Id, at, 0, nil)
-				if e == nil || e.examined != want {
+				if e == nil || int(e.examined) != want {
 					t.Fatalf("entry = %+v, want examined %d", e, want)
 				}
 			})

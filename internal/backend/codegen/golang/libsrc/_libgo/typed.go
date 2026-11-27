@@ -1115,11 +1115,12 @@ type tmemoEntry struct {
 	val  any
 	next *tmemoEntry
 	memoSide
-	end int
-	far int
-	// from, examined, pinned, vgen and shift are the record of memoEntry.
-	from     int
-	examined int
+	end int32
+	far int32
+	// from, examined, pinned, vgen and shift are the record of memoEntry; examined is unsigned for
+	// the same reason.
+	from     int32
+	examined uint32
 	rule     int32
 	min      int32
 	present  uint32 // as in memoEntry
@@ -1407,7 +1408,7 @@ func (d *typedDocumentState) splice(log []documentEdit) {
 			// it at its position or moves it by the delta.
 			if advanceTEntry(e, log[:len(log)-1]) {
 				to := pos
-				if e.examined > ed.start {
+				if int(e.examined) > ed.start {
 					to += ed.delta
 				}
 				if advanceTEntry(e, log) {

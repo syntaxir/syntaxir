@@ -30,7 +30,7 @@ counted as before. Units and results are unchanged.
 |:--|:--|:--|
 | Generated Go parses, recognitions, typed parses and streams | Applied | Every memo entry |
 | Generated Go Node and typed Documents | Applied | Every memo entry the Document keeps |
-| Engine | Not applied | Its entries have their own layout |
+| Engine | Not applied | Its entries have their own layout; 32-bit positions there retain nothing less (below) |
 | Generated TypeScript | Not applicable | Objects of the JavaScript engine |
 
 ## Reproduction
@@ -89,11 +89,29 @@ the errors again replaces the kind of their pointer. The conformance tests
 of the library's Exec IR operations, the Document memory tests, which pin the entry sizes and the bytes the limit
 counts, and the tests that a pooled parser keeps no state of an earlier parse, hold the new form.
 
+## 32-bit Positions
+
+The normative maximum input of 2^31 − 1 position units bounds the positions an entry keeps. Its end and its farthest
+failure are positions of the input, from 0 to 2^31 − 1. The start of the input its call examined is one too, or −1
+when a line start test at the beginning of the input examined the unit before it. A second step keeps these three
+as signed 32-bit integers, which hold −1 to 2^31 − 1. The end of the examined input is one past the last unit the result depends on, so a
+call that read the end of the longest input examined up to 2^31, one more than a signed 32-bit integer holds; the step
+keeps it as an unsigned 32-bit integer, which holds 0 to 2^31 exactly. Node and typed entries take 96 bytes instead of
+112, and the memory limit counts 16 bytes less for each stored entry.
+Units and results are unchanged, and the conformance tests and the Document memory tests, which pin the new size, hold.
+
+Measured with `bench/document-retained` as above, against the compact entries: a Document over 100,000 lines retains
+254.0 MB instead of 271.2 MB on CSV (6.3% less) and 656.4 MB instead of 743.4 MB on Minilang (11.7% less); the trees
+alone retain the same, up to the constant offset explained above. This step was not timed; it changes the width of
+four fields and the conversions where the library reads and writes them.
+
+The same change to the engine's memo entries was measured and not adopted: a Settings Document over 100,000 lines
+retains the same bytes with either width, so the engine's entries gain nothing from it.
+
 ## Decision and Limits
 
 Adopted, with no setting. The layout is the representation of the library's memo, not a separable optimization
 (record 080, criterion 2): there is no second form to choose, and the 32 bytes it saves on each entry cost nothing
 else that the measurements show.
-
-Entries keep 64-bit positions. The normative maximum input of 2^31 − 1 position units lets them be 32-bit, which is the
-next step on Document memory.
+The 32-bit positions are adopted the same way: the maximum input makes them the positions' representation, with no
+input they cannot hold.

@@ -716,11 +716,11 @@ func TestDocumentMoveReplaysShiftsPerMove(t *testing.T) {
 
 // TestDocumentCountsTheTrueSizes checks that the memory count of a Document holds the true sizes of
 // the memo entries and of the kept child stack: the entry chunks in use at the size of an entry,
-// 112 bytes where pointers have 8, and the stack once, by its capacity, held by the Document between
+// 96 bytes where pointers have 8, and the stack once, by its capacity, held by the Document between
 // parses and by the parse during one.
 func TestDocumentCountsTheTrueSizes(t *testing.T) {
-	if unsafe.Sizeof(uintptr(0)) == 8 && (unsafe.Sizeof(memoEntry{}) != 112 || unsafe.Sizeof(tmemoEntry{}) != 112) {
-		t.Fatalf("memo entries have %d and %d bytes; the records of the memo give 112", unsafe.Sizeof(memoEntry{}), unsafe.Sizeof(tmemoEntry{}))
+	if unsafe.Sizeof(uintptr(0)) == 8 && (unsafe.Sizeof(memoEntry{}) != 96 || unsafe.Sizeof(tmemoEntry{}) != 96) {
+		t.Fatalf("memo entries have %d and %d bytes; the records of the memo give 96", unsafe.Sizeof(memoEntry{}), unsafe.Sizeof(tmemoEntry{}))
 	}
 	var during []string
 	parses := 0
