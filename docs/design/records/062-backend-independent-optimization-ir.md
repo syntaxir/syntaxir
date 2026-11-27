@@ -73,9 +73,9 @@ more times: the closure evaluator in `closure/eval.go`, bytecode expression code
   twins (E020), Operators Rule line value elision (E030), projected repetitions (E050), first-character
   dispatch (M010), scan loops (M040), plain rule calls (M050) and unboxed text comparisons (M120).
   First-character dispatch needed three records:
-  [049](../../optimizations/049-first-character-dispatch-in-generated-choices.md),
-  [050](../../optimizations/050-first-character-dispatch-in-the-closure-backend.md) and
-  [051](../../optimizations/051-first-character-dispatch-in-the-vms-instruction-set-3.md).
+  [049](../../optimizations/logs/049-first-character-dispatch-in-generated-choices.md),
+  [050](../../optimizations/logs/050-first-character-dispatch-in-the-closure-backend.md) and
+  [051](../../optimizations/logs/051-first-character-dispatch-in-the-vms-instruction-set-3.md).
 - The first terminal of an expression is defined by three recursive functions (`firstTerminal` in
   `compile.go` with a cancellable copy in `class_context.go`, `Generator.first` of the Go printer in `internal/backend/codegen/golang/print/generator.go`,
   `terminalProgram.first` in `internal/backend/codegen/golang/print/terminal.go`), which a change to guard eligibility must keep in step.
@@ -178,7 +178,7 @@ more times: the closure evaluator in `closure/eval.go`, bytecode expression code
 - Code is shared as strings. TypeScript reused the Go conditions of `Generator.first` of the Go printer and
   `controlledClassReject` after rewriting `==` to `===` and rebalancing `&&`/`||` by parenthesis counting
   (`tsCond`, `tsBalancedCondition`). Helper sharing
-  ([record 090](../../optimizations/090-share-identical-generated-helpers.md)) compares printed function
+  ([record 090](../../optimizations/logs/090-share-identical-generated-helpers.md)) compares printed function
   bodies.
 - 36 function declarations whose names end in `Controlled` duplicate compile-time walkers only to poll
   compile cancellation.
@@ -384,7 +384,7 @@ Core IR invariants, checked by a verifier after every pass in tests:
 | First-character guards | As the invariant above. The guard records the alternative's expectation at the current position and skips only if the depth after the calls on the way stays within the nesting limit, which is checked at run time; it is off while `#missing` insertion is active. Adjacent guards share one peek and may become a dispatch table. |
 | Rule inlining (`Call` to `Nest`) | Only in pipelines that declare `Nest`: generated parsers and the inlined family of closures and bytecode. The callee is not a leader, has no Operators Rule, is never memoized in the variant's mode (plain, or transient outside Documents), and is not in a call-graph cycle with the caller; a size budget per function bounds the growth. `Nest` keeps the scope of a call (above), so cuts, variables, captures, recovered errors, nesting-limit errors and the events of observable builds are those of the call. In a Document variant, rules that Documents memoize are not inlined: inlining them is allowed by the contract but gives up reuse. |
 | Value elision (want none) | Allowed only where building the value cannot raise: a conversion that the checker proves, such as a rule result converted to a named node type, has no raise effect, while an action may raise and keeps its evaluation. This covers value-free bodies, twins, Operators Rule lines and projections. The value-needed analysis decides want for the recognition specialization, which may also drop raising actions. |
-| Terminal lowering | Value-free regions of literals, classes, sequences, choices, options and negative lookaheads become `Scan`, `ClassRun` or `Terminal`, which consume the same input and record the same expectations at the same positions ([record 111](../../optimizations/111-terminal-programs.md)). The emitter chooses a table or straight-line code by size. |
+| Terminal lowering | Value-free regions of literals, classes, sequences, choices, options and negative lookaheads become `Scan`, `ClassRun` or `Terminal`, which consume the same input and record the same expectations at the same positions ([record 111](../../optimizations/logs/111-terminal-programs.md)). The emitter chooses a table or straight-line code by size. |
 | Case-pair class folding | A run of classes each holding one letter in both cases, such as `[kK] [eE] [yY]`, becomes a `ClassRun` with a case-folding fast path; on failure it records the class of the failing position, not a literal. |
 | Depth-check merging | An outer and an inner `Nest` check merge into one check of both levels only if, from the outer entry, the inner `Nest` is reached on every path and nothing before it can fail, raise or commit, and, in observable builds, no event lies between them. Otherwise a parse that fails normally before the inner call would abort with a nesting-limit error, which is fatal ([Limits](../../../spec/runtime/parsing.md#limits)). |
 
@@ -512,7 +512,7 @@ record planned as Flow IR passes, from the Core effect summary and the options:
 
 - **Save/restore elision.** A backtracking point saves only what its body may change: no environment
   without bind, no recovered count without recover, only the capture slots in capture. This generalizes what
-  [record 110](../../optimizations/110-no-recovered-rollback-without-recovery.md) does case by case.
+  [record 110](../../optimizations/logs/110-no-recovered-rollback-without-recovery.md) does case by case.
 - **Mode lowering.** A generated parser has one form of each function, chosen by the options (Node,
   budget controls, Documents): the ordinary form without budget controls and Documents, the controlled
   form otherwise. The places where they differ (charges, control reads, the helper names, peeks) are
@@ -626,7 +626,7 @@ separate interpreter is maintained.
 | Value-needed rules, twins, lean bodies, projections (`project.go`) | Want and value elision; twin and recognition variants |
 | Terminal programs (`internal/backend/codegen/golang/print/terminal.go`) | `Terminal` nodes; the emitter keeps the runtime table format |
 | Recognizer program and recognize-mode modules | Recognition specialization of Core IR in each family; bytecode emitted from it |
-| Helper sharing by printed body ([record 090](../../optimizations/090-share-identical-generated-helpers.md)) | Structural sharing of identical Flow IR functions before printing |
+| Helper sharing by printed body ([record 090](../../optimizations/logs/090-share-identical-generated-helpers.md)) | Structural sharing of identical Flow IR functions before printing |
 | Compile-cancellation copies (`…Controlled`) | The pass driver polls the compile control between and within passes |
 
 ### Compatibility and Backend Support
@@ -805,7 +805,7 @@ the hoisted `any` variables or the missing analyses behind them.
 ## Performance and Results
 
 The baseline for each stage is the commit before it, measured on the same machine. Stage 3 is measured in
-[record 122](../../optimizations/122-typescript-from-flow-ir.md): parse and recognition of JSON, CSV and XML are
+[record 122](../../optimizations/logs/122-typescript-from-flow-ir.md): parse and recognition of JSON, CSV and XML are
 17% to 46% faster, the typed workloads are equal or faster except recovery (4% to 6% slower), and
 `parser.ts` is 16% to 23% smaller except DuckDB (14% larger) but 6% to 46% larger after gzip for every grammar. The
 comparison sets the old printer, which always spends budget, against the new form without budget controls. The measured quantities of every stage are:

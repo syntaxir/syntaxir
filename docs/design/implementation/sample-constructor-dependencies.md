@@ -29,7 +29,7 @@ Record 071 times the analysis after parsing the grammar. A caller-first alias ch
 0.9909 ms, but bytes per operation grow 8.6–13.0% across the chain cases for the dependency and worklist storage.
 Leaf-first ranges overlap parity. These are trade-offs of scaling and setup of the analysis, not parsing throughput.
 
-Evidence records: [071](../../optimizations/071-dependency-propagation-for-sample-constructor-analysis.md).
+Evidence records: [071](../../optimizations/logs/071-dependency-propagation-for-sample-constructor-analysis.md).
 
 Packages: `pkg/sample`.
 

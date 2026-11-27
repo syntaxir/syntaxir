@@ -32,7 +32,7 @@ records altered inline eligibility in allocation helpers and does not claim
 universal throughput improvement.
 
 Evidence records:
-[089](../089-isolate-stream-prefixes-and-batch-scratch-cleanup.md).
+[089](../logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md).
 
 Source owners: [`prefix allocation
 policy`](../../../internal/runtime/state/stream_prefix.go), [`nodeChunks and stream

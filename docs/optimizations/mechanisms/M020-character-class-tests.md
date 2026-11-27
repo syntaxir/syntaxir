@@ -33,9 +33,9 @@ recognition. Record 011 includes generated inline comparisons among several
 changes. These backend-specific results do not isolate every current generated
 class path.
 
-Evidence records: [011](../011-generated-parsers-catch-up-with-changes-410.md),
-[017](../017-ascii-bitmaps-for-character-classes-in-the-vms.md),
-[031](../031-specialized-character-class-tests-in-the-closure-backend.md).
+Evidence records: [011](../logs/011-generated-parsers-catch-up-with-changes-410.md),
+[017](../logs/017-ascii-bitmaps-for-character-classes-in-the-vms.md),
+[031](../logs/031-specialized-character-class-tests-in-the-closure-backend.md).
 
 Source owners: [`closure.ClassAccept`](../../../internal/backend/closure/class_accept.go), [`newASCIISet
 and VM class tests`](../../../internal/runtime/vm/vm.go), [`class test

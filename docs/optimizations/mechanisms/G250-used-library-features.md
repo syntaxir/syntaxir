@@ -27,7 +27,7 @@ returns and charges is the same.
 
 ## Evidence and Implementation
 
-Record [144](../144-library-of-the-used-features.md) decides the state on the generated size.
+Record [144](../logs/144-library-of-the-used-features.md) decides the state on the generated size.
 
 Source owners: the `common` package of the code generators (the feature analysis) and the Go printer's
 package (the embedded Go library).

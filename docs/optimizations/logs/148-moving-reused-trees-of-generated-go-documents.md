@@ -72,7 +72,7 @@ is unchanged (the entries fit the same pages). The library grows by 0.9–1.3 KB
 ## Correctness and Tradeoffs
 
 The spec allows a parse to move the nodes that an earlier parse returned
-([Documents](../../spec/runtime/documents.md)), and takes `Clone` as the way to keep a tree; the guide to generated
+([Documents](../../../spec/runtime/documents.md)), and takes `Clone` as the way to keep a tree; the guide to generated
 Documents now says the same for generated Go. `TestDocumentMoveReplaysEditsOfSharedNodes` builds a node shared by two
 results of different generations and checks that each reuse moves it once by its own shift;
 `TestDocumentMoveGenerationsRestartWithTheLog` checks the generations across the restart of the edit log;

@@ -106,7 +106,7 @@ remain valid. Measure backing retention separately from cumulative allocation.
 ## Performance and Results
 
 Current focused measurements and tradeoffs are summarized in [optimization
-088](../../optimizations/088-share-bounded-stream-text-snapshots.md). They use
+088](../../optimizations/logs/088-share-bounded-stream-text-snapshots.md). They use
 the bounded-snapshot source against parent revision `7e0370d`.
 
 ## Limitations and Open Questions

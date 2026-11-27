@@ -2,7 +2,7 @@
 
 - **Status**: Adopted
 - **Date**: 2026-11-27
-- **Mechanisms**: [G240](mechanisms/G240-typescript-exec-forms.md)
+- **Mechanisms**: [G240](../mechanisms/G240-typescript-exec-forms.md)
 - **Flags**: `ts-merged-records`, `ts-tested-inits`
 - **Decides**: `ts-merged-records` adopted, `ts-tested-inits` adopted
 

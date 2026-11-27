@@ -126,7 +126,7 @@ stays at 128 bytes: the present set takes the place of the depth and the unstabl
 
 ## Correctness and Tradeoffs
 
-[Memoization](../../spec/proofs/memoization.md) proves that a reused result equals the result of an evaluation in
+[Memoization](../../../spec/proofs/memoization.md) proves that a reused result equals the result of an evaluation in
 the current context: a result in the memo read no seed and observed no lookahead that read one, so the growths that
 its present set includes do not change it; a result in a context table is reused only where every seed it read has
 the same identity and every lookahead it observed the same outcome and examined range, and the identities of equal
@@ -246,7 +246,7 @@ where no growth of its cycle is in progress at its position stores its result in
 
 Adopted on every backend. A growth that begins from a result that includes the seed of another growth at its
 position is new in each step of that growth; when it covers the input that later steps cover, it covers it again in
-each step, which [Conditions for Linear Cost](../../spec/runtime/parsing.md#conditions-for-linear-cost) excludes as
+each step, which [Conditions for Linear Cost](../../../spec/runtime/parsing.md#conditions-for-linear-cost) excludes as
 condition 5. A set of more than six seeds and observations keys its results by the values of the first six and the
 bytes of the others, in a second map. In a parse with missing-token insertion, a rule that contains `#missing`, directly
 or through the rules it calls, keeps no result in a context. The rules of a cycle call each other, so either all of

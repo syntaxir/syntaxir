@@ -8,7 +8,7 @@
 
 ## Problem and Mechanism
 
-A generated parser that counts [compute units](../../spec/runtime/parsing.md#compute-units) keeps the count in
+A generated parser that counts [compute units](../../../spec/runtime/parsing.md#compute-units) keeps the count in
 `Parser.Units` and compares it with `Parser.UnitsCheck` after every charge: each count site loads both fields, adds,
 compares and stores. The count sites are among the hottest instructions of a parse under the default compute limit.
 

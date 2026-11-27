@@ -30,9 +30,9 @@ Record 003 reports the JSON allocation volume falling from 72 to 64 MB when maps
 with mixed small timing effects. The 88-byte Node of those records is specific to the host and layout and does not
 imply an equal reduction of the total heap.
 
-Evidence records: [003](../../optimizations/003-node-fields-as-a-slice-54a5774.md),
-[063](../../optimizations/063-a-smaller-node.md),
-[064](../../optimizations/064-a-smaller-node-in-generated-parsers.md).
+Evidence records: [003](../../optimizations/logs/003-node-fields-as-a-slice-54a5774.md),
+[063](../../optimizations/logs/063-a-smaller-node.md),
+[064](../../optimizations/logs/064-a-smaller-node-in-generated-parsers.md).
 
 Packages: `pkg/runtime/value` (Nodes), `pkg/runtime/value/impl` (their representation and kinds) and
 `pkg/runtime/libgo` (the Nodes of generated Go parsers).

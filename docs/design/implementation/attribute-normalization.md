@@ -29,7 +29,7 @@ Record 095 reports reductions of allocation on its workloads, and a longer reche
 synthetic slowdown. Generated parsers are byte-identical. These measurements of compilation do not establish a
 universal speedup of preparation or any effect on matching.
 
-Evidence records: [095](../../optimizations/095-attribute-copy-on-change.md).
+Evidence records: [095](../../optimizations/logs/095-attribute-copy-on-change.md).
 
 Packages: the desugaring package (`internal/frontend/desugar`), with its checks of source immutability, and
 `internal/frontend/check` (the option for eager copies).

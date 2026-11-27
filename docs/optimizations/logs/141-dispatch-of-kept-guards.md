@@ -2,7 +2,7 @@
 
 - **Status**: Adopted
 - **Date**: 2026-11-27
-- **Mechanisms**: [M010](mechanisms/M010-first-character-dispatch.md)
+- **Mechanisms**: [M010](../mechanisms/M010-first-character-dispatch.md)
 - **Flags**: `dispatch`
 - **Decides**: `dispatch` adopted
 

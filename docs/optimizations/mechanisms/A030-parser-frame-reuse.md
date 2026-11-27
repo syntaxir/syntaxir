@@ -29,9 +29,9 @@ from 24.3 to 22.0 ms. Record 048 describes typed frame reuse with memory
 reduction and timing within noise. These route-specific historical effects are
 not additive.
 
-Evidence records: [002](../002-frame-pooling-in-the-iterative-vm-8fab402.md),
-[013](../013-allocation-free-operators-rule-attempts-and-pooled-operators-rule-frames-in-the-engine-and-vms.md),
-[034](../034-one-frame-per-plain-call-in-the-iterative-vm.md).
+Evidence records: [002](../logs/002-frame-pooling-in-the-iterative-vm-8fab402.md),
+[013](../logs/013-allocation-free-operators-rule-attempts-and-pooled-operators-rule-frames-in-the-engine-and-vms.md),
+[034](../logs/034-one-frame-per-plain-call-in-the-iterative-vm.md).
 
 Source owners: [`reuse, release and
 plainCallFrame`](../../../internal/runtime/vm/ivm.go).

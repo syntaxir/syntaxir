@@ -35,8 +35,8 @@ in both VMs. Corpus checks compare against the no-projection engine. Those
 historical timings do not establish the current isolated effect or TypeScript
 timing.
 
-Evidence records: [052](../052-projected-repetitions-in-generated-parse.md),
-[053](../053-projected-repetitions-in-the-engine-and-the-vms.md).
+Evidence records: [052](../logs/052-projected-repetitions-in-generated-parse.md),
+[053](../logs/053-projected-repetitions-in-the-engine-and-the-vms.md).
 
 Source owners: the rule projections in the front end's check package,
 [`closure.Builder.ProjectRepeat`](../../../internal/backend/closure/builder.go), the projected

@@ -69,7 +69,7 @@ type profileDef struct {
 }
 
 // profileDefs lists the profiles; the first is the default. The values were chosen by the rule of
-// record 136 (docs/optimizations/136-measured-effect-of-the-generation-flags.md): a profile is kept
+// record 136 (docs/optimizations/logs/136-measured-effect-of-the-generation-flags.md): a profile is kept
 // if it improves the metric it is named for by at least 1% beyond the noise of an identical copy, on
 // at least six of the ten language grammars, costs at most 3% of parse time as a geometric mean, and
 // slows no grammar by more than 6%.

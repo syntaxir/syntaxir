@@ -488,7 +488,7 @@ A target that the first cross-tool baseline shows to be wrong is revised in this
 - **A configurable pass pipeline with `speed`, `memory` and `size` profiles**
   ([design record 063](design/records/063-configurable-optimization-pass-pipeline.md)), so that each trade-off is a
   measured option instead of a fixed choice. The profiles exist for generated Go; the flags are measured in
-  [optimization record 136](optimizations/136-measured-effect-of-the-generation-flags.md).
+  [optimization record 136](optimizations/logs/136-measured-effect-of-the-generation-flags.md).
 - **Linear behavior where it can be linear.** Reusing repetition runs after backtracking removes quadratic families
   that also cost time on ordinary grammars ([design record 064](design/records/064-grammar-complexity.md)).
 - **Document input tables reused across parses.** In code points, a warm, unedited typed `Document` parse takes about
@@ -504,7 +504,7 @@ A target that the first cross-tool baseline shows to be wrong is revised in this
 - **VM instructions for class runs and terminal programs,** if profiles of the language parsers justify them.
 - **Close the TypeScript Flow IR slowdown.** Generated TypeScript prints every rule from the Flow IR. On the recovery
   workload it is 4–6% slower than the printer it replaced, for a cause not yet identified
-  ([record 122](optimizations/122-typescript-from-flow-ir.md)); finding the cause also serves size.
+  ([record 122](optimizations/logs/122-typescript-from-flow-ir.md)); finding the cause also serves size.
 
 **Proof.** A performance claim beyond this repository needs a cross-tool benchmark that maintainers of the other tools
 can rerun and dispute. The wedge benchmark comes first and covers pigeon, participle and the ANTLR Go runtime.

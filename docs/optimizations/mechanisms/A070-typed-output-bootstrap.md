@@ -36,8 +36,8 @@ route, with additional allocations; small JSON improves. These scoped tradeoffs
 supported adoption and do not establish a general speedup.
 
 Evidence records:
-[074](../074-smaller-first-chunks-for-generated-typed-values.md),
-[098](../098-bootstrap-generated-typed-output-allocations.md).
+[074](../logs/074-smaller-first-chunks-for-generated-typed-values.md),
+[098](../logs/098-bootstrap-generated-typed-output-allocations.md).
 
 Source owners: [`typed allocation helper
 emission`](../../../internal/backend/codegen/golang/print/types.go), [`typed allocator
@@ -51,6 +51,6 @@ distinguishes same-source controls, historical changes and full checkpoints.
 
 Related mechanisms: [A250](A250-typed-object-slabs.md), [A260](A260-typed-list-slabs.md).
 
-Related rejected attempt: [record 094](../094-generated-typed-output-liveness.md).
+Related rejected attempt: [record 094](../logs/094-generated-typed-output-liveness.md).
 
 [Optimization Catalog](../README.md)

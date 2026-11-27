@@ -51,9 +51,9 @@ shape of the controlled bodies. The table is in record 103, which measured the f
 selected by an option. Records 096 and 121 hold earlier measurements of the ordinary body of a function and of the
 inlined runtime helpers.
 
-Evidence records: [096](../../optimizations/096-specialize-generated-go-method-helpers.md),
-[103](../../optimizations/103-inline-the-common-budget-spend.md),
-[121](../../optimizations/121-inactive-budget-control-checks.md).
+Evidence records: [096](../../optimizations/logs/096-specialize-generated-go-method-helpers.md),
+[103](../../optimizations/logs/103-inline-the-common-budget-spend.md),
+[121](../../optimizations/logs/121-inactive-budget-control-checks.md).
 
 Packages: `internal/backend/codegen/golang/print` (the Flow printer and the names of helpers) and `pkg/runtime/libgo`
 (the metered runtime helpers).

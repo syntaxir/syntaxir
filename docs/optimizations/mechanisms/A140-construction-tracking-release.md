@@ -32,7 +32,7 @@ semantics pass but timing is unmeasured. Adoption protects ownership and bounded
 tracking rather than promising every action is faster.
 
 Evidence records:
-[068](../068-release-construction-tracking-when-an-action-returns-nil.md).
+[068](../logs/068-release-construction-tracking-when-an-action-returns-nil.md).
 
 Source owners: [`constructor tracking
 cleanup`](../../../internal/runtime/state/eval.go), [`VM evaluator
@@ -46,6 +46,6 @@ distinguishes same-source controls, historical changes and full checkpoints.
 
 Related mechanisms: [A040](A040-action-operand-scratch.md).
 
-Related rejected attempt: [record 094](../094-generated-typed-output-liveness.md).
+Related rejected attempt: [record 094](../logs/094-generated-typed-output-liveness.md).
 
 [Optimization Catalog](../README.md)

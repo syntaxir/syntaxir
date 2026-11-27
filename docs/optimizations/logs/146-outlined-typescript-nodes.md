@@ -2,7 +2,7 @@
 
 - **Status**: Adopted
 - **Date**: 2026-11-27
-- **Mechanisms**: [G220](mechanisms/G220-outlined-typescript-nodes.md)
+- **Mechanisms**: [G220](../mechanisms/G220-outlined-typescript-nodes.md)
 - **Flags**: `outline`
 - **Decides**: `outline` adopted
 

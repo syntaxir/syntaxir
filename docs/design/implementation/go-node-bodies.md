@@ -31,8 +31,8 @@ were first printed inline, with more generated source. Record 077 then measures 
 selected Node workloads against its own parent, with different source and build trade-offs. These compare successive
 revisions on supported bodies.
 
-Evidence records: [076](../../optimizations/076-inline-value-free-plain-generated-go-rules.md),
-[077](../../optimizations/077-inline-node-expressions-in-generated-go-parsers.md).
+Evidence records: [076](../../optimizations/logs/076-inline-value-free-plain-generated-go-rules.md),
+[077](../../optimizations/logs/077-inline-node-expressions-in-generated-go-parsers.md).
 
 Packages: `internal/middleend/flowlower` (eligibility in Flow IR) and `internal/backend/codegen/golang/print` (the
 direct and framed bodies and the choice between them).

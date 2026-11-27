@@ -155,7 +155,7 @@ and a test checks that the registry has the name of every pass.
 | `typed-output-bootstrap` | runtime | on | The first slab of the typed output is sized from the input | A few allocations before the slabs start |
 | `sparse-memo` | runtime | on | The first-call table of large TypeScript parsers is sparse | A page lookup per check |
 
-The guide has the same table with the measured costs; [record 136](../../optimizations/136-measured-effect-of-the-generation-flags.md)
+The guide has the same table with the measured costs; [record 136](../../optimizations/logs/136-measured-effect-of-the-generation-flags.md)
 has the measurements.
 
 Everything is a flag. An optimization that makes a parser smaller, lighter on memory or faster, a representation choice
@@ -201,7 +201,7 @@ A profile has to earn its place by a measurement. It is kept if it improves the 
 an identical copy of the baseline, on at least six of the ten language grammars, and costs at most 3% of parse time as a
 geometric mean with no grammar more than 6% slower; a profile that fails is not registered. The flags are held to the same
 rule for `speed`: a flag is on in `speed` if it improves the parse time, or the other metric it exists for, by that rule
-or costs nothing that was measured ([record 136](../../optimizations/136-measured-effect-of-the-generation-flags.md) has the numbers).
+or costs nothing that was measured ([record 136](../../optimizations/logs/136-measured-effect-of-the-generation-flags.md) has the numbers).
 
 | Flag | `speed` | `memory` | `size` |
 |:--|:--|:--|:--|
@@ -330,7 +330,7 @@ allocations per operation differ by less than 0.002 percent.
 The generated parsers of the checked-in grammars, and the generated source of 356 grammars under 18 option sets for Go
 and TypeScript, are byte-identical to those of the former sequences.
 
-`memory` and `size` were measured as described under [Profiles](#profiles); the numbers are in [record 136](../../optimizations/136-measured-effect-of-the-generation-flags.md).
+`memory` and `size` were measured as described under [Profiles](#profiles); the numbers are in [record 136](../../optimizations/logs/136-measured-effect-of-the-generation-flags.md).
 
 ## Limitations and Open Questions
 

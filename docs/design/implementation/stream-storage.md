@@ -35,7 +35,7 @@ goes from 168.9 to 117.7 ms in the closure engine, with an allocated volume of 6
 goes from 233 to 0.5 MB after 300,000 records. These are different observations (time, cumulative allocation and
 reachable heap), and later cleanups cannot be attributed to this ratio.
 
-Evidence records: [022](../../optimizations/022-bounded-memory-and-less-copying-in-stream-parsing.md).
+Evidence records: [022](../../optimizations/logs/022-bounded-memory-and-less-copying-in-stream-parsing.md).
 
 Packages: `internal/runtime/state` (the input window, the commit and the pruning of the memo).
 

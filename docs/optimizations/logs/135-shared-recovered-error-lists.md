@@ -11,7 +11,7 @@ the class Linear whose result at each item holds the errors of all the items aft
 seed holds those of all the items before, Compute and memory grew with the square of the input, and the default limits
 ended the parse at about 2,000 items.
 The record of recovered errors is now a sequence of entries, each an error or an immutable list, as the
-[operations of the Exec IR](../../spec/proofs/linear-cost.md#lemma-14-shared-recovered-errors) state it. `rec.since`
+[operations of the Exec IR](../../../spec/proofs/linear-cost.md#lemma-14-shared-recovered-errors) state it. `rec.since`
 charges one unit for each entry after its mark and returns none, the one entry, or a new list that takes the place of
 the entries; `rec.add` records a result's list as one entry for nothing. Lemma 14 bounds the charges and the entries of
 the lists by a constant times the cost, and listing the errors of the outcome visits at most twice as many lists as
@@ -33,7 +33,7 @@ there are errors.
 Base: the revision before the change, Go 1.27.1, Apple M3 Max, serialized with benchlock, test binaries of the `bench`
 package (one per variant), with an identical copy of the base binary as a noise control. Compute: the least budget that
 completes a parse, found by bisection, of the two grammars of the
-[measured controls](../../spec/proofs/linear-cost.md#lemma-14-shared-recovered-errors) at 250 to 4,000 items. Time:
+[measured controls](../../../spec/proofs/linear-cost.md#lemma-14-shared-recovered-errors) at 250 to 4,000 items. Time:
 (A) 10 interleaved rounds over all 260 rows of `bench`, including the incremental and stream rows, against the main
 revision it was rebased onto; (B) 20 rounds over the 13 rows that an earlier comparison flagged, before that rebase;
 (C) 10 rounds over the 24 bytecode rows of JSON and XML and five closure and generated rows, with a variant whose engine

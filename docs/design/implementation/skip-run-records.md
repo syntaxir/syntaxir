@@ -43,7 +43,7 @@ early.
 
 ## Evidence
 
-Evidence record: [132](../../optimizations/132-records-of-recovery-skip-walks.md).
+Evidence record: [132](../../optimizations/logs/132-records-of-recovery-skip-walks.md).
 
 Packages: `internal/middleend/corepass` (the site analysis), `pkg/runtime/libgo` (the core of skip walks, shared by the
 engine and the generated Go runtime), `internal/runtime/state` (the hooks of the engine), `internal/ir/code/flow` and

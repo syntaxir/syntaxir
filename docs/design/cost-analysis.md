@@ -152,7 +152,7 @@ replaying it leaves the parse exactly as the walk would. A repetition is therefo
 The conditions are eligibility, not heuristics: a repetition that does not meet them runs as before. The mechanism is
 exact, so it never changes a result, an error or an expectation; it changes how many times the engine reads the same
 input. [Run Sites](../../spec/runtime/parsing.md#run-sites) is the contract and
-[optimization 133](../optimizations/133-run-records-of-restarted-repetitions.md) is the measurement.
+[optimization 133](../optimizations/logs/133-run-records-of-restarted-repetitions.md) is the measurement.
 
 Run records and the classifier meet at one point: a repetition that records is not a scanning source, because its second
 walk costs a constant. The engine implements and uses run records. The classifier counts them only when the bounds they give are

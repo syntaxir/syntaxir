@@ -30,7 +30,7 @@ a start rule (for the typed table, a start rule that a typed entry point runs), 
 is referenced only from value-free contexts is entered through its twin, so its original body is
 left out, and so are the bodies that only it calls. The generator finds the entered rules in a
 first pass over the Node, recognizer and typed tables and prints the second pass from them; it fails if a printed call reaches a rule that
-was left out. What a left-out typed rule would have declared (its expectations, literals, class tables and typed helpers) is not declared either. The TypeScript generator is not pruned. See [record 120](../../optimizations/120-unreachable-rule-bodies.md).
+was left out. What a left-out typed rule would have declared (its expectations, literals, class tables and typed helpers) is not declared either. The TypeScript generator is not pruned. See [record 120](../../optimizations/logs/120-unreachable-rule-bodies.md).
 
 ### Direct Rules
 

@@ -28,7 +28,7 @@ parsing and 17–30% for recognition. Valid inputs that never ask for a location
 do not build the table. These are error-heavy workload results, not a general
 valid-parse gain.
 
-Evidence records: [039](../039-a-line-table-for-error-positions.md).
+Evidence records: [039](../logs/039-a-line-table-for-error-positions.md).
 
 Source owners: [`input.buildLines and
 lineCol`](../../../internal/runtime/state/input.go), [`generated line

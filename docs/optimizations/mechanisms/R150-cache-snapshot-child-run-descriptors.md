@@ -33,7 +33,7 @@ caching held fixed. Materialization comparisons against historical main are
 noisy. The handle size increase is a concrete cost even where timing is
 unmeasured.
 
-Evidence records: [099](../099-share-document-snapshot-child-runs.md).
+Evidence records: [099](../logs/099-share-document-snapshot-child-runs.md).
 
 Source owners: [`SnapshotNode, snapshotHandle and
 Child`](../../../internal/runtime/document/document_snapshot.go).

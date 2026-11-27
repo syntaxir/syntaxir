@@ -28,8 +28,8 @@ a broader capture-free call path. Neither provides a current isolated
 empty-frame effect.
 
 Evidence records:
-[001](../001-value-free-rule-bodies-value-free-twins-transient-rules-0b2c903.md),
-[019](../019-a-plain-call-path-for-unmemoized-rules-without-captures.md).
+[001](../logs/001-value-free-rule-bodies-value-free-twins-transient-rules-0b2c903.md),
+[019](../logs/019-a-plain-call-path-for-unmemoized-rules-without-captures.md).
 
 Source owners: [`emptyFrame` and
 `invokePlain`](../../../internal/runtime/state/runtime.go), [`newFrame`](../../../internal/runtime/state/alloc.go), [`generated empty

@@ -21,7 +21,7 @@ same.
 
 An unbounded repetition in a skip expression is now a **skip-run site** when the rest of its walk from a position
 depends only on that position and the input (the conditions are listed in
-[Skip Runs](../../spec/runtime/parsing.md#skip-runs)). The walk from a position ends where the walk from any later
+[Skip Runs](../../../spec/runtime/parsing.md#skip-runs)). The walk from a position ends where the walk from any later
 position it passes ends, so the parser keeps a slot per position, per site and lookahead state, that is fresh,
 visited or recorded:
 
@@ -39,7 +39,7 @@ visited or recorded:
 Records are stored only when a walk ends, so a parse that a limit or a cancellation stops in the middle of a walk
 leaves none behind. A position is evaluated at most once while its slot is fresh and once more before it is
 recorded, plus the minimum number of iterations and one more per walk, whatever the order of the walks:
-[the proof](../../spec/proofs/skip-runs.md) shows that a reused record equals the rest of the walk and gives the
+[the proof](../../../spec/proofs/skip-runs.md) shows that a reused record equals the rest of the walk and gives the
 bound. A slot that is not fresh is marked by a bit over the span of the positions walked, and only recorded slots
 hold a record, kept in a map by position.
 
@@ -61,7 +61,7 @@ budget units.
 
 A repetition in a rule that a skip expression calls is not a site: the rule can be called from outside skips, where
 its walks are not abandoned in the same way. Such a grammar stays quadratic, which
-[the classification](../../spec/runtime/parsing.md#classes-of-growth) shows with its own row.
+[the classification](../../../spec/runtime/parsing.md#classes-of-growth) shows with its own row.
 
 ## Reproduction
 

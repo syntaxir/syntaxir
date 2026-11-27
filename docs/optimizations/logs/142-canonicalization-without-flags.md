@@ -14,7 +14,7 @@ Flow and at the Exec stage: `fold-constants`, `fold-branches`, `drop-after-exit`
 An optimization changes a parser: its off form is the plain form of the same construct. These do not. The printers
 already leave out the labels and blocks that the Exec patterns remove, and the statements that the Flow patterns drop
 after an exit never ran, so the generated Go and TypeScript and the compiled bytecode are the same with and without
-them. By the classification of [design record 080](../design/records/080-optimization-management.md), a technique of
+them. By the classification of [design record 080](../../design/records/080-optimization-management.md), a technique of
 the compiler whose output is byte-identical with and without it is an implementation design of the compiler, not an
 optimization.
 

@@ -27,7 +27,7 @@ Record 061 historically measures typed JSON 3.75 to 3.30 ms and XML 4.41 to 3.99
 ms. Node support arrives through later direct-body lowering, so those typed
 figures do not quantify Node or Bytes benefits.
 
-Evidence records: [061](../061-reading-code-points-directly-in-direct-rules.md).
+Evidence records: [061](../logs/061-reading-code-points-directly-in-direct-rules.md).
 
 Source owners: [`Flow peek lowering`](../../../internal/middleend/flowlower/lower.go), [`input
 preparation`](../../../pkg/runtime/libgo/lib.go).

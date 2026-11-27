@@ -77,7 +77,7 @@ type Flag struct {
 	// experimental, and its name may change or go in any version. A flag that is not an experiment is
 	// adopted if speed or a profile turns it on and an opt-in otherwise.
 	Experiment bool
-	// Record is the number of the optimization record (docs/optimizations) that decided the state of the
+	// Record is the number of the optimization record (docs/optimizations/logs) that decided the state of the
 	// flag; for an experiment, the record that opened it.
 	Record int
 	// Tradeoff says what the optimization costs and what it gains; Doc says what it does.

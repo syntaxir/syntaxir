@@ -33,7 +33,7 @@ scratch medians, with some ranges including parity. A field-layout control is
 inconclusive. These scoped observations support reusable scratch while retaining
 GC-sensitive uncertainty, rather than a general speed claim.
 
-Evidence records: [092](../092-reuse-generated-node-capture-scratch.md).
+Evidence records: [092](../logs/092-reuse-generated-node-capture-scratch.md).
 
 Source owners: [`node frame/slot scratch and parser
 release`](../../../pkg/runtime/libgo/lib.go), [`capture scratch

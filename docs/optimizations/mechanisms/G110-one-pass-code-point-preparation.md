@@ -33,8 +33,8 @@ preparation cost and do not establish a pure matching improvement or current
 TypeScript ratio.
 
 Evidence records:
-[040](../040-one-pass-to-prepare-code-point-input-in-generated-parsers.md),
-[041](../041-building-the-offset-table-while-decoding-for-full-parses.md).
+[040](../logs/040-one-pass-to-prepare-code-point-input-in-generated-parsers.md),
+[041](../logs/041-building-the-offset-table-while-decoding-for-full-parses.md).
 
 Source owners: [`newTextInputIn`](../../../internal/runtime/state/input.go),
 [`generated setSource`](../../../pkg/runtime/libgo/lib.go), [`input

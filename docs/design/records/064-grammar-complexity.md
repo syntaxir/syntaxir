@@ -262,7 +262,7 @@ hint with a witness, not a proof that a slow input exists.
 ### Runtime Improvements
 
 **Memoizing left-recursion cycle members.** A non-leader member of a left-recursion cycle is memoized
-([optimization record 130](../../optimizations/130-memoizing-members-of-left-recursion-cycles.md)). Instead of
+([optimization record 130](../../optimizations/logs/130-memoizing-members-of-left-recursion-cycles.md)). Instead of
 stamping entries with a growth generation, the parser never stores a result that depends on a seed that can still
 change:
 
@@ -276,7 +276,7 @@ left recursion also pay. E2 is linear.
 
 **Reusing a repetition's run after backtracking.** A Document already records the run of a repetition of 16 or more
 elements: positions, examined range, expectations and values per element, about 80 bytes per element. It reuses the
-run after an edit (`docs/optimizations/054`, `059`, `070`). Batch parses can use the same records to answer a restart
+run after an edit (`docs/optimizations/logs/054`, `059`, `070`). Batch parses can use the same records to answer a restart
 inside a run:
 
 - When a repetition site starts at a position that is an element boundary of a recorded run of the same site, with the
@@ -335,8 +335,8 @@ grammars carry the memo flag of cycle members, and the format may change before 
 
 Steps 1, 2, 3 and 4 and the specification of step 6 are implemented, and E2 is a positive control. The closure and
 bytecode backends keep run records for the walks of `#recover` skips
-([Optimization 132](../../optimizations/132-records-of-recovery-skip-walks.md)) and of restartable repetitions
-([Optimization 133](../../optimizations/133-run-records-of-restarted-repetitions.md)) in batch parses and streams, so
+([Optimization 132](../../optimizations/logs/132-records-of-recovery-skip-walks.md)) and of restartable repetitions
+([Optimization 133](../../optimizations/logs/133-run-records-of-restarted-repetitions.md)) in batch parses and streams, so
 E1, E7, E8 and E9 measure linear there. Generated parsers keep no run records. The classifier relies on none, so E8 is a
 positive control through the recovery-skip refinement, while E1, E7 and E9 stay classified polynomial. The automatic
 budget is not implemented.

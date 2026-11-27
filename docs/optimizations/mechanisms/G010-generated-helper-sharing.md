@@ -31,7 +31,7 @@ adoption. Source reduction does not by itself prove lower matching time; use the
 record's separate configurations and workload results rather than assigning one
 universal speedup.
 
-Evidence records: [090](../090-share-identical-generated-helpers.md).
+Evidence records: [090](../logs/090-share-identical-generated-helpers.md).
 
 Source owners: [`Generator.Method`](../../../internal/backend/codegen/golang/print/generator.go),
 [literal interning in the generator state](../../../internal/backend/codegen/common/generator.go),

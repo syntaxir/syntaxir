@@ -26,7 +26,7 @@ technique a design of its tool.
 Record 065 reports a one-megabyte grammar on a single line analyzed and tokenized in about 0.35 s instead of over 10 s,
 while ordinary grammars still take around 11 ms. The result on a long line does not measure parsing.
 
-Evidence records: [065](../../optimizations/065-position-conversion-in-the-language-server.md).
+Evidence records: [065](../../optimizations/logs/065-position-conversion-in-the-language-server.md).
 
 Packages: `internal/lsp`.
 

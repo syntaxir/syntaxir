@@ -35,7 +35,7 @@ Every profile leaves it on.
 
 ## Evidence and Implementation
 
-Record [139](../139-geometric-typed-value-chunks.md) measured it: typed `ParseValue` allocations fall by 12–37%
+Record [139](../logs/139-geometric-typed-value-chunks.md) measured it: typed `ParseValue` allocations fall by 12–37%
 on the workloads that build their values directly, the doubling ratio of the allocations falls from about 2.0
 (linear) to 1.26–1.71, and the bytes allocated rise by at most 1.02% (deterministic metrics). A ratio of 8
 halved the allocations again but cost about 7% more bytes, the unused tail of each type's last slab.

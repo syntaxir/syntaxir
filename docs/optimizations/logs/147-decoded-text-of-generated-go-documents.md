@@ -15,7 +15,7 @@ preparation of the input, which decoded the whole text into a new `[]rune` and b
 every parse, and 2.06 s in `Document.Edit`, which counted the code points of the whole text and scanned it twice from
 the start to turn code-point positions into byte offsets. Parsing itself took about 0.6 s. The collector took most of
 the rest. A Document parse did work in proportion to the whole text before it reused anything, against the bound of
-[Work of a Document Parse](../../spec/runtime/documents.md#work-of-a-document-parse), whose constant does not depend
+[Work of a Document Parse](../../../spec/runtime/documents.md#work-of-a-document-parse), whose constant does not depend
 on n.
 
 In the libgo package, the Document now keeps its text in the form a parse reads, and an edit changes that form instead

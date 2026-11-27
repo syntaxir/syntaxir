@@ -2,20 +2,20 @@
 
 - **Status**: Adopted
 - **Date**: 2026-11-26
-- **Mechanisms**: [A280](mechanisms/A280-typed-chunk-growth.md); it changes the slabs of
-  [A250](mechanisms/A250-typed-object-slabs.md) and [A260](mechanisms/A260-typed-list-slabs.md) and counts the
-  bootstrap values of [A070](mechanisms/A070-typed-output-bootstrap.md)
+- **Mechanisms**: [A280](../mechanisms/A280-typed-chunk-growth.md); it changes the slabs of
+  [A250](../mechanisms/A250-typed-object-slabs.md) and [A260](../mechanisms/A260-typed-list-slabs.md) and counts the
+  bootstrap values of [A070](../mechanisms/A070-typed-output-bootstrap.md)
 - **Flags**: `typed-chunk-growth`
 - **Decides**: `typed-chunk-growth` adopted
-- **Revisit when**: the objects of [A250](mechanisms/A250-typed-object-slabs.md) or the lists of
-  [A260](mechanisms/A260-typed-list-slabs.md) change their fixed limits or their bootstrap, a later mechanism
+- **Revisit when**: the objects of [A250](../mechanisms/A250-typed-object-slabs.md) or the lists of
+  [A260](../mechanisms/A260-typed-list-slabs.md) change their fixed limits or their bootstrap, a later mechanism
   bounds the allocations that are not chunk allocations, or the deterministic metrics show the typed bytes more
   than 2% above the fixed chunks' on any workload
 
 ## Problem and Mechanism
 
-The chunks that hold typed values (the cells and lists of [A250](mechanisms/A250-typed-object-slabs.md) and
-[A260](mechanisms/A260-typed-list-slabs.md), and the match cells of a typed parse) grew to a fixed limit, 256 cells or
+The chunks that hold typed values (the cells and lists of [A250](../mechanisms/A250-typed-object-slabs.md) and
+[A260](../mechanisms/A260-typed-list-slabs.md), and the match cells of a typed parse) grew to a fixed limit, 256 cells or
 1,024 list elements, and stayed there. Past that size every further chunk cost one allocation per fixed number of
 values, so the allocations of a typed `ParseValue` grew linearly with the input, while the performance target asks
 that they grow no faster than its logarithm.
@@ -37,11 +37,11 @@ and the unused tail of the last chunk is at most the larger of the fixed limit a
 
 ## Separability
 
-The growth is an optimization in the sense of [record 080](../design/records/080-optimization-management.md), not a
-parameter of the slab design: a ratio without bound is the fixed chunk of [A250](mechanisms/A250-typed-object-slabs.md)
-and [A260](mechanisms/A260-typed-list-slabs.md), the plain form of the same allocator, which keeps the same contract
+The growth is an optimization in the sense of [record 080](../../design/records/080-optimization-management.md), not a
+parameter of the slab design: a ratio without bound is the fixed chunk of [A250](../mechanisms/A250-typed-object-slabs.md)
+and [A260](../mechanisms/A260-typed-list-slabs.md), the plain form of the same allocator, which keeps the same contract
 and relies on no other optimization. It is therefore the setting `typed-chunk-growth` of mechanism
-[A280](mechanisms/A280-typed-chunk-growth.md), on in every profile. Off, the generator prints the local chunk
+[A280](../mechanisms/A280-typed-chunk-growth.md), on in every profile. Off, the generator prints the local chunk
 helpers with the fixed limit, as it does for the other storage controls, and sets a mask in the grammar that clears
 the growth of the match chunks of a typed parse, which the library makes. The library applies the mask arithmetically,
 so the setting adds no test to the default parser, which takes the library's chunks and prints nothing for the

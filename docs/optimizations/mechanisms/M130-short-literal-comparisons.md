@@ -31,8 +31,8 @@ and Outline 2.14 to 1.97 ms. These do not establish current Node, Bytes or
 all-literal effects.
 
 Evidence records:
-[062](../062-comparing-short-literals-in-place-in-direct-rules.md),
-[136](../136-measured-effect-of-the-generation-flags.md).
+[062](../logs/062-comparing-short-literals-in-place-in-direct-rules.md),
+[136](../logs/136-measured-effect-of-the-generation-flags.md).
 
 Source owners: [`the inline-literals Flow
 pass`](../../../internal/middleend/flowpass/passes.go),

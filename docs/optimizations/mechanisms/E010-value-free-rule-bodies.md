@@ -44,7 +44,7 @@ combined body/twin/transient-rule change. That result cannot be attributed
 wholly to body elision; current isolated all-backend effects are unmeasured.
 
 Evidence records:
-[001](../001-value-free-rule-bodies-value-free-twins-transient-rules-0b2c903.md).
+[001](../logs/001-value-free-rule-bodies-value-free-twins-transient-rules-0b2c903.md).
 
 Source owners: the lean-body test and the walk of rule bodies in the front end's check package,
 [`body value

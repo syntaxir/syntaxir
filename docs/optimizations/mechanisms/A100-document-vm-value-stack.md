@@ -36,7 +36,7 @@ controls overlap parity. Nullable, abort and small-after-large cases preserve
 behavior. No peak or retained-heap reduction is measured, and the Document field
 that keeps the stack is present in both variants.
 
-Evidence records: [086](../086-reuse-document-vm-values.md).
+Evidence records: [086](../logs/086-reuse-document-vm-values.md).
 
 Source owners: [`Document.finishParse and the kept backend
 state`](../../../internal/runtime/document/document.go), [`vm.Machine.Keep and the capacity

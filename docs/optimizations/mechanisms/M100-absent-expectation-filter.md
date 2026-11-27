@@ -31,7 +31,7 @@ filters retain linear duplicate scans, and the unadopted TypeScript filter
 showed no clear gain. These results do not establish universal constant-time or
 zero-overhead expectation handling.
 
-Evidence records: [075](../075-exclude-absent-expectations-before-scanning.md).
+Evidence records: [075](../logs/075-exclude-absent-expectations-before-scanning.md).
 
 Source owners: [`parser.expect and record
 marks`](../../../internal/runtime/state/runtime.go), [`generated expectation

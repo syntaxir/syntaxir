@@ -31,8 +31,8 @@ respectively. They support the consumers but do not isolate predecoding itself
 from a repeated-conversion reference. No separate effect estimate is available.
 
 Evidence records:
-[017](../017-ascii-bitmaps-for-character-classes-in-the-vms.md),
-[032](../032-matching-literals-against-loaded-input-in-one-loop.md).
+[017](../logs/017-ascii-bitmaps-for-character-classes-in-the-vms.md),
+[032](../logs/032-matching-literals-against-loaded-input-in-one-loop.md).
 
 Source owners: [`buildVMProgram, vm.Program.runes, bytes and
 ascii`](../../../internal/runtime/vm/vm.go), [`iterative VM literal/class

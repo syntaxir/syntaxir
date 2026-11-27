@@ -31,7 +31,7 @@ reporting JSON 50.5 to 42.8 MB and Minilang 32.8 to 23.0 MB. Those reductions
 are a combined historical result, not an isolated line-only estimate.
 
 Evidence records:
-[009](../009-value-free-operators-rule-lines-discarding-trivia-in-example-grammars-936857c.md).
+[009](../logs/009-value-free-operators-rule-lines-discarding-trivia-in-example-grammars-936857c.md).
 
 Source owners: the lean lines and the Operators Rule walk in the front end's check package,
 the line emission of the bytecode compiler, [`Operators Rule line

@@ -31,8 +31,8 @@ described in 048. These historical results do not promise a warmed pool or zero
 allocation for every invocation.
 
 Evidence records:
-[057](../057-pooling-the-scratch-memory-of-whole-input-parses.md),
-[058](../058-pooling-the-scratch-memory-of-generated-parse-and-recognize.md).
+[057](../logs/057-pooling-the-scratch-memory-of-whole-input-parses.md),
+[058](../logs/058-pooling-the-scratch-memory-of-generated-parse-and-recognize.md).
 
 Source owners: [`acquirePooledParser and
 releaseScratch`](../../../internal/runtime/state/input.go),

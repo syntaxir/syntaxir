@@ -27,7 +27,7 @@ bytes and time unchanged within noise. This is fewer objects for GC, not an
 established throughput improvement.
 
 Evidence records:
-[016](../016-start-positions-and-lambdas-from-chunks-in-the-vms.md).
+[016](../logs/016-start-positions-and-lambdas-from-chunks-in-the-vms.md).
 
 Source owners: [`position cells`](../../../internal/runtime/vm/vm.go),
 [`PUSHPOS evaluation`](../../../internal/runtime/vm/vm.go), [`iterative value

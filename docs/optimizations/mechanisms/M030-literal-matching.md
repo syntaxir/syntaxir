@@ -32,7 +32,7 @@ workloads except unchanged CSV VM timing. It does not establish current
 TypeScript, stream or all-literal benefits.
 
 Evidence records:
-[032](../032-matching-literals-against-loaded-input-in-one-loop.md).
+[032](../logs/032-matching-literals-against-loaded-input-in-one-loop.md).
 
 Source owners: [`parser.matchLiteral`](../../../internal/runtime/state/input.go),
 [`generated literal matcher`](../../../pkg/runtime/libgo/lib.go),

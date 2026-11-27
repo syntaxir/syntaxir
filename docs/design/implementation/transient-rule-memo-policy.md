@@ -29,7 +29,7 @@ maintained form of the same contract.
 Record 001 measures transient rules together with value-free bodies and twins and does not isolate their effect on
 time or memory.
 
-Evidence records: [001](../../optimizations/001-value-free-rule-bodies-value-free-twins-transient-rules-0b2c903.md).
+Evidence records: [001](../../optimizations/logs/001-value-free-rule-bodies-value-free-twins-transient-rules-0b2c903.md).
 
 Packages: `internal/middleend/corepass` (transient rules), `internal/frontend/check` (the transient flag of rules),
 `internal/runtime/state` (the decision between the ordinary and the Document memo) and the TypeScript generator.

@@ -36,9 +36,9 @@ isolate current snapshot capture or every edit schedule; earlier mutable trees
 can change as positions move.
 
 Evidence records:
-[029](../029-shifting-reused-subtrees-into-the-parsers-chunks.md),
-[045](../045-moving-reused-trees-in-place-after-document-edits.md),
-[148](../148-moving-reused-trees-of-generated-go-documents.md).
+[029](../logs/029-shifting-reused-subtrees-into-the-parsers-chunks.md),
+[045](../logs/045-moving-reused-trees-in-place-after-document-edits.md),
+[148](../logs/148-moving-reused-trees-of-generated-go-documents.md).
 
 Source owners: [`moveResult and moved Node
 handling`](../../../internal/runtime/state/runtime.go), the `value` package (node

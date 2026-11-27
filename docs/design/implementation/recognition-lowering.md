@@ -34,8 +34,8 @@ different operation, the full parse, not the same one without an optimization.
 Record 007 measures recognition at about 1.5–1.8 times as fast as the full parse, and record 047 compares generated
 recognition with the Node parse. These compare operations on their stated workloads; they do not ablate a mechanism.
 
-Evidence records: [007](../../optimizations/007-recognition-mode-3f7e9bf.md),
-[047](../../optimizations/047-recognition-in-generated-parsers.md).
+Evidence records: [007](../../optimizations/logs/007-recognition-mode-3f7e9bf.md),
+[047](../../optimizations/logs/047-recognition-in-generated-parsers.md).
 
 Packages: `internal/runtime/engine` (the recognizer program), `internal/frontend/check` (the recognition check and the
 analysis of the captures predicates read), and the Go and TypeScript generators.

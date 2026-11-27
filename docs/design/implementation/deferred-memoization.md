@@ -32,8 +32,8 @@ Record 018 reports closure JSON parsing going from 22.5 to 18.1 ms and from 41.2
 15.9 to 12.0 ms; left-recursive parsing with the adaptive threshold can still cost about 0–5% more (20–33% without it).
 Record 021 ports the policy to generated Go. These results do not establish a universal benefit.
 
-Evidence records: [018](../../optimizations/018-memoizing-from-the-second-call-at-a-position.md),
-[021](../../optimizations/021-changes-18-and-19-in-the-generated-parsers.md).
+Evidence records: [018](../../optimizations/logs/018-memoizing-from-the-second-call-at-a-position.md),
+[021](../../optimizations/logs/021-changes-18-and-19-in-the-generated-parsers.md).
 
 Packages: the call protocol of Exec IR (`internal/ir/code/exec/compose`), which every runtime prints over its record of
 a call: `internal/runtime/state` in the engine, `pkg/runtime/libgo` in generated Go, and the TypeScript library.

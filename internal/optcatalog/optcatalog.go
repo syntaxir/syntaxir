@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -33,7 +34,7 @@ const (
 	CatalogPath   = "docs/optimizations/README.md"
 	GuidePath     = "docs/guide/code-generation.md"
 	MeasuredPath  = "docs/optimizations/measured.json"
-	RecordsDir    = "docs/optimizations"
+	RecordsDir    = "docs/optimizations/logs"
 	MechanismsDir = "docs/optimizations/mechanisms"
 	DesignDir     = "docs/design"
 )
@@ -82,6 +83,20 @@ type Record struct {
 	Result     string
 	Revisit    string
 }
+
+// Link is the path of the record relative to the catalog page.
+func (r Record) Link() string {
+	return path.Join(recordsFromCatalog, r.File)
+}
+
+// recordsFromCatalog is the records directory relative to the directory of the catalog page.
+var recordsFromCatalog = func() string {
+	rel, err := filepath.Rel(filepath.Dir(CatalogPath), RecordsDir)
+	if err != nil {
+		panic(err)
+	}
+	return filepath.ToSlash(rel)
+}()
 
 // Rejected is the status of a record whose attempt was rejected.
 const Rejected = "Rejected"
@@ -396,7 +411,7 @@ func catalogRegions(records map[int]Record, measured map[string]string, former m
 		if run == "" {
 			run = "none"
 		}
-		fmt.Fprintf(&settings, "| `%s` | %s | %s | %s | %s | [%03d](%s) | %s |\n", f.Name, f.Mechanism, f.Kind, st, f.Backends, r.Number, r.File, run)
+		fmt.Fprintf(&settings, "| `%s` | %s | %s | %s | %s | [%03d](%s) | %s |\n", f.Name, f.Mechanism, f.Kind, st, f.Backends, r.Number, r.Link(), run)
 	}
 
 	refs := "None.\n"
@@ -408,7 +423,7 @@ func catalogRegions(records map[int]Record, measured map[string]string, former m
 			if !ok {
 				return nil, fmt.Errorf("reference control %s names the record %03d, which does not exist", rc.Tag, rc.Record)
 			}
-			fmt.Fprintf(&b, "| `%s` | %s | %s | [%03d](%s) |\n", rc.Tag, rc.Mechanism, rc.Backends, r.Number, r.File)
+			fmt.Fprintf(&b, "| `%s` | %s | %s | [%03d](%s) |\n", rc.Tag, rc.Mechanism, rc.Backends, r.Number, r.Link())
 		}
 		refs = b.String()
 	}
@@ -450,7 +465,7 @@ func formerRegions(records map[int]Record, former map[string]FormerPage) (string
 		if r.Status != Rejected {
 			continue
 		}
-		link := fmt.Sprintf("[%03d. %s](%s)", r.Number, r.Title, r.File)
+		link := fmt.Sprintf("[%03d. %s](%s)", r.Number, r.Title, r.Link())
 		ids := "none"
 		if len(r.Mechanisms) > 0 {
 			ids = strings.Join(r.Mechanisms, ", ")

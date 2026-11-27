@@ -89,6 +89,6 @@ more. The Document stays as large as its largest stack, the one of its longest r
 Adopted, with no setting. Keeping the stack is not a separable optimization (record 080, criterion 2): it is the
 storage of the Document as the engine defines it, counted by the memory limit in the same way, and a stack grown again
 at every parse is work in proportion to the longest repetition of the text, against the bound of
-[Work of a Document Parse](../../spec/runtime/documents.md#work-of-a-document-parse).
+[Work of a Document Parse](../../../spec/runtime/documents.md#work-of-a-document-parse).
 
 Revisit the typed parse's stacks when a typed Document is measured.

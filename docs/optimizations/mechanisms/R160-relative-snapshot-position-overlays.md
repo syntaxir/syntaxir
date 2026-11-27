@@ -39,7 +39,7 @@ version costs 4.4%/7.6% more; three-version windows improve. Heap totals include
 the live Document/cache. Other backends/workloads remain unmeasured; no adoption is
 established.
 
-See [record 100](../100-relative-snapshot-position-overlays.md),
+See [record 100](../logs/100-relative-snapshot-position-overlays.md),
 [snapshot design](../../design/records/032-versioned-document-snapshots.md),
 [`shareSnapshotGraph`](../../../internal/runtime/document/document_snapshot.go), and the
 [enabled](../../../internal/runtime/document/document_snapshot_position_enabled.go)/

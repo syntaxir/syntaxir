@@ -32,7 +32,7 @@ the storage to generated Go among other changes. These are historical combined
 results, not current slab-only effects or guarantees of low retained heap.
 
 Evidence records:
-[006](../006-slab-allocation-for-nodes-child-lists-and-frames-5d03bf2.md).
+[006](../logs/006-slab-allocation-for-nodes-child-lists-and-frames-5d03bf2.md).
 
 Source owners: [`parser.newNode, nodes, fields and
 kids`](../../../internal/runtime/state/runtime.go), [`generated ptrSlab and node/list

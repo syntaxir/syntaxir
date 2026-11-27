@@ -32,9 +32,9 @@ repeated evaluation of rules that read variables. Record 066 reports the allocat
 falling from 128,458 to 3,006 with the shared key of undefined variables. These results concern distinct workloads and
 revisions, not one combined ratio today.
 
-Evidence records: [005](../../optimizations/005-memo-table-with-per-position-chains-cf77e4f.md),
-[012](../../optimizations/012-memoizing-rules-that-read-variables.md),
-[066](../../optimizations/066-no-memo-key-allocated-for-variables-where-none-is-defined.md).
+Evidence records: [005](../../optimizations/logs/005-memo-table-with-per-position-chains-cf77e4f.md),
+[012](../../optimizations/logs/012-memoizing-rules-that-read-variables.md),
+[066](../../optimizations/logs/066-no-memo-key-allocated-for-variables-where-none-is-defined.md).
 
 Packages: `internal/runtime/state` (the memo and the keys of calls), `internal/middleend/corepass` (the variables a rule
 reads), `pkg/runtime/libgo` (the memo of generated Go parsers) and the TypeScript library.

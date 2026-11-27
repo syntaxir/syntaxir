@@ -29,7 +29,7 @@ It primarily supports source/build-cost reduction; mixed TypeScript literal
 results did not justify default adoption. Combined ratios do not isolate literal
 sharing alone.
 
-Evidence records: [090](../090-share-identical-generated-helpers.md).
+Evidence records: [090](../logs/090-share-identical-generated-helpers.md).
 
 Source owners: [the literal registry of the generator state](../../../internal/backend/codegen/common/generator.go),
 [`TypeScript literal sharing selection`](../../../internal/backend/codegen/typescript/print/generator.go).

@@ -31,9 +31,9 @@ Records 074/098 document first-chunk/bootstrap changes and retained-output
 fixtures. The list control helps attribute sibling retention but does not
 establish lower retained memory for every result or universal throughput gains.
 
-Evidence records: [048](../048-a-typed-runtime-for-parsevalue.md),
-[074](../074-smaller-first-chunks-for-generated-typed-values.md),
-[098](../098-bootstrap-generated-typed-output-allocations.md); the growth past 1,024 elements is
+Evidence records: [048](../logs/048-a-typed-runtime-for-parsevalue.md),
+[074](../logs/074-smaller-first-chunks-for-generated-typed-values.md),
+[098](../logs/098-bootstrap-generated-typed-output-allocations.md); the growth past 1,024 elements is
 [A280](A280-typed-chunk-growth.md)'s.
 
 Source owners: [`astSlice generation`](../../../internal/backend/codegen/golang/print/types.go),

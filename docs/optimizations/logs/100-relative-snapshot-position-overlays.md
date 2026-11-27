@@ -21,10 +21,10 @@ allocates a 12-byte overlay entry per record, and every handle grows to 32 bytes
 on arm64. The opt-in build is private
 and default-off; the experiment has not been adopted. The implementation and
 related exact-record mechanisms are described in
-[mechanism R160](mechanisms/R160-relative-snapshot-position-overlays.md),
-[R130](mechanisms/R130-document-snapshot-record-sharing.md),
-[R140](mechanisms/R140-share-document-snapshot-child-runs.md), and
-[R150](mechanisms/R150-cache-snapshot-child-run-descriptors.md).
+[mechanism R160](../mechanisms/R160-relative-snapshot-position-overlays.md),
+[R130](../mechanisms/R130-document-snapshot-record-sharing.md),
+[R140](../mechanisms/R140-share-document-snapshot-child-runs.md), and
+[R150](../mechanisms/R150-cache-snapshot-child-run-descriptors.md).
 
 ## Applicability
 

@@ -2,7 +2,7 @@
 
 - **Status**: Removed. Tokens are named node types (`type Name = node[string]`), which
   predicates compare with `text($e) == text($n)` through the unboxed comparison of
-  [M120](mechanisms/M120-unboxed-text-comparisons.md), so no struct field is read.
+  [M120](../mechanisms/M120-unboxed-text-comparisons.md), so no struct field is read.
 - **Date**: 2026-10-19
 
 ## Problem and Mechanism

@@ -28,7 +28,7 @@ Record 101 measured the skip: 32,768 record captures went from 18.57 to 9.74 ms 
 
 ## Evidence
 
-Evidence records: [072](../../optimizations/072-reuse-structurally-equal-duplicate-capture-types.md),
-[101](../../optimizations/101-skip-positional-items-for-action-free-rules.md).
+Evidence records: [072](../../optimizations/logs/072-reuse-structurally-equal-duplicate-capture-types.md),
+[101](../../optimizations/logs/101-skip-positional-items-for-action-free-rules.md).
 
 Packages: `internal/frontend/types` (types and their join) and `internal/frontend/check` (the type checker).

@@ -32,8 +32,8 @@ Record 111 measures generated source 8.5% smaller for the DuckDB grammar and par
 within the noise of an identical copy. The result concerns parsers that contain keyword
 tries, not other grammars.
 
-Evidence records: [111](../111-terminal-programs.md),
-[136](../136-measured-effect-of-the-generation-flags.md).
+Evidence records: [111](../logs/111-terminal-programs.md),
+[136](../logs/136-measured-effect-of-the-generation-flags.md).
 
 Source owners: [`the terminals Flow pass`](../../../internal/middleend/flowpass/passes.go), over the
 regions that `TerminalRegions` finds in Core IR,

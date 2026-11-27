@@ -27,7 +27,7 @@ reduction. It does not establish an independent universal stack-cleanup speedup
 or immediate release at every commit.
 
 Evidence records:
-[089](../089-isolate-stream-prefixes-and-batch-scratch-cleanup.md).
+[089](../logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md).
 
 Source owners: [`inactive VM value
 cleanup`](../../../internal/runtime/state/stream_stack.go),

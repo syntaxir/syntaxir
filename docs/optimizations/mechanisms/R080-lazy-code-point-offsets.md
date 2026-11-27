@@ -32,7 +32,7 @@ records and fixes the Document table-loss regression. Those historical effects
 do not describe current piece-table input or every recognition grammar.
 
 Evidence records:
-[030](../030-building-the-code-point-offset-table-on-demand.md).
+[030](../logs/030-building-the-code-point-offset-table-on-demand.md).
 
 Source owners: [`input.buildOffs and text`](../../../internal/runtime/state/input.go),
 [`Document input-table retention`](../../../internal/runtime/document/document.go).

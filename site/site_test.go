@@ -941,7 +941,7 @@ func TestNavigation(t *testing.T) {
 	for _, e := range searchEntries {
 		searchPages[e.URL] = true
 	}
-	for _, page := range []string{"docs/design/records/012-typed-values/", "docs/optimizations/077-inline-node-expressions-in-generated-go-parsers/"} {
+	for _, page := range []string{"docs/design/records/012-typed-values/", "docs/optimizations/logs/077-inline-node-expressions-in-generated-go-parsers/"} {
 		if !searchPages[page] {
 			t.Errorf("search index omits %s", page)
 		}

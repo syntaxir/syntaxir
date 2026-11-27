@@ -7,8 +7,8 @@
 
 A repetition that a caller walks again from the next position, as `a = "a"* "c"` does in `main = (a / "a")* $$`,
 re-walks the same suffix at every position, so the cost of the enclosing scan grows with the square of the input.
-The [design record](../design/records/067-repetition-run-records.md) and
-[Run Sites](../../spec/runtime/parsing.md#run-sites) define the mechanism: an unbounded repetition that is
+The [design record](../../design/records/067-repetition-run-records.md) and
+[Run Sites](../../../spec/runtime/parsing.md#run-sites) define the mechanism: an unbounded repetition that is
 restartable (inside an iterating repetition, in a rule such a repetition calls, or in a rule on a call cycle) and
 whose element can be replayed is a run site, and a walk of a hot site keeps records that a later walk reuses.
 
@@ -40,7 +40,7 @@ one per revision, ran interleaved for 12 rounds, `-test.benchtime=300ms -test.be
 ## Results
 
 Steps of the closure backend on the restarted scans of the cookbook
-([Rewrite a Grammar to Linear Cost](../cookbook/linear-rewrites.md)), `a` n times (the sizes the cookbook prints):
+([Rewrite a Grammar to Linear Cost](../../cookbook/linear-rewrites.md)), `a` n times (the sizes the cookbook prints):
 
 | Grammar | n = 100 | 200 | 400 | Before, n = 400 |
 |:--|--:|--:|--:|--:|

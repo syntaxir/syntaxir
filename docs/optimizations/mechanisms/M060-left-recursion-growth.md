@@ -34,8 +34,8 @@ Those results concern seed/growth allocation in measured Go paths, not every
 left-recursive grammar or TypeScript.
 
 Evidence records:
-[016](../016-start-positions-and-lambdas-from-chunks-in-the-vms.md),
-[035](../035-left-recursion-growth-without-allocation.md).
+[016](../logs/016-start-positions-and-lambdas-from-chunks-in-the-vms.md),
+[035](../logs/035-left-recursion-growth-without-allocation.md).
 
 Source owners: [`growState and seed
 growth`](../../../internal/runtime/state/runtime.go), [`iterative growth

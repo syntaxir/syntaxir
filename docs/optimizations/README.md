@@ -94,28 +94,28 @@ The settings are the same-source controls of the optimizations: the flags of `-o
 <!-- generated:settings -->
 | Setting | Mechanism | Kind | State | Backends | Record | Last timed run |
 |:--|:--|:--|:--|:--|:--|:--|
-| `dispatch` | M010 | pass | adopted (speed, memory, size) | recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [141](141-dispatch-of-kept-guards.md) | none |
-| `guards` | M010 | pass | adopted (speed, memory, size) | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [136](136-measured-effect-of-the-generation-flags.md) | none |
-| `outline` | G220 | pass | adopted (speed, memory, size) | TypeScript | [146](146-outlined-typescript-nodes.md) | none |
-| `scans` | M040 | pass | adopted (speed, memory, size) | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [136](136-measured-effect-of-the-generation-flags.md) | none |
-| `field-compare` | M120 | action pass | adopted (speed, memory, size) | typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
-| `text-dispatch` | G070 | action pass | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [136](136-measured-effect-of-the-generation-flags.md) | none |
-| `class-runs` | M150 | flow pass | adopted (speed, memory, size) | typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
-| `class-tables` | M160 | flow pass | adopted (size) | typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
-| `guarded-classes` | M010 | flow pass | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
-| `inline-literals` | M130 | flow pass | adopted (speed, memory) | Go Node, Go recognizer, typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
-| `terminals` | M140 | flow pass | adopted (speed, memory, size) | typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
-| `ts-merged-records` | G240 | exec pass | adopted (speed, memory, size) | TypeScript | [143](143-compact-typescript-exec-forms.md) | none |
-| `ts-tested-inits` | G240 | exec pass | adopted (speed, memory, size) | TypeScript | [143](143-compact-typescript-exec-forms.md) | none |
-| `literal-sharing` | G130 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
-| `method-sharing` | G010 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [136](136-measured-effect-of-the-generation-flags.md) | none |
-| `ts-literal-sharing` | G130 | printer | opt-in | TypeScript | [136](136-measured-effect-of-the-generation-flags.md) | none |
-| `used-features` | G250 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [144](144-library-of-the-used-features.md) | none |
-| `sparse-memo` | R030 | storage | adopted (speed, memory, size) | TypeScript | [136](136-measured-effect-of-the-generation-flags.md) | none |
-| `typed-chunk-growth` | A280 | storage | adopted (speed, memory, size) | typed Go | [139](139-geometric-typed-value-chunks.md) | none |
-| `typed-list-slabs` | A260 | storage | adopted (speed, size) | typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
-| `typed-object-slabs` | A250 | storage | adopted (speed, size) | typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
-| `typed-output-bootstrap` | A070 | storage | adopted (speed, memory, size) | typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `dispatch` | M010 | pass | adopted (speed, memory, size) | recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [141](logs/141-dispatch-of-kept-guards.md) | none |
+| `guards` | M010 | pass | adopted (speed, memory, size) | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| `outline` | G220 | pass | adopted (speed, memory, size) | TypeScript | [146](logs/146-outlined-typescript-nodes.md) | none |
+| `scans` | M040 | pass | adopted (speed, memory, size) | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| `field-compare` | M120 | action pass | adopted (speed, memory, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| `text-dispatch` | G070 | action pass | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| `class-runs` | M150 | flow pass | adopted (speed, memory, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| `class-tables` | M160 | flow pass | adopted (size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| `guarded-classes` | M010 | flow pass | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| `inline-literals` | M130 | flow pass | adopted (speed, memory) | Go Node, Go recognizer, typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| `terminals` | M140 | flow pass | adopted (speed, memory, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| `ts-merged-records` | G240 | exec pass | adopted (speed, memory, size) | TypeScript | [143](logs/143-compact-typescript-exec-forms.md) | none |
+| `ts-tested-inits` | G240 | exec pass | adopted (speed, memory, size) | TypeScript | [143](logs/143-compact-typescript-exec-forms.md) | none |
+| `literal-sharing` | G130 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| `method-sharing` | G010 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| `ts-literal-sharing` | G130 | printer | opt-in | TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| `used-features` | G250 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [144](logs/144-library-of-the-used-features.md) | none |
+| `sparse-memo` | R030 | storage | adopted (speed, memory, size) | TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| `typed-chunk-growth` | A280 | storage | adopted (speed, memory, size) | typed Go | [139](logs/139-geometric-typed-value-chunks.md) | none |
+| `typed-list-slabs` | A260 | storage | adopted (speed, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| `typed-object-slabs` | A250 | storage | adopted (speed, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| `typed-output-bootstrap` | A070 | storage | adopted (speed, memory, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
 <!-- /generated:settings -->
 
 ### Reference Controls
@@ -125,20 +125,20 @@ A reference control is a build tag that builds the parser without the mechanism,
 <!-- generated:reference-controls -->
 | Build tag | Mechanism | Backends | Record |
 |:--|:--|:--|:--|
-| `sxir_reference_document_vm_values` | A100 | recursive VM, iterative VM | [086](086-reuse-document-vm-values.md) |
-| `sxir_reference_stream_frames` | A200 | closure, recursive VM, iterative VM | [085](085-reuse-stream-capture-frames.md) |
-| `sxir_reference_stream_text` | A210 | closure, recursive VM, iterative VM | [088](088-share-bounded-stream-text-snapshots.md) |
-| `sxir_reference_stream_prefix` | A220 | closure, recursive VM, iterative VM | [089](089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
-| `sxir_reference_stream_undo` | A230 | closure, recursive VM, iterative VM | [089](089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
-| `sxir_reference_stream_stack` | A240 | recursive VM, iterative VM | [089](089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
-| `sxir_reference_sparse_memo` | R030 | closure, recursive VM, iterative VM | [087](087-sparse-deferred-memo-seen-pages.md) |
-| `sxir_reference_document_pieces` | R060 | closure, recursive VM, iterative VM | [093](093-chunked-document-input.md) |
-| `sxir_snapshot_sharing_reference` | R130 | closure, recursive VM, iterative VM | [097](097-exact-document-snapshot-record-sharing.md) |
-| `sxir_snapshot_child_chunks_reference` | R140 | closure, recursive VM, iterative VM | [099](099-share-document-snapshot-child-runs.md) |
-| `sxir_snapshot_position_overlays` | R160 | closure, recursive VM, iterative VM | [100](100-relative-snapshot-position-overlays.md) |
+| `sxir_reference_document_vm_values` | A100 | recursive VM, iterative VM | [086](logs/086-reuse-document-vm-values.md) |
+| `sxir_reference_stream_frames` | A200 | closure, recursive VM, iterative VM | [085](logs/085-reuse-stream-capture-frames.md) |
+| `sxir_reference_stream_text` | A210 | closure, recursive VM, iterative VM | [088](logs/088-share-bounded-stream-text-snapshots.md) |
+| `sxir_reference_stream_prefix` | A220 | closure, recursive VM, iterative VM | [089](logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
+| `sxir_reference_stream_undo` | A230 | closure, recursive VM, iterative VM | [089](logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
+| `sxir_reference_stream_stack` | A240 | recursive VM, iterative VM | [089](logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
+| `sxir_reference_sparse_memo` | R030 | closure, recursive VM, iterative VM | [087](logs/087-sparse-deferred-memo-seen-pages.md) |
+| `sxir_reference_document_pieces` | R060 | closure, recursive VM, iterative VM | [093](logs/093-chunked-document-input.md) |
+| `sxir_snapshot_sharing_reference` | R130 | closure, recursive VM, iterative VM | [097](logs/097-exact-document-snapshot-record-sharing.md) |
+| `sxir_snapshot_child_chunks_reference` | R140 | closure, recursive VM, iterative VM | [099](logs/099-share-document-snapshot-child-runs.md) |
+| `sxir_snapshot_position_overlays` | R160 | closure, recursive VM, iterative VM | [100](logs/100-relative-snapshot-position-overlays.md) |
 <!-- /generated:reference-controls -->
 
-Records [025](025-discarding-separators-in-the-example-grammars.md) and [055](055-tracing-hook-on-the-call-path.md) remain in the evidence archive but are not optimization mechanisms: the first covers grammar-author output choices and the second measures tracing-instrumentation cost.
+Records [025](logs/025-discarding-separators-in-the-example-grammars.md) and [055](logs/055-tracing-hook-on-the-call-path.md) remain in the evidence archive but are not optimization mechanisms: the first covers grammar-author output choices and the second measures tracing-instrumentation cost.
 
 ### Former Mechanism IDs
 
@@ -149,7 +149,7 @@ An ID that is no longer a mechanism stays reserved and is never reused. An imple
 |:--|:--|:--|
 | A010 | [Node Layout](../design/implementation/node-layout.md) | Every backend that builds Nodes reads this layout, and it is the public representation of a Node; a parser without it would need a different Node |
 | A050 | [Bounded Stream Storage](../design/implementation/stream-storage.md) | The stream contract bounds what a stream keeps by its window: it discards the input and memo entries before what it delivered, and its Memory count bounds the window, not the length of the input |
-| A090 | [094. Generation-Only Typed-Output Liveness Cleanup](094-generated-typed-output-liveness.md) | Rejected attempt; no code remains |
+| A090 | [094. Generation-Only Typed-Output Liveness Cleanup](logs/094-generated-typed-output-liveness.md) | Rejected attempt; no code remains |
 | A110 | [Expectation Sets](../design/implementation/expectation-sets.md) | The memo entries, recovery state and diagnostics of every backend store expectations as these IDs and stack windows; a parser without them would need another representation of expectations |
 | E020 | [Value-Free Twins](../design/implementation/value-free-twins.md) | The specification makes a twin a rule of its own, with its own memo entries and its own call unit; compute units and memo identities depend on it |
 | E040 | [Recognition Lowering](../design/implementation/recognition-lowering.md) | The specification makes recognition build values only where a predicate can read them, with the same units at every setting; it is an operation of the contract, not a form that can be switched off |
@@ -185,161 +185,161 @@ An ID that is no longer a mechanism stays reserved and is never reused. An imple
 ## Optimization History
 
 ## Records 1–25
-- [001. Value-free rule bodies, value-free twins, transient rules (0b2c903)](001-value-free-rule-bodies-value-free-twins-transient-rules-0b2c903.md)
-- [002. Frame pooling in the iterative VM (8fab402)](002-frame-pooling-in-the-iterative-vm-8fab402.md)
-- [003. Node fields as a slice (54a5774)](003-node-fields-as-a-slice-54a5774.md)
-- [004. Expected sets as interned IDs on a shared stack (11a6ce3)](004-expected-sets-as-interned-ids-on-a-shared-stack-11a6ce3.md)
-- [005. Memo table with per-position chains (cf77e4f)](005-memo-table-with-per-position-chains-cf77e4f.md)
-- [006. Slab allocation for nodes, child lists and frames (5d03bf2)](006-slab-allocation-for-nodes-child-lists-and-frames-5d03bf2.md)
-- [007. Recognition mode (3f7e9bf)](007-recognition-mode-3f7e9bf.md)
-- [008. Fast path for unmemoized calls, `SCAN`, nesting limit (d2db87d)](008-fast-path-for-unmemoized-calls-scan-nesting-limit-d2db87d.md)
-- [009. Value-free Operators Rule lines; discarding trivia in example grammars (936857c)](009-value-free-operators-rule-lines-discarding-trivia-in-example-grammars-936857c.md)
-- [010. Zero-copy token text; reusable evaluation context](010-zero-copy-token-text-reusable-evaluation-context.md)
-- [011. Generated parsers catch up with changes 4–10](011-generated-parsers-catch-up-with-changes-410.md)
-- [012. Memoizing rules that read variables](012-memoizing-rules-that-read-variables.md)
-- [013. Allocation-free Operators Rule attempts and pooled Operators Rule frames in the engine and VMs](013-allocation-free-operators-rule-attempts-and-pooled-operators-rule-frames-in-the-engine-and-vms.md)
-- [014. One operand stack for VM expression code](014-one-operand-stack-for-vm-expression-code.md)
-- [015. Allocation-free action plumbing in all backends](015-allocation-free-action-plumbing-in-all-backends.md)
-- [016. Start positions and lambdas from chunks in the VMs](016-start-positions-and-lambdas-from-chunks-in-the-vms.md)
-- [017. ASCII bitmaps for character classes in the VMs](017-ascii-bitmaps-for-character-classes-in-the-vms.md)
-- [018. Memoizing from the second call at a position](018-memoizing-from-the-second-call-at-a-position.md)
-- [019. A plain call path for unmemoized rules without captures](019-a-plain-call-path-for-unmemoized-rules-without-captures.md)
-- [020. Splicing the memo table on Document edits](020-splicing-the-memo-table-on-document-edits.md)
-- [021. Changes 18 and 19 in the generated parsers](021-changes-18-and-19-in-the-generated-parsers.md)
-- [022. Bounded memory and less copying in stream parsing](022-bounded-memory-and-less-copying-in-stream-parsing.md)
-- [023. Splicing the text of a Document in place](023-splicing-the-text-of-a-document-in-place.md)
-- [024. The plain call path in the iterative VM](024-the-plain-call-path-in-the-iterative-vm.md)
-- [025. Discarding separators in the example grammars](025-discarding-separators-in-the-example-grammars.md)
+- [001. Value-free rule bodies, value-free twins, transient rules (0b2c903)](logs/001-value-free-rule-bodies-value-free-twins-transient-rules-0b2c903.md)
+- [002. Frame pooling in the iterative VM (8fab402)](logs/002-frame-pooling-in-the-iterative-vm-8fab402.md)
+- [003. Node fields as a slice (54a5774)](logs/003-node-fields-as-a-slice-54a5774.md)
+- [004. Expected sets as interned IDs on a shared stack (11a6ce3)](logs/004-expected-sets-as-interned-ids-on-a-shared-stack-11a6ce3.md)
+- [005. Memo table with per-position chains (cf77e4f)](logs/005-memo-table-with-per-position-chains-cf77e4f.md)
+- [006. Slab allocation for nodes, child lists and frames (5d03bf2)](logs/006-slab-allocation-for-nodes-child-lists-and-frames-5d03bf2.md)
+- [007. Recognition mode (3f7e9bf)](logs/007-recognition-mode-3f7e9bf.md)
+- [008. Fast path for unmemoized calls, `SCAN`, nesting limit (d2db87d)](logs/008-fast-path-for-unmemoized-calls-scan-nesting-limit-d2db87d.md)
+- [009. Value-free Operators Rule lines; discarding trivia in example grammars (936857c)](logs/009-value-free-operators-rule-lines-discarding-trivia-in-example-grammars-936857c.md)
+- [010. Zero-copy token text; reusable evaluation context](logs/010-zero-copy-token-text-reusable-evaluation-context.md)
+- [011. Generated parsers catch up with changes 4–10](logs/011-generated-parsers-catch-up-with-changes-410.md)
+- [012. Memoizing rules that read variables](logs/012-memoizing-rules-that-read-variables.md)
+- [013. Allocation-free Operators Rule attempts and pooled Operators Rule frames in the engine and VMs](logs/013-allocation-free-operators-rule-attempts-and-pooled-operators-rule-frames-in-the-engine-and-vms.md)
+- [014. One operand stack for VM expression code](logs/014-one-operand-stack-for-vm-expression-code.md)
+- [015. Allocation-free action plumbing in all backends](logs/015-allocation-free-action-plumbing-in-all-backends.md)
+- [016. Start positions and lambdas from chunks in the VMs](logs/016-start-positions-and-lambdas-from-chunks-in-the-vms.md)
+- [017. ASCII bitmaps for character classes in the VMs](logs/017-ascii-bitmaps-for-character-classes-in-the-vms.md)
+- [018. Memoizing from the second call at a position](logs/018-memoizing-from-the-second-call-at-a-position.md)
+- [019. A plain call path for unmemoized rules without captures](logs/019-a-plain-call-path-for-unmemoized-rules-without-captures.md)
+- [020. Splicing the memo table on Document edits](logs/020-splicing-the-memo-table-on-document-edits.md)
+- [021. Changes 18 and 19 in the generated parsers](logs/021-changes-18-and-19-in-the-generated-parsers.md)
+- [022. Bounded memory and less copying in stream parsing](logs/022-bounded-memory-and-less-copying-in-stream-parsing.md)
+- [023. Splicing the text of a Document in place](logs/023-splicing-the-text-of-a-document-in-place.md)
+- [024. The plain call path in the iterative VM](logs/024-the-plain-call-path-in-the-iterative-vm.md)
+- [025. Discarding separators in the example grammars](logs/025-discarding-separators-in-the-example-grammars.md)
 ## Records 26–50
-- [026. Lambda calls without allocation in the closure backend](026-lambda-calls-without-allocation-in-the-closure-backend.md)
-- [027. Struct and call operands on the expression stack in the closure backend](027-struct-and-call-operands-on-the-expression-stack-in-the-closure-backend.md)
-- [028. Field lists and list built-ins without allocation in the generated parsers](028-field-lists-and-list-built-ins-without-allocation-in-the-generated-parsers.md)
-- [029. Shifting reused subtrees into the parser's chunks](029-shifting-reused-subtrees-into-the-parsers-chunks.md)
-- [030. Building the code-point offset table on demand](030-building-the-code-point-offset-table-on-demand.md)
-- [031. Specialized character-class tests in the closure backend](031-specialized-character-class-tests-in-the-closure-backend.md)
-- [032. Matching literals against loaded input in one loop](032-matching-literals-against-loaded-input-in-one-loop.md)
-- [033. Smaller VM entries](033-smaller-vm-entries.md)
-- [034. One frame per plain call in the iterative VM](034-one-frame-per-plain-call-in-the-iterative-vm.md)
-- [035. Left-recursion growth without allocation](035-left-recursion-growth-without-allocation.md)
-- [036. Comparing texts without boxing them](036-comparing-texts-without-boxing-them.md)
-- [037. No intermediate lists in `concat`](037-no-intermediate-lists-in-concat.md)
-- [038. Calling plain rules directly from closure call sites](038-calling-plain-rules-directly-from-closure-call-sites.md)
-- [039. A line table for error positions](039-a-line-table-for-error-positions.md)
-- [040. One pass to prepare code-point input in generated parsers](040-one-pass-to-prepare-code-point-input-in-generated-parsers.md)
-- [041. Building the offset table while decoding, for full parses](041-building-the-offset-table-while-decoding-for-full-parses.md)
-- [042. Generated calls of plain rules](042-generated-calls-of-plain-rules.md)
-- [043. Direct calls of plain rules in the VMs](043-direct-calls-of-plain-rules-in-the-vms.md)
-- [044. Changes 36 and 37 in the VMs (instruction set 2)](044-changes-36-and-37-in-the-vms-instruction-set-2.md)
-- [045. Moving reused trees in place after document edits](045-moving-reused-trees-in-place-after-document-edits.md)
-- [046. Direct calls of plain rules in generated parsers](046-direct-calls-of-plain-rules-in-generated-parsers.md)
-- [047. Recognition in generated parsers](047-recognition-in-generated-parsers.md)
-- [048. A typed runtime for ParseValue](048-a-typed-runtime-for-parsevalue.md)
-- [049. First-character dispatch in generated choices](049-first-character-dispatch-in-generated-choices.md)
-- [050. First-character dispatch in the closure backend](050-first-character-dispatch-in-the-closure-backend.md)
+- [026. Lambda calls without allocation in the closure backend](logs/026-lambda-calls-without-allocation-in-the-closure-backend.md)
+- [027. Struct and call operands on the expression stack in the closure backend](logs/027-struct-and-call-operands-on-the-expression-stack-in-the-closure-backend.md)
+- [028. Field lists and list built-ins without allocation in the generated parsers](logs/028-field-lists-and-list-built-ins-without-allocation-in-the-generated-parsers.md)
+- [029. Shifting reused subtrees into the parser's chunks](logs/029-shifting-reused-subtrees-into-the-parsers-chunks.md)
+- [030. Building the code-point offset table on demand](logs/030-building-the-code-point-offset-table-on-demand.md)
+- [031. Specialized character-class tests in the closure backend](logs/031-specialized-character-class-tests-in-the-closure-backend.md)
+- [032. Matching literals against loaded input in one loop](logs/032-matching-literals-against-loaded-input-in-one-loop.md)
+- [033. Smaller VM entries](logs/033-smaller-vm-entries.md)
+- [034. One frame per plain call in the iterative VM](logs/034-one-frame-per-plain-call-in-the-iterative-vm.md)
+- [035. Left-recursion growth without allocation](logs/035-left-recursion-growth-without-allocation.md)
+- [036. Comparing texts without boxing them](logs/036-comparing-texts-without-boxing-them.md)
+- [037. No intermediate lists in `concat`](logs/037-no-intermediate-lists-in-concat.md)
+- [038. Calling plain rules directly from closure call sites](logs/038-calling-plain-rules-directly-from-closure-call-sites.md)
+- [039. A line table for error positions](logs/039-a-line-table-for-error-positions.md)
+- [040. One pass to prepare code-point input in generated parsers](logs/040-one-pass-to-prepare-code-point-input-in-generated-parsers.md)
+- [041. Building the offset table while decoding, for full parses](logs/041-building-the-offset-table-while-decoding-for-full-parses.md)
+- [042. Generated calls of plain rules](logs/042-generated-calls-of-plain-rules.md)
+- [043. Direct calls of plain rules in the VMs](logs/043-direct-calls-of-plain-rules-in-the-vms.md)
+- [044. Changes 36 and 37 in the VMs (instruction set 2)](logs/044-changes-36-and-37-in-the-vms-instruction-set-2.md)
+- [045. Moving reused trees in place after document edits](logs/045-moving-reused-trees-in-place-after-document-edits.md)
+- [046. Direct calls of plain rules in generated parsers](logs/046-direct-calls-of-plain-rules-in-generated-parsers.md)
+- [047. Recognition in generated parsers](logs/047-recognition-in-generated-parsers.md)
+- [048. A typed runtime for ParseValue](logs/048-a-typed-runtime-for-parsevalue.md)
+- [049. First-character dispatch in generated choices](logs/049-first-character-dispatch-in-generated-choices.md)
+- [050. First-character dispatch in the closure backend](logs/050-first-character-dispatch-in-the-closure-backend.md)
 ## Records 51–98
-- [051. First-character dispatch in the VMs (instruction set 3)](051-first-character-dispatch-in-the-vms-instruction-set-3.md)
-- [052. Projected repetitions in generated `Parse`](052-projected-repetitions-in-generated-parse.md)
-- [053. Projected repetitions in the engine and the VMs](053-projected-repetitions-in-the-engine-and-the-vms.md)
-- [054. Resuming long repetitions in a `Document`](054-resuming-long-repetitions-in-a-document.md)
-- [055. Tracing hook on the call path](055-tracing-hook-on-the-call-path.md)
-- [056. Applying a `Document` edit to memo entries when they are looked up](056-applying-a-document-edit-to-memo-entries-when-they-are-looked-up.md)
-- [057. Pooling the scratch memory of whole-input parses](057-pooling-the-scratch-memory-of-whole-input-parses.md)
-- [058. Pooling the scratch memory of generated `Parse` and `Recognize`](058-pooling-the-scratch-memory-of-generated-parse-and-recognize.md)
-- [059. Resuming long repetitions in the VMs](059-resuming-long-repetitions-in-the-vms.md)
-- [060. Direct rules in the typed runtime](060-direct-rules-in-the-typed-runtime.md)
-- [061. Reading code points directly in direct rules](061-reading-code-points-directly-in-direct-rules.md)
-- [062. Comparing short literals in place in direct rules](062-comparing-short-literals-in-place-in-direct-rules.md)
-- [063. A smaller `Node`](063-a-smaller-node.md)
-- [064. A smaller `Node` in generated parsers](064-a-smaller-node-in-generated-parsers.md)
-- [065. Position conversion in the language server](065-position-conversion-in-the-language-server.md)
-- [066. No memo key allocated for variables where none is defined](066-no-memo-key-allocated-for-variables-where-none-is-defined.md)
-- [067. Retire memo entries when their lookup slots are removed](067-retire-memo-entries-when-their-lookup-slots-are-removed.md)
-- [068. Release construction tracking when an action returns nil](068-release-construction-tracking-when-an-action-returns-nil.md)
-- [069. Bound persistent variable binding histories](069-bound-persistent-variable-binding-histories.md)
-- [070. Keep repetition records across unchanged Document parses](070-keep-repetition-records-across-unchanged-document-parses.md)
-- [071. Dependency propagation for sample constructor analysis](071-dependency-propagation-for-sample-constructor-analysis.md)
-- [072. Reuse structurally equal duplicate capture types](072-reuse-structurally-equal-duplicate-capture-types.md)
-- [073. Dependency-component propagation of variable reads](073-dependency-component-propagation-of-variable-reads.md)
-- [074. Smaller first chunks for generated typed values](074-smaller-first-chunks-for-generated-typed-values.md)
-- [075. Exclude absent expectations before scanning](075-exclude-absent-expectations-before-scanning.md)
-- [076. Inline value-free plain generated Go rules](076-inline-value-free-plain-generated-go-rules.md)
-- [077. Inline value-building and memoized Node expressions in generated Go parsers](077-inline-node-expressions-in-generated-go-parsers.md)
-- [078. Local cuts in typed direct rules](078-local-cuts-in-typed-direct-rules.md)
-- [079. Inline eligible typed left-recursion bodies](079-inline-eligible-typed-left-recursion-bodies.md)
-- [080. Inline eligible typed Operators Rule line matchers](080-inline-eligible-typed-operators-rule-lines.md)
-- [081. Scoped cuts in unfinished typed Go bodies](081-scoped-cuts-in-unfinished-typed-go-bodies.md)
-- [082. Match typed direct bodies to general frame layouts](082-match-typed-direct-frame-layouts.md)
-- [083. Inline eligible typed recovery bodies](083-inline-typed-recovery-bodies.md)
-- [084. Complete typed Go-local capture layouts](084-complete-typed-local-capture-layouts.md)
-- [085. Reuse stream capture frames at element commit](085-reuse-stream-capture-frames.md)
-- [086. Reuse the Document VM value stack](086-reuse-document-vm-values.md)
-- [087. Store deferred-memo seen positions sparsely](087-sparse-deferred-memo-seen-pages.md)
-- [088. Share bounded stream text snapshots](088-share-bounded-stream-text-snapshots.md)
-- [089. Isolate stream prefixes and batch scratch cleanup](089-isolate-stream-prefixes-and-batch-scratch-cleanup.md)
-- [090. Share identical generated helpers and literal tables](090-share-identical-generated-helpers.md)
-- [091. Specialize pure literal-text disjunctions](091-specialize-pure-literal-text-disjunctions.md)
-- [092. Reuse generated Node capture scratch](092-reuse-generated-node-capture-scratch.md)
-- [093. Chunked input storage for Document edits](093-chunked-document-input.md)
-- [094. Generation-only typed-output liveness cleanup](094-generated-typed-output-liveness.md)
-- [095. Copy-on-change attribute normalization](095-attribute-copy-on-change.md)
-- [096. Specialize generated Go budget-control methods](096-specialize-generated-go-method-helpers.md)
-- [097. Exact Document Snapshot record sharing](097-exact-document-snapshot-record-sharing.md)
-- [098. Bootstrap generated typed output allocations](098-bootstrap-generated-typed-output-allocations.md)
+- [051. First-character dispatch in the VMs (instruction set 3)](logs/051-first-character-dispatch-in-the-vms-instruction-set-3.md)
+- [052. Projected repetitions in generated `Parse`](logs/052-projected-repetitions-in-generated-parse.md)
+- [053. Projected repetitions in the engine and the VMs](logs/053-projected-repetitions-in-the-engine-and-the-vms.md)
+- [054. Resuming long repetitions in a `Document`](logs/054-resuming-long-repetitions-in-a-document.md)
+- [055. Tracing hook on the call path](logs/055-tracing-hook-on-the-call-path.md)
+- [056. Applying a `Document` edit to memo entries when they are looked up](logs/056-applying-a-document-edit-to-memo-entries-when-they-are-looked-up.md)
+- [057. Pooling the scratch memory of whole-input parses](logs/057-pooling-the-scratch-memory-of-whole-input-parses.md)
+- [058. Pooling the scratch memory of generated `Parse` and `Recognize`](logs/058-pooling-the-scratch-memory-of-generated-parse-and-recognize.md)
+- [059. Resuming long repetitions in the VMs](logs/059-resuming-long-repetitions-in-the-vms.md)
+- [060. Direct rules in the typed runtime](logs/060-direct-rules-in-the-typed-runtime.md)
+- [061. Reading code points directly in direct rules](logs/061-reading-code-points-directly-in-direct-rules.md)
+- [062. Comparing short literals in place in direct rules](logs/062-comparing-short-literals-in-place-in-direct-rules.md)
+- [063. A smaller `Node`](logs/063-a-smaller-node.md)
+- [064. A smaller `Node` in generated parsers](logs/064-a-smaller-node-in-generated-parsers.md)
+- [065. Position conversion in the language server](logs/065-position-conversion-in-the-language-server.md)
+- [066. No memo key allocated for variables where none is defined](logs/066-no-memo-key-allocated-for-variables-where-none-is-defined.md)
+- [067. Retire memo entries when their lookup slots are removed](logs/067-retire-memo-entries-when-their-lookup-slots-are-removed.md)
+- [068. Release construction tracking when an action returns nil](logs/068-release-construction-tracking-when-an-action-returns-nil.md)
+- [069. Bound persistent variable binding histories](logs/069-bound-persistent-variable-binding-histories.md)
+- [070. Keep repetition records across unchanged Document parses](logs/070-keep-repetition-records-across-unchanged-document-parses.md)
+- [071. Dependency propagation for sample constructor analysis](logs/071-dependency-propagation-for-sample-constructor-analysis.md)
+- [072. Reuse structurally equal duplicate capture types](logs/072-reuse-structurally-equal-duplicate-capture-types.md)
+- [073. Dependency-component propagation of variable reads](logs/073-dependency-component-propagation-of-variable-reads.md)
+- [074. Smaller first chunks for generated typed values](logs/074-smaller-first-chunks-for-generated-typed-values.md)
+- [075. Exclude absent expectations before scanning](logs/075-exclude-absent-expectations-before-scanning.md)
+- [076. Inline value-free plain generated Go rules](logs/076-inline-value-free-plain-generated-go-rules.md)
+- [077. Inline value-building and memoized Node expressions in generated Go parsers](logs/077-inline-node-expressions-in-generated-go-parsers.md)
+- [078. Local cuts in typed direct rules](logs/078-local-cuts-in-typed-direct-rules.md)
+- [079. Inline eligible typed left-recursion bodies](logs/079-inline-eligible-typed-left-recursion-bodies.md)
+- [080. Inline eligible typed Operators Rule line matchers](logs/080-inline-eligible-typed-operators-rule-lines.md)
+- [081. Scoped cuts in unfinished typed Go bodies](logs/081-scoped-cuts-in-unfinished-typed-go-bodies.md)
+- [082. Match typed direct bodies to general frame layouts](logs/082-match-typed-direct-frame-layouts.md)
+- [083. Inline eligible typed recovery bodies](logs/083-inline-typed-recovery-bodies.md)
+- [084. Complete typed Go-local capture layouts](logs/084-complete-typed-local-capture-layouts.md)
+- [085. Reuse stream capture frames at element commit](logs/085-reuse-stream-capture-frames.md)
+- [086. Reuse the Document VM value stack](logs/086-reuse-document-vm-values.md)
+- [087. Store deferred-memo seen positions sparsely](logs/087-sparse-deferred-memo-seen-pages.md)
+- [088. Share bounded stream text snapshots](logs/088-share-bounded-stream-text-snapshots.md)
+- [089. Isolate stream prefixes and batch scratch cleanup](logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md)
+- [090. Share identical generated helpers and literal tables](logs/090-share-identical-generated-helpers.md)
+- [091. Specialize pure literal-text disjunctions](logs/091-specialize-pure-literal-text-disjunctions.md)
+- [092. Reuse generated Node capture scratch](logs/092-reuse-generated-node-capture-scratch.md)
+- [093. Chunked input storage for Document edits](logs/093-chunked-document-input.md)
+- [094. Generation-only typed-output liveness cleanup](logs/094-generated-typed-output-liveness.md)
+- [095. Copy-on-change attribute normalization](logs/095-attribute-copy-on-change.md)
+- [096. Specialize generated Go budget-control methods](logs/096-specialize-generated-go-method-helpers.md)
+- [097. Exact Document Snapshot record sharing](logs/097-exact-document-snapshot-record-sharing.md)
+- [098. Bootstrap generated typed output allocations](logs/098-bootstrap-generated-typed-output-allocations.md)
 
 ## Records 99 Onward
 
-- [099. Share Document snapshot child runs](099-share-document-snapshot-child-runs.md)
-- [100. Relative Snapshot Position Overlays](100-relative-snapshot-position-overlays.md)
-- [101. Skip positional items for action-free rules](101-skip-positional-items-for-action-free-rules.md)
-- [102. Read text struct fields without a struct lookup](102-read-text-struct-fields-without-a-struct-lookup.md)
-- [103. Inline the common budget charge](103-inline-the-common-budget-spend.md)
-- [104. Smaller generated Go parsers](104-smaller-generated-go-parsers.md)
-- [105. Character class tables in generated Go parsers](105-character-class-tables.md)
-- [106. Dropping what only non-start rule entries reach](106-start-rule-reachability.md)
-- [107. Shared shapers and a compact rule table](107-shared-shapers-and-compact-rule-table.md)
-- [108. Prologue and rollback helpers](108-prologue-and-rollback-helpers.md)
-- [109. One body for the invocation and the plain call](109-one-body-for-invoke-and-plain-call.md)
-- [110. No recovered-error rollback without recovery](110-no-recovered-rollback-without-recovery.md)
-- [111. Terminal programs in generated Go parsers](111-terminal-programs.md)
-- [112. Guarded first classes in generated Go parsers](112-guarded-first-classes.md)
-- [113. The action's rule name is set, not restored](113-action-rule-name-set-once.md)
-- [114. No comments on unexported generated code](114-no-comments-on-unexported-generated-code.md)
-- [115. Grouped variable declarations](115-grouped-variable-declarations.md)
-- [116. A short alias for the runtime import](116-short-runtime-import-alias.md)
-- [117. Straight-line actions and no unread variables in generated parsers](117-straight-line-generated-actions.md)
-- [118. TypeScript operator nodes are built directly](118-typescript-operator-nodes-built-directly.md)
-- [119. Case-insensitive literals in generated parsers](119-case-insensitive-literals.md)
-- [120. Unreachable rule bodies in generated parsers](120-unreachable-rule-bodies.md)
-- [121. Inactive budget-control checks in the generated Go runtime](121-inactive-budget-control-checks.md)
-- [122. Generated TypeScript printed from Flow IR](122-typescript-from-flow-ir.md)
-- [123. Smaller boilerplate in generated Go](123-smaller-generated-go-boilerplate.md)
-- [124. Coarse budget charges in the engine](124-coarse-engine-budget-charges.md)
-- [125. The cost of the default budget](125-default-budget-cost.md)
-- [126. Unreachable rule bodies in generated TypeScript](126-unreachable-rule-bodies-typescript.md)
-- [127. The depth limit counts recursion](127-depth-counted-by-recursion.md)
-- [128. Indexed variable environments](128-indexed-variable-environments.md)
-- [129. Expected-token sets are recorded on request](129-opt-in-expectations.md)
-- [130. Memoizing the members of left-recursion cycles](130-memoizing-members-of-left-recursion-cycles.md)
-- [131. Length of a node from its range](131-length-of-a-node-from-its-range.md)
-- [132. Records of the walks of recovery skips](132-records-of-recovery-skip-walks.md)
-- [133. Run records of restarted repetitions](133-run-records-of-restarted-repetitions.md)
-- [134. Records of single-character scans](134-records-of-single-character-scans.md)
-- [135. Shared recovered-error lists](135-shared-recovered-error-lists.md)
-- [136. Measured effect of the generation flags](136-measured-effect-of-the-generation-flags.md)
-- [137. Scan records on every target](137-scan-records-on-every-target.md)
-- [138. Typed-only output of generated TypeScript](138-typed-only-output-of-generated-typescript.md)
-- [139. Geometric typed value chunks](139-geometric-typed-value-chunks.md)
-- [140. Compute units counted down as fuel](140-compute-units-counted-down-as-fuel.md)
-- [141. Dispatch of the kept guards](141-dispatch-of-kept-guards.md)
-- [142. Canonicalization without flags](142-canonicalization-without-flags.md)
-- [143. Compact TypeScript Exec forms](143-compact-typescript-exec-forms.md)
-- [144. Library of the used features](144-library-of-the-used-features.md)
-- [145. TypeScript spend runs removed](145-typescript-spend-runs-removed.md)
-- [146. Outlined TypeScript nodes](146-outlined-typescript-nodes.md)
-- [147. Decoded text of generated Go Documents](147-decoded-text-of-generated-go-documents.md)
-- [148. Moving reused trees of generated Go Documents](148-moving-reused-trees-of-generated-go-documents.md)
-- [149. Kept child stack of generated Go Documents](149-kept-child-stack-of-generated-go-documents.md)
-- [150. Compact memo entries of generated Go](150-compact-memo-entries-of-generated-go.md)
+- [099. Share Document snapshot child runs](logs/099-share-document-snapshot-child-runs.md)
+- [100. Relative Snapshot Position Overlays](logs/100-relative-snapshot-position-overlays.md)
+- [101. Skip positional items for action-free rules](logs/101-skip-positional-items-for-action-free-rules.md)
+- [102. Read text struct fields without a struct lookup](logs/102-read-text-struct-fields-without-a-struct-lookup.md)
+- [103. Inline the common budget charge](logs/103-inline-the-common-budget-spend.md)
+- [104. Smaller generated Go parsers](logs/104-smaller-generated-go-parsers.md)
+- [105. Character class tables in generated Go parsers](logs/105-character-class-tables.md)
+- [106. Dropping what only non-start rule entries reach](logs/106-start-rule-reachability.md)
+- [107. Shared shapers and a compact rule table](logs/107-shared-shapers-and-compact-rule-table.md)
+- [108. Prologue and rollback helpers](logs/108-prologue-and-rollback-helpers.md)
+- [109. One body for the invocation and the plain call](logs/109-one-body-for-invoke-and-plain-call.md)
+- [110. No recovered-error rollback without recovery](logs/110-no-recovered-rollback-without-recovery.md)
+- [111. Terminal programs in generated Go parsers](logs/111-terminal-programs.md)
+- [112. Guarded first classes in generated Go parsers](logs/112-guarded-first-classes.md)
+- [113. The action's rule name is set, not restored](logs/113-action-rule-name-set-once.md)
+- [114. No comments on unexported generated code](logs/114-no-comments-on-unexported-generated-code.md)
+- [115. Grouped variable declarations](logs/115-grouped-variable-declarations.md)
+- [116. A short alias for the runtime import](logs/116-short-runtime-import-alias.md)
+- [117. Straight-line actions and no unread variables in generated parsers](logs/117-straight-line-generated-actions.md)
+- [118. TypeScript operator nodes are built directly](logs/118-typescript-operator-nodes-built-directly.md)
+- [119. Case-insensitive literals in generated parsers](logs/119-case-insensitive-literals.md)
+- [120. Unreachable rule bodies in generated parsers](logs/120-unreachable-rule-bodies.md)
+- [121. Inactive budget-control checks in the generated Go runtime](logs/121-inactive-budget-control-checks.md)
+- [122. Generated TypeScript printed from Flow IR](logs/122-typescript-from-flow-ir.md)
+- [123. Smaller boilerplate in generated Go](logs/123-smaller-generated-go-boilerplate.md)
+- [124. Coarse budget charges in the engine](logs/124-coarse-engine-budget-charges.md)
+- [125. The cost of the default budget](logs/125-default-budget-cost.md)
+- [126. Unreachable rule bodies in generated TypeScript](logs/126-unreachable-rule-bodies-typescript.md)
+- [127. The depth limit counts recursion](logs/127-depth-counted-by-recursion.md)
+- [128. Indexed variable environments](logs/128-indexed-variable-environments.md)
+- [129. Expected-token sets are recorded on request](logs/129-opt-in-expectations.md)
+- [130. Memoizing the members of left-recursion cycles](logs/130-memoizing-members-of-left-recursion-cycles.md)
+- [131. Length of a node from its range](logs/131-length-of-a-node-from-its-range.md)
+- [132. Records of the walks of recovery skips](logs/132-records-of-recovery-skip-walks.md)
+- [133. Run records of restarted repetitions](logs/133-run-records-of-restarted-repetitions.md)
+- [134. Records of single-character scans](logs/134-records-of-single-character-scans.md)
+- [135. Shared recovered-error lists](logs/135-shared-recovered-error-lists.md)
+- [136. Measured effect of the generation flags](logs/136-measured-effect-of-the-generation-flags.md)
+- [137. Scan records on every target](logs/137-scan-records-on-every-target.md)
+- [138. Typed-only output of generated TypeScript](logs/138-typed-only-output-of-generated-typescript.md)
+- [139. Geometric typed value chunks](logs/139-geometric-typed-value-chunks.md)
+- [140. Compute units counted down as fuel](logs/140-compute-units-counted-down-as-fuel.md)
+- [141. Dispatch of the kept guards](logs/141-dispatch-of-kept-guards.md)
+- [142. Canonicalization without flags](logs/142-canonicalization-without-flags.md)
+- [143. Compact TypeScript Exec forms](logs/143-compact-typescript-exec-forms.md)
+- [144. Library of the used features](logs/144-library-of-the-used-features.md)
+- [145. TypeScript spend runs removed](logs/145-typescript-spend-runs-removed.md)
+- [146. Outlined TypeScript nodes](logs/146-outlined-typescript-nodes.md)
+- [147. Decoded text of generated Go Documents](logs/147-decoded-text-of-generated-go-documents.md)
+- [148. Moving reused trees of generated Go Documents](logs/148-moving-reused-trees-of-generated-go-documents.md)
+- [149. Kept child stack of generated Go Documents](logs/149-kept-child-stack-of-generated-go-documents.md)
+- [150. Compact memo entries of generated Go](logs/150-compact-memo-entries-of-generated-go.md)
 
 ## Rejected Attempts
 
@@ -348,8 +348,8 @@ The records with status Rejected, with their result and the condition under whic
 <!-- generated:rejected -->
 | Record | Mechanisms | Result | Revisit when |
 |:--|:--|:--|:--|
-| [094. Generation-Only Typed-Output Liveness Cleanup](094-generated-typed-output-liveness.md) | A090 | Less retained heap on the direct typed path, but material small-input latency and allocation costs, and no reduction of retained heap or peak RSS on the conversion path | A revised design meets the cost limits of the default path while it keeps a meaningful benefit across direct and conversion results, returned matches, both position units, and ordinary and discard-heavy inputs |
-| [140. Compute Units Counted Down as Fuel](140-compute-units-counted-down-as-fuel.md) | none | No measurable change in time, allocations or bytes on any workload, for a library protocol change and two removed `Parser` fields | A later mechanism leaves count sites that are both hot and many, or a workload with heavy counting shows more than 5% overhead of the limits |
+| [094. Generation-Only Typed-Output Liveness Cleanup](logs/094-generated-typed-output-liveness.md) | A090 | Less retained heap on the direct typed path, but material small-input latency and allocation costs, and no reduction of retained heap or peak RSS on the conversion path | A revised design meets the cost limits of the default path while it keeps a meaningful benefit across direct and conversion results, returned matches, both position units, and ordinary and discard-heavy inputs |
+| [140. Compute Units Counted Down as Fuel](logs/140-compute-units-counted-down-as-fuel.md) | none | No measurable change in time, allocations or bytes on any workload, for a library protocol change and two removed `Parser` fields | A later mechanism leaves count sites that are both hot and many, or a workload with heavy counting shows more than 5% overhead of the limits |
 <!-- /generated:rejected -->
 
 ## Experiments That Did Not Pay Off
@@ -367,7 +367,7 @@ The records with status Rejected, with their result and the condition under whic
 | Inlining small plain rules into direct typed rules (after change 62; a body without calls of up to 16 expressions, also tried transitively) | `ParseValue` JSON −1% to −7% depending on the run, the other benchmarks within ±3% | Not adopted: no consistent gain for more generated code |
 | Setting the fields of the reused action context in place in direct typed rules, instead of copying a whole `tctx` | `ParseValue` JSON −5%, Outline +5%, the others within ±2% | Not adopted (noise) |
 | Memoizing every rule (classic packrat) | 2–3× slower than the transient policy on all workloads; memo entries were never reused for leaf and single-reference rules | Replaced by the transient policy (change 1) |
-| Counting compute units down as fuel to the next check, so that a count site loads one field and tests its sign ([record 140](140-compute-units-counted-down-as-fuel.md)) | `Parse` and `ParseValue` time within ±1% of the base (`4ad68de00` against its parent `361b3fbe5`, 10 rounds, A/A accepted) on JSON, XML and both arithmetic grammars; allocations and bytes unchanged; generated parsers 0.5–0.9% smaller | Rejected: no gain for a library protocol change and two removed `Parser` fields |
+| Counting compute units down as fuel to the next check, so that a count site loads one field and tests its sign ([record 140](logs/140-compute-units-counted-down-as-fuel.md)) | `Parse` and `ParseValue` time within ±1% of the base (`4ad68de00` against its parent `361b3fbe5`, 10 rounds, A/A accepted) on JSON, XML and both arithmetic grammars; allocations and bytes unchanged; generated parsers 0.5–0.9% smaller | Rejected: no gain for a library protocol change and two removed `Parser` fields |
 
 ## Grammar Authoring Guidelines for Performance
 

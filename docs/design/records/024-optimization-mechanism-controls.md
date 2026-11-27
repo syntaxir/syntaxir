@@ -34,7 +34,7 @@ the same semantic checks. Full benchmark checkpoints answer a third question:
 how the whole current tree performs on the standard workload. These results
 have different baselines and must remain distinguishable.
 
-The [ordinary typed-cut route](../../optimizations/078-local-cuts-in-typed-direct-rules.md#78-local-cuts-in-typed-direct-rules)
+The [ordinary typed-cut route](../../optimizations/logs/078-local-cuts-in-typed-direct-rules.md#78-local-cuts-in-typed-direct-rules)
 is a concrete example. The generated typed Go parser can be emitted through
 direct or general rule bodies at generation time. Its reference route does
 not need a flag in the generated parser's matching loop. The internal control
@@ -132,7 +132,7 @@ with per-parse resource options such as the proposed `ParseOption` API for
 depth limits. In particular, a public parser option is not an acceptable
 shortcut when it would check a mechanism flag in a hot call path.
 
-The [ordinary typed-cut route](../../optimizations/078-local-cuts-in-typed-direct-rules.md#78-local-cuts-in-typed-direct-rules)
+The [ordinary typed-cut route](../../optimizations/logs/078-local-cuts-in-typed-direct-rules.md#78-local-cuts-in-typed-direct-rules)
 is a concrete example of the first form: the latest generator emits general
 typed-rule bodies for the reference binary and direct bodies for the optimized
 binary. It is an internal control, not a stable public option or a promise

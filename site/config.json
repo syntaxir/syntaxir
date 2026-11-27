@@ -15,7 +15,7 @@
   ],
   "exclude": [
     "**/TEMPLATE.md",
-    "docs/optimizations/000-template.md"
+    "docs/optimizations/logs/000-template.md"
   ],
   "prettyURLs": true,
   "directoryLinks": true,
@@ -543,6 +543,7 @@
         "docs/design/*.md",
         "docs/design/implementation/*.md",
         "docs/optimizations/*.md",
+        "docs/optimizations/logs/*.md",
         "docs/optimizations/mechanisms/*.md"
       ],
       "children": [
@@ -647,6 +648,7 @@
     {
       "match": [
         "docs/optimizations/*.md",
+        "docs/optimizations/logs/*.md",
         "docs/optimizations/mechanisms/*.md"
       ],
       "values": {
@@ -740,7 +742,7 @@
   "redirects": {
     "/docs/optimizations/mechanisms/A010-compact-node-representation/": "/docs/design/implementation/node-layout/",
     "/docs/optimizations/mechanisms/A050-streaming-state-reuse/": "/docs/design/implementation/stream-storage/",
-    "/docs/optimizations/mechanisms/A090-typed-output-liveness-cleanup/": "/docs/optimizations/094-generated-typed-output-liveness/",
+    "/docs/optimizations/mechanisms/A090-typed-output-liveness-cleanup/": "/docs/optimizations/logs/094-generated-typed-output-liveness/",
     "/docs/optimizations/mechanisms/A110-expected-set-ids/": "/docs/design/implementation/expectation-sets/",
     "/docs/optimizations/mechanisms/E020-value-free-rule-twins/": "/docs/design/implementation/value-free-twins/",
     "/docs/optimizations/mechanisms/E040-recognition-lowering/": "/docs/design/implementation/recognition-lowering/",
@@ -779,9 +781,9 @@
     "/spec/exec-ir/text-form/": "/spec/code-ir/text-form/",
     "/docs/design/records/005-pratt-expressions/": "/docs/design/records/005-operators-rule/",
     "/docs/design/records/050-pratt-skip-control/": "/docs/design/records/050-operators-rule-skip-control/",
-    "/docs/optimizations/009-value-free-pratt-lines-discarding-trivia-in-example-grammars-936857c/": "/docs/optimizations/009-value-free-operators-rule-lines-discarding-trivia-in-example-grammars-936857c/",
-    "/docs/optimizations/013-allocation-free-pratt-attempts-and-pooled-pratt-frames-in-the-engine-and-vms/": "/docs/optimizations/013-allocation-free-operators-rule-attempts-and-pooled-operators-rule-frames-in-the-engine-and-vms/",
-    "/docs/optimizations/080-inline-eligible-typed-pratt-lines/": "/docs/optimizations/080-inline-eligible-typed-operators-rule-lines/",
+    "/docs/optimizations/009-value-free-pratt-lines-discarding-trivia-in-example-grammars-936857c/": "/docs/optimizations/logs/009-value-free-operators-rule-lines-discarding-trivia-in-example-grammars-936857c/",
+    "/docs/optimizations/013-allocation-free-pratt-attempts-and-pooled-pratt-frames-in-the-engine-and-vms/": "/docs/optimizations/logs/013-allocation-free-operators-rule-attempts-and-pooled-operators-rule-frames-in-the-engine-and-vms/",
+    "/docs/optimizations/080-inline-eligible-typed-pratt-lines/": "/docs/optimizations/logs/080-inline-eligible-typed-operators-rule-lines/",
     "/docs/guide/runtime/": "/docs/guide/running-parsers/",
     "/docs/guide/trees-and-actions/": "/docs/guide/shaping-trees/",
     "/docs/guide/expressions/": "/docs/guide/operators-rule/",

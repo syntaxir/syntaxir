@@ -28,7 +28,7 @@
   allocations for Recovery in this schedule; this is Node-construction
   propagation, not typed-emitter adoption or retained-heap evidence.
   The full-suite snapshot at `b43c759` includes this change; see
-  [Where SyntaxIR stands](../performance.md#where-syntaxir-stands) for current
+  [Where SyntaxIR stands](../../performance.md#where-syntaxir-stands) for current
   comparisons. That run is not paired attribution for this optimization.
 - Three paired isolated compiler runs (`go tool compile -pack`, shared
   standard-library export files) measured median candidate/baseline ratios

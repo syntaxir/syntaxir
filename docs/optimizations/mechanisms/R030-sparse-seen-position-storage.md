@@ -39,7 +39,7 @@ Generated TypeScript has separately scoped Node measurements; typed-array
 capacity is not JavaScript heap. Storage-only probes support no timing claim,
 and 32-bit effects remain unmeasured.
 
-Evidence records: [087](../087-sparse-deferred-memo-seen-pages.md).
+Evidence records: [087](../logs/087-sparse-deferred-memo-seen-pages.md).
 
 Source owners: [`sparse memo
 selection`](../../../internal/runtime/state/sparse_memo.go),

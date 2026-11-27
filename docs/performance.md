@@ -32,7 +32,7 @@ benchmarks added since that run, of short inputs, of the first parse of a proces
 This analysis describes the full-suite snapshot in [benchmarks.md](benchmarks.md), measured on <!-- fig:run-date -->2026-10-29<!-- /fig --> at commit `<!-- fig:run-commit -->13b3d186<!-- /fig -->` (Go 1.27.1, Apple M3 Max, darwin/arm64, 16 cores, `GOMAXPROCS=16`). It contains 253 benchmark cases, three samples per case, and the Go benchmarks took 892.334 seconds; the generated TypeScript timings were captured in the same run. The parser sizes come from commit `14d8dbee7`: they do not depend on the machine or the run, and were collected when the deterministic metrics first could. This is one revision's snapshot, not a before-and-after comparison; ratios below compare operations within this run and do not attribute changes to a particular mechanism.
 Budget-control behavior and its generated-Go cost are described in
 [design 033](design/records/033-cancellable-parses-and-budgets.md) and
-[optimization record 096](optimizations/096-specialize-generated-go-method-helpers.md).
+[optimization record 096](optimizations/logs/096-specialize-generated-go-method-helpers.md).
 The snapshot measures active controls on JSON and XML (`BudgetControlModes`, `ControlledParse`); its ordinary parsing
 benchmarks ran with the controls inactive, because parses had no default compute limit until after that commit. Today
 `BenchmarkParse` runs with the default finite compute limit, and the inactive control is the `plain` configuration of
@@ -45,8 +45,8 @@ the same allocation counts. Generated Go with finite compute limits takes 1.30�
 
 **Typed values.** `ParseValue` directly constructs values for JSON, CSV, XML, both calculator grammars and Outline. For those six direct workloads, it takes 0.69–0.98× generated CodePoints `Parse` time and allocates 0.27–0.41× its bytes. Minilang and Recovery use converted output: `ParseValue` takes 0.95× generated `Parse` time on both and allocates 0.28× and 0.30× its bytes, respectively. On JSON and XML, direct `ParseValue` takes 1.11× and 1.33× standard-library time, with 1.18× and 1.25× its allocated bytes. These operations return different structures and should not be treated as equivalent outputs. CSV constructs typed `File`, `Record` and `Field` values directly.
 
-Generated typed-output liveness cleanup is not implemented. Its scope and measurement gates are in [design 034](design/records/034-typed-output-liveness.md); [record 094](optimizations/094-generated-typed-output-liveness.md) holds the measured candidate.
-A separate generated-Go typed-allocation bootstrap and its focused measurements are recorded in [optimization record 098](optimizations/098-bootstrap-generated-typed-output-allocations.md); they are not part of this full-suite snapshot.
+Generated typed-output liveness cleanup is not implemented. Its scope and measurement gates are in [design 034](design/records/034-typed-output-liveness.md); [record 094](optimizations/logs/094-generated-typed-output-liveness.md) holds the measured candidate.
+A separate generated-Go typed-allocation bootstrap and its focused measurements are recorded in [optimization record 098](optimizations/logs/098-bootstrap-generated-typed-output-allocations.md); they are not part of this full-suite snapshot.
 
 **Recognition.** Across all eight workloads in CodePoints, closure recognition takes 0.62–0.80× closure Node-parse time, while generated recognition takes 0.43–0.70× generated Node-parse time. Simple grammars can recognize with zero allocations; predicates that read values (XML tag names, Outline indentation), left-recursion growth and recovery still require values or state. Typed `ParseValue` takes 1.54× generated `Recognize` time on JSON and 1.56× on XML because it returns typed values.
 
@@ -83,12 +83,12 @@ commit `2ef247b`, five alternating 500 ms rounds against the original parent
 measured 0.941–0.948× median time across Parse and Recognize, with lower
 allocations and matching input and Node output. A same-source disabled control
 also favored scratch in the medians. Intervening changes prevent attribution
-of the parent comparison to scratch. [Record 092](optimizations/092-reuse-generated-node-capture-scratch.md)
+of the parent comparison to scratch. [Record 092](optimizations/logs/092-reuse-generated-node-capture-scratch.md)
 preserves the earlier result, the paired ranges, and the measurement limits.
 
-**Streaming.** In this run, reading and discarding 50,000 CSV records plus the header takes 78.5–99.0 ms and 22–28 MB/s. Cumulative allocation is 94.8–106 MB/op, or about 44–49 bytes per input byte. The SyntaxIR streaming backends allocate about 0.16–0.21 objects per data record. Batch closure parsing of 5,000 records (211 KB) uses about 28 bytes per input byte and 0.06 allocations per record. These are cumulative allocation figures, not retained-heap measurements. The focused stream-storage measurements are described in [record 089](optimizations/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md). The full snapshot does not isolate the effect of any individual change.
+**Streaming.** In this run, reading and discarding 50,000 CSV records plus the header takes 78.5–99.0 ms and 22–28 MB/s. Cumulative allocation is 94.8–106 MB/op, or about 44–49 bytes per input byte. The SyntaxIR streaming backends allocate about 0.16–0.21 objects per data record. Batch closure parsing of 5,000 records (211 KB) uses about 28 bytes per input byte and 0.06 allocations per record. These are cumulative allocation figures, not retained-heap measurements. The focused stream-storage measurements are described in [record 089](optimizations/logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md). The full snapshot does not isolate the effect of any individual change.
 
-**Preparation.** A compiled grammar holds the module of one mode. Loading a `.sxirc` file in this snapshot takes 0.15× (JSON) and 0.07× (Minilang) of source-compilation time in parse mode, 0.09× and 0.05× in recognize mode, and 0.16× and 0.08× in document mode. Loading runs on the bytecode backend and includes backend setup by one parse that the mode serves, with empty input. Focused allocation and timing measurements for attribute normalization are recorded in [optimization 095](optimizations/095-attribute-copy-on-change.md); this full snapshot does not attribute preparation results to that mechanism.
+**Preparation.** A compiled grammar holds the module of one mode. Loading a `.sxirc` file in this snapshot takes 0.15× (JSON) and 0.07× (Minilang) of source-compilation time in parse mode, 0.09× and 0.05× in recognize mode, and 0.16× and 0.08× in document mode. Loading runs on the bytecode backend and includes backend setup by one parse that the mode serves, with empty input. Focused allocation and timing measurements for attribute normalization are recorded in [optimization 095](optimizations/logs/095-attribute-copy-on-change.md); this full snapshot does not attribute preparation results to that mechanism.
 
 ## How to Measure
 
@@ -317,7 +317,7 @@ list bootstrap followed by slabs; `legacy` disables that bootstrap while
 retaining the 8-value and 64-element slab policy. The other controls disable
 object slabs, list slabs or both at generation time. Clone reachable text
 before dropping the parser and input so legitimate input-string retention
-does not count as slab retention. See [record 098](optimizations/098-bootstrap-generated-typed-output-allocations.md)
+does not count as slab retention. See [record 098](optimizations/logs/098-bootstrap-generated-typed-output-allocations.md)
 for the focused results and limits.
 
 ```bash
@@ -440,7 +440,7 @@ workloads that `TestGeneratedTSTypedWorkloads` and `TestGeneratedTSTypedSharedDA
 alternating them in each round, run at least six rounds, and compare medians and ranges. The form without
 The form with limit controls is the default and `-no-limits` generates the form without them, so compare the two
 forms separately. Results are in
-[record 122](optimizations/122-typescript-from-flow-ir.md).
+[record 122](optimizations/logs/122-typescript-from-flow-ir.md).
 
 ## Mechanism Catalog
 

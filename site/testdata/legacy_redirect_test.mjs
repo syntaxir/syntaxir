@@ -4,7 +4,7 @@ import { installLegacyOptimizationRedirects } from "../static/assets/legacy-redi
 
 function harness(hash = "") {
   const targets = new Map([
-    ["77-inline-node-expressions", "../optimizations/077-inline-node-expressions/#77-inline-node-expressions"],
+    ["77-inline-node-expressions", "../optimizations/logs/077-inline-node-expressions/#77-inline-node-expressions"],
   ]);
   const replaced = [];
   const listeners = new Map();
@@ -27,7 +27,7 @@ function harness(hash = "") {
 
 test("redirects a legacy fragment during page startup", () => {
   const h = harness("#77-inline-node-expressions");
-  assert.deepEqual(h.replaced, ["../optimizations/077-inline-node-expressions/#77-inline-node-expressions"]);
+  assert.deepEqual(h.replaced, ["../optimizations/logs/077-inline-node-expressions/#77-inline-node-expressions"]);
   assert.equal(h.listeners.has("hashchange"), true);
 });
 
@@ -35,7 +35,7 @@ test("redirects legacy fragments after later navigation", () => {
   const h = harness();
   h.win.location.hash = "#77-inline-node-expressions";
   h.listeners.get("hashchange")();
-  assert.deepEqual(h.replaced, ["../optimizations/077-inline-node-expressions/#77-inline-node-expressions"]);
+  assert.deepEqual(h.replaced, ["../optimizations/logs/077-inline-node-expressions/#77-inline-node-expressions"]);
 });
 
 test("leaves unknown and malformed fragments alone", () => {

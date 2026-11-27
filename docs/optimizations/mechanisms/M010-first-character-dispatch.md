@@ -55,11 +55,11 @@ the percentages cannot be combined or generalized to unknown starts or current
 TypeScript workloads.
 
 Evidence records:
-[049](../049-first-character-dispatch-in-generated-choices.md),
-[050](../050-first-character-dispatch-in-the-closure-backend.md),
-[051](../051-first-character-dispatch-in-the-vms-instruction-set-3.md),
-[112](../112-guarded-first-classes.md),
-[136](../136-measured-effect-of-the-generation-flags.md).
+[049](../logs/049-first-character-dispatch-in-generated-choices.md),
+[050](../logs/050-first-character-dispatch-in-the-closure-backend.md),
+[051](../logs/051-first-character-dispatch-in-the-vms-instruction-set-3.md),
+[112](../logs/112-guarded-first-classes.md),
+[136](../logs/136-measured-effect-of-the-generation-flags.md).
 
 Source owners: [`Guards pass`](../../../internal/middleend/corepass/passes.go), the
 `guarded-classes` Flow pass,

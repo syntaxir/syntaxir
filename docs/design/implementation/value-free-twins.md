@@ -28,7 +28,7 @@ depend on it, so a parser without twins would count differently and is not a mai
 Record 001 measures twins together with value-free bodies and the transient memo policy, so its JSON reductions of time
 and allocation cannot be attributed to twins alone. No isolated effect of twins is reported today.
 
-Evidence records: [001](../../optimizations/001-value-free-rule-bodies-value-free-twins-transient-rules-0b2c903.md).
+Evidence records: [001](../../optimizations/logs/001-value-free-rule-bodies-value-free-twins-transient-rules-0b2c903.md).
 
 Packages: `internal/frontend/check` (the twins and their eligibility), the bytecode compiler (the calls of twins),
 and the Go and TypeScript generators.

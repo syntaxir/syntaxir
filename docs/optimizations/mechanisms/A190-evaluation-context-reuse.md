@@ -28,7 +28,7 @@ reduced allocation counts. That combined result cannot assign a separate context
 speedup, and direct typed code may avoid the context entirely.
 
 Evidence records:
-[010](../010-zero-copy-token-text-reusable-evaluation-context.md).
+[010](../logs/010-zero-copy-token-text-reusable-evaluation-context.md).
 
 Source owners: [`parser.useCtx`](../../../internal/runtime/state/alloc.go), [`generated
 useCtx`](../../../pkg/runtime/libgo/lib.go), [`typed

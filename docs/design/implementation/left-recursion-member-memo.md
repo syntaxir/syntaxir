@@ -33,7 +33,7 @@ neither is a maintained form of the same contract.
 
 ## Evidence
 
-Evidence record: [130](../../optimizations/130-memoizing-members-of-left-recursion-cycles.md).
+Evidence record: [130](../../optimizations/logs/130-memoizing-members-of-left-recursion-cycles.md).
 
 Packages: `internal/frontend/check` (the memo flags and the numbers of cycles), `internal/runtime/state` (calls,
 growths, the context state and the dependency memo of the engine), `pkg/runtime/libgo` (those of generated Go parsers),

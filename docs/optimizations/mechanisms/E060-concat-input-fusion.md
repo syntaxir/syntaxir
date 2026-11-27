@@ -30,8 +30,8 @@ CSV from 15.6 to 14.0 MB in closure/generated paths. Record 044 ports fusion and
 native text comparisons to VMs with timing within roughly 3%. These results do
 not establish a current isolated effect in all targets.
 
-Evidence records: [037](../037-no-intermediate-lists-in-concat.md),
-[044](../044-changes-36-and-37-in-the-vms-instruction-set-2.md).
+Evidence records: [037](../logs/037-no-intermediate-lists-in-concat.md),
+[044](../logs/044-changes-36-and-37-in-the-vms-instruction-set-2.md).
 
 Source owners: [`concat element evaluation`](../../../internal/runtime/state/eval.go),
 the action lowering of the Exec IR,

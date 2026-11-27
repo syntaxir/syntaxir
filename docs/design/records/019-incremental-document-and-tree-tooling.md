@@ -25,7 +25,7 @@ SyntaxIR's [input representation](../../../internal/runtime/state/input.go), [Do
 [incremental tests](../../../internal/runtime/engine/document_test.go) and
 [interruption tests](../../../internal/runtime/document/document_abort_test.go) establish the current behavior.
 Equivalent SyntaxIR and Tree-sitter workloads have not been benchmarked for this proposal. Expected performance benefits
-remain hypotheses; existing engine memo retirement has focused measurements in [optimization 067](../../optimizations/067-retire-memo-entries-when-their-lookup-slots-are-removed.md).
+remain hypotheses; existing engine memo retirement has focused measurements in [optimization 067](../../optimizations/logs/067-retire-memo-entries-when-their-lookup-slots-are-removed.md).
 
 Relevant upstream interfaces include [chunked input](https://tree-sitter.github.io/tree-sitter/using-parsers/2-basic-parsing.html),
 [static node types](https://tree-sitter.github.io/tree-sitter/using-parsers/6-static-node-types.html),

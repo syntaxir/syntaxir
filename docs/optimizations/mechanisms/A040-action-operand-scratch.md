@@ -35,10 +35,10 @@ action plumbing from about 40.6k to 0.6k in 027. These are historical
 backend/workload-specific comparisons, not one combined or current effect
 estimate.
 
-Evidence records: [014](../014-one-operand-stack-for-vm-expression-code.md),
-[015](../015-allocation-free-action-plumbing-in-all-backends.md),
-[027](../027-struct-and-call-operands-on-the-expression-stack-in-the-closure-backend.md),
-[028](../028-field-lists-and-list-built-ins-without-allocation-in-the-generated-parsers.md).
+Evidence records: [014](../logs/014-one-operand-stack-for-vm-expression-code.md),
+[015](../logs/015-allocation-free-action-plumbing-in-all-backends.md),
+[027](../logs/027-struct-and-call-operands-on-the-expression-stack-in-the-closure-backend.md),
+[028](../logs/028-field-lists-and-list-built-ins-without-allocation-in-the-generated-parsers.md).
 
 Source owners: [`evalCtx`](../../../internal/runtime/state/eval.go), [`engine action programs`](../../../internal/runtime/state/),
 [`action registers and operator

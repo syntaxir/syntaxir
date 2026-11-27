@@ -9,7 +9,7 @@
 Generated typed parsers allocate returned structs, terminals, matches and list backing cells in chunks. A small returned value can keep unused siblings in those chunks alive. This design considers preserving slab allocation while clearing only storage proven unreachable from the final returned value. Clearing must wait until parsing, recovery, conversion and publication have finished; clearing during backtracking or action evaluation is unsafe.
 
 The measured candidate had separate full-sweep and bounded-sweep variants, selected only at generation time and disabled by default, for generated Go typed results on direct typed and conversion-based `ParseValue`/`ParseRuleValue` paths, including returned `Match` values and owned backing cells. The generator no longer contains them: they rewrote the generated runtime's source, and generated parsers share one grammar-independent runtime. A future candidate must be a runtime mechanism selected per parse or per grammar.
-A separate per-owner allocation bootstrap is adopted in [optimization record 098](../../optimizations/098-bootstrap-generated-typed-output-allocations.md). It changes the allocation pattern before slab growth rather than clearing unreachable cells; its measurements do not change the status of these sweep controls.
+A separate per-owner allocation bootstrap is adopted in [optimization record 098](../../optimizations/logs/098-bootstrap-generated-typed-output-allocations.md). It changes the allocation pattern before slab growth rather than clearing unreachable cells; its measurements do not change the status of these sweep controls.
 
 ## Current Candidate Scope
 
@@ -17,11 +17,11 @@ Both variants run at the final typed-result publication boundary, after parsing 
 
 Both variants must preserve pointer identity, aliases, cycles, contents, slice headers and every cell visible through a published slice capacity. Interior pointers into scalar fields require retaining the enclosing owner and tracing its descendants to a fixed point. Unknown aliases, unsupported dynamic values or otherwise unproven ownership must take the keep-all path. Cleanup must not run during backtracking, action evaluation, memo pruning, recovery or left-recursion/Operators Rule growth. The generated parser has no parser-time selector: the variant is selected only while generating code.
 
-Focused correctness gates and full local validation passed for the measured candidate. Current direct and conversion measurements are summarized in [optimization record 094](../../optimizations/094-generated-typed-output-liveness.md). Earlier prototype measurements came from other source revisions and are not repeated here. Measured small-input overhead, bounded-path allocation increases, and the absence of conversion-path retained-heap reduction leave both controls default-off.
+Focused correctness gates and full local validation passed for the measured candidate. Current direct and conversion measurements are summarized in [optimization record 094](../../optimizations/logs/094-generated-typed-output-liveness.md). Earlier prototype measurements came from other source revisions and are not repeated here. Measured small-input overhead, bounded-path allocation increases, and the absence of conversion-path retained-heap reduction leave both controls default-off.
 
 ## Motivation
 
-Chunk allocation reduces allocation overhead but may retain unreachable siblings. Earlier full-sweep and bounded prototype measurements came from different source revisions and are historical observations, not evidence for the current candidate. Current measurements and their limits are collected in [optimization record 094](../../optimizations/094-generated-typed-output-liveness.md). The candidate remains default-off because the measured small-input and allocation costs are material and conversion results show no retained-memory benefit.
+Chunk allocation reduces allocation overhead but may retain unreachable siblings. Earlier full-sweep and bounded prototype measurements came from different source revisions and are historical observations, not evidence for the current candidate. Current measurements and their limits are collected in [optimization record 094](../../optimizations/logs/094-generated-typed-output-liveness.md). The candidate remains default-off because the measured small-input and allocation costs are material and conversion results show no retained-memory benefit.
 
 ## Goals
 
@@ -96,7 +96,7 @@ for variant in ref sweep bounded; do
 done
 ```
 
-The comparison protocol and measured phases are recorded in [optimization record 094](../../optimizations/094-generated-typed-output-liveness.md). Keep the exact-parent and same-source reference comparisons distinct. Report latency, allocation, peak process RSS and post-GC retained heap separately; a retained-heap reduction alone is insufficient evidence for adoption.
+The comparison protocol and measured phases are recorded in [optimization record 094](../../optimizations/logs/094-generated-typed-output-liveness.md). Keep the exact-parent and same-source reference comparisons distinct. Report latency, allocation, peak process RSS and post-GC retained heap separately; a retained-heap reduction alone is insufficient evidence for adoption.
 
 ## Limitations and Open Questions
 

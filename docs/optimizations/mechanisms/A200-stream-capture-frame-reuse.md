@@ -32,7 +32,7 @@ time ratios are 0.988/0.994/1.000 and ranges overlap parity. Unicode stream
 cases also lower allocated volume. These results support scratch reuse, not a
 clear broad speedup or removal of input/capture-value copying.
 
-Evidence records: [085](../085-reuse-stream-capture-frames.md).
+Evidence records: [085](../logs/085-reuse-stream-capture-frames.md).
 
 Source owners: [`stream frame
 allocation/commit`](../../../internal/runtime/state/runtime.go), [`frame reuse

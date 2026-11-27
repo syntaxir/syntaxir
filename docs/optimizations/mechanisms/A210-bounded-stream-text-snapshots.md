@@ -30,7 +30,7 @@ workload-specific timing benefits. Small recursive-VM CodePoints streams cost
 about 3% more; most small paired timing ranges overlap parity. Fewer objects do
 not ensure less allocated volume or faster every stream.
 
-Evidence records: [088](../088-share-bounded-stream-text-snapshots.md).
+Evidence records: [088](../logs/088-share-bounded-stream-text-snapshots.md).
 
 Source owners: [`bounded snapshot
 cache`](../../../internal/runtime/state/stream_text_snapshots.go), [`copy

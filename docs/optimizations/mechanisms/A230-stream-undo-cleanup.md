@@ -30,7 +30,7 @@ allocated bytes and do not assign the combined reduction entirely to this
 cleanup.
 
 Evidence records:
-[089](../089-isolate-stream-prefixes-and-batch-scratch-cleanup.md).
+[089](../logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md).
 
 Source owners: [`undo backing
 cleanup`](../../../internal/runtime/state/stream_undo.go), [`parser.commit and

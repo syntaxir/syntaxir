@@ -16,7 +16,7 @@ Every page has one job, and a reader should be able to tell which from the direc
 | Specification | `spec/` | Defines the behavior that implementations must have | [TEMPLATE.md](../spec/TEMPLATE.md) |
 | Design overview | `docs/design/` | Explains the stable base design: stages, representations, invariants and the reasons for them. It holds what the code does not show or shows only with difficulty, and leaves field lists, file inventories and per-function detail to the code and its package comments; a fact that changes often does not belong. A precise list is replaced by a pointer to the package | None; a page opens with what it explains |
 | Design record | `docs/design/records/` | Records a decision, its alternatives and its validation | [000-template.md](design/records/000-template.md) |
-| Optimization record | `docs/optimizations/` | Records a measured mechanism | [000-template.md](optimizations/000-template.md) |
+| Optimization record | `docs/optimizations/logs/` | Records a measured mechanism | [000-template.md](optimizations/logs/000-template.md) |
 
 A page that does two jobs is two pages. A guide that grows a section a reader would look for on its own, or that
 mixes several independent options of a command, is split; a recipe that explains a feature points to the guide instead.

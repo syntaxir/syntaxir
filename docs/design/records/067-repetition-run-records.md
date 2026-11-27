@@ -21,7 +21,7 @@ IR; none is edited by hand.
 
 **Status.** Stage (A) is implemented in the engine for the closure backend and both bytecode VMs, with the
 exactness and eligibility rules of [Run Sites](../../../spec/runtime/parsing.md#run-sites) and the measurements of
-[Optimization 133](../../optimizations/133-run-records-of-restarted-repetitions.md). Not implemented: the classifier
+[Optimization 133](../../optimizations/logs/133-run-records-of-restarted-repetitions.md). Not implemented: the classifier
 does not yet count a run site as Linear (its marking is off, so the classes do not move), the records for the
 Operators Rule (B) and the size argument for copying (C), the operations in Exec IR, and records in the generated Go
 and TypeScript runtimes. The sections below keep the full design.
@@ -233,7 +233,7 @@ produced by the Exec IR lowering once Exec IR holds the runtime core; no generat
   value-free elements is expected to be the cost driver and is what the measurement must show.
 - A marked repetition that is walked once from each position pays a test and a store per walk and keeps nothing: the
   hot test above, and the restartable condition, keep the cost of grammars that gain nothing from records close to
-  that of the engine without run sites. The measurements are in [Optimization 133](../../optimizations/133-run-records-of-restarted-repetitions.md).
+  that of the engine without run sites. The measurements are in [Optimization 133](../../optimizations/logs/133-run-records-of-restarted-repetitions.md).
 - Records are kept only for the walks of a hot site. A hot site pays a bit per position between its first and last walk,
   and a record per iteration boundary of the walks that visit a position again.
 - A parse with no marked repetition is unchanged.

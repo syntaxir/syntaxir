@@ -73,14 +73,14 @@ The records measured each part against the general route of its time, which no l
 
 These results concern their fixtures and the routes of their time; they do not establish a broad speedup today.
 
-Evidence records: [060](../../optimizations/060-direct-rules-in-the-typed-runtime.md),
-[078](../../optimizations/078-local-cuts-in-typed-direct-rules.md),
-[079](../../optimizations/079-inline-eligible-typed-left-recursion-bodies.md),
-[080](../../optimizations/080-inline-eligible-typed-operators-rule-lines.md),
-[081](../../optimizations/081-scoped-cuts-in-unfinished-typed-go-bodies.md),
-[082](../../optimizations/082-match-typed-direct-frame-layouts.md),
-[083](../../optimizations/083-inline-typed-recovery-bodies.md),
-[084](../../optimizations/084-complete-typed-local-capture-layouts.md).
+Evidence records: [060](../../optimizations/logs/060-direct-rules-in-the-typed-runtime.md),
+[078](../../optimizations/logs/078-local-cuts-in-typed-direct-rules.md),
+[079](../../optimizations/logs/079-inline-eligible-typed-left-recursion-bodies.md),
+[080](../../optimizations/logs/080-inline-eligible-typed-operators-rule-lines.md),
+[081](../../optimizations/logs/081-scoped-cuts-in-unfinished-typed-go-bodies.md),
+[082](../../optimizations/logs/082-match-typed-direct-frame-layouts.md),
+[083](../../optimizations/logs/083-inline-typed-recovery-bodies.md),
+[084](../../optimizations/logs/084-complete-typed-local-capture-layouts.md).
 
 Packages: `internal/middleend/flowplan` and `internal/middleend/flowlower` (the typed plan and its lowering),
 `internal/backend/codegen/golang/print` (the printer) and `pkg/runtime/libgo` (the frames the library owns).

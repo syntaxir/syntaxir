@@ -80,5 +80,5 @@ The measured revision was based on `97668bc` with the literal-dispatch change.
 Full generated plain-Go, typed-Go and TypeScript corpus validation and all
 parser-module suites pass. The clean 131-case, three-sample full snapshot at
 [c85db9e](https://github.com/syntaxir/syntaxir/commit/c85db9e5e6fa2d2b84e0327e5ba4ffbc4b010dc8)
-is recorded in [the full results](../benchmarks.md), without attributing it to
+is recorded in [the full results](../../benchmarks.md), without attributing it to
 this optimization.

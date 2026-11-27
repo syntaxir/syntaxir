@@ -34,15 +34,15 @@ These are successive historical comparisons, not independently additive current
 effects.
 
 Evidence records:
-[019](../019-a-plain-call-path-for-unmemoized-rules-without-captures.md),
-[021](../021-changes-18-and-19-in-the-generated-parsers.md),
-[024](../024-the-plain-call-path-in-the-iterative-vm.md),
-[034](../034-one-frame-per-plain-call-in-the-iterative-vm.md),
-[038](../038-calling-plain-rules-directly-from-closure-call-sites.md),
-[042](../042-generated-calls-of-plain-rules.md),
-[043](../043-direct-calls-of-plain-rules-in-the-vms.md),
-[046](../046-direct-calls-of-plain-rules-in-generated-parsers.md),
-[060](../060-direct-rules-in-the-typed-runtime.md).
+[019](../logs/019-a-plain-call-path-for-unmemoized-rules-without-captures.md),
+[021](../logs/021-changes-18-and-19-in-the-generated-parsers.md),
+[024](../logs/024-the-plain-call-path-in-the-iterative-vm.md),
+[034](../logs/034-one-frame-per-plain-call-in-the-iterative-vm.md),
+[038](../logs/038-calling-plain-rules-directly-from-closure-call-sites.md),
+[042](../logs/042-generated-calls-of-plain-rules.md),
+[043](../logs/043-direct-calls-of-plain-rules-in-the-vms.md),
+[046](../logs/046-direct-calls-of-plain-rules-in-generated-parsers.md),
+[060](../logs/060-direct-rules-in-the-typed-runtime.md).
 
 Source owners: the plain-rule classification in the front end's check package,
 [`parser.invokePlain`](../../../internal/runtime/state/runtime.go),

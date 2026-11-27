@@ -359,7 +359,7 @@ the features of a build and before dead-store removal, so that what specializati
 liveness is computed. A pattern rewrites one operation, or a few adjacent ones, into a simpler form: it folds a
 constant, removes code after an exit or splices a block into its parent. The pass is a required step: the printers
 already leave out what the patterns remove, so neither it nor its patterns change a generated parser or the bytecode,
-and neither has a flag ([optimization record 142](../optimizations/142-canonicalization-without-flags.md)). Each
+and neither has a flag ([optimization record 142](../optimizations/logs/142-canonicalization-without-flags.md)). Each
 pattern has a name, so `-opt-bisect-limit` gives each of its applications a number of its own, `-print-pipeline`
 lists it under the pass, and the statistics count its applications. The pass tries the patterns in a
 fixed order, so it reaches the same fixed point and the same output on every run. Running the patterns together to a
@@ -457,7 +457,7 @@ the pipeline.
 | `size` | smaller generated source and binaries | literals are not compared in place; classes of five ranges or more match through a table |
 
 A profile is kept only if it earns its place by a rule of measurement
-([optimization 136](../optimizations/136-measured-effect-of-the-generation-flags.md)): it must improve the metric it is
+([optimization 136](../optimizations/logs/136-measured-effect-of-the-generation-flags.md)): it must improve the metric it is
 named for by a margin beyond the noise of an identical copy on most of the language grammars, cost little parse time
 overall and slow no grammar by much. That is why there are three profiles and not one per flag.
 

@@ -27,8 +27,8 @@ backends print each rule as one function.
 
 ## Evidence and Implementation
 
-Record [146](../146-outlined-typescript-nodes.md) decides the state on the generated size; the outlined
-form was part of the printer that record [122](../122-typescript-from-flow-ir.md) measured.
+Record [146](../logs/146-outlined-typescript-nodes.md) decides the state on the generated size; the outlined
+form was part of the printer that record [122](../logs/122-typescript-from-flow-ir.md) measured.
 
 Source owners: the `flowplan` package of the middle end (the outline pass).
 

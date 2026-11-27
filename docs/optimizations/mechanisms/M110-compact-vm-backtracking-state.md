@@ -26,7 +26,7 @@ improvements of 1–5% for full parsing and 2–6% recognition. Later
 recovery/filter/budget-control state changes mean those sizes are historical, not
 a current layout assertion.
 
-Evidence records: [033](../033-smaller-vm-entries.md).
+Evidence records: [033](../logs/033-smaller-vm-entries.md).
 
 Source owners: [`entry and label stack`](../../../internal/runtime/vm/vm.go),
 [`iterative VM entry execution`](../../../internal/runtime/vm/ivm.go).

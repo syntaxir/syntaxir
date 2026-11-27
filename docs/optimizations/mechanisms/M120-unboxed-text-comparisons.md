@@ -32,9 +32,9 @@ Record 036 measures XML about 19k to 1.1k allocations in closure/generated Go;
 corresponding Go-allocation claim. Record 102 measured a text struct field read that
 named node types have since made unnecessary.
 
-Evidence records: [036](../036-comparing-texts-without-boxing-them.md),
-[044](../044-changes-36-and-37-in-the-vms-instruction-set-2.md),
-[102](../102-read-text-struct-fields-without-a-struct-lookup.md).
+Evidence records: [036](../logs/036-comparing-texts-without-boxing-them.md),
+[044](../logs/044-changes-36-and-37-in-the-vms-instruction-set-2.md),
+[102](../logs/102-read-text-struct-fields-without-a-struct-lookup.md).
 
 Source owners: [`text equality evaluator`](../../../internal/runtime/state/eval.go),
 the action lowering of the Exec IR, [`native text

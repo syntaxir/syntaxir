@@ -76,7 +76,7 @@
   These separate full runs do not isolate a speedup or regression from
   this method; the alternating controls above remain the causal comparison.
   The current backend, recognition, incremental and stream analysis is
-  recorded under [Where SyntaxIR stands](../performance.md#where-syntaxir-stands).
+  recorded under [Where SyntaxIR stands](../../performance.md#where-syntaxir-stands).
 
 ## Same-Revision Allocation Controls
 
@@ -92,7 +92,7 @@ disable each entire slab mechanism; they do **not** reproduce the historical
 paths and position units, including empty lists, growth boundaries, pointer
 uniqueness and saved results. `TestGeneratedTypedOutputRetentionFixture`
 separately isolates discarded objects and unused list backing cells. See the
-[retention measurement method](../performance.md#generated-typed-output-retention)
+[retention measurement method](../../performance.md#generated-typed-output-retention)
 for exporting the four same-generator fixtures and measuring live heap and
 parse time separately. Individual allocation is a measurement reference;
 it is not the generated default or a public parser option.

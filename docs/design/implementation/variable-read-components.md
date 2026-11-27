@@ -32,7 +32,7 @@ Record 073 measures the full compilation of a 512-rule chain without reads going
 13.414 to 1.711 MB. Cases with reads and cycles have results of their own; other analyses and distinct transitive sets
 still cost. Memo keys are unchanged, so these gains of compilation are not estimates of parser throughput.
 
-Evidence records: [073](../../optimizations/073-dependency-component-propagation-of-variable-reads.md).
+Evidence records: [073](../../optimizations/logs/073-dependency-component-propagation-of-variable-reads.md).
 
 Packages: `internal/middleend/corepass` (the variables of rules and their components).
 

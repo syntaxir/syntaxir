@@ -2,7 +2,7 @@
 
 - **Status**: Adopted
 - **Date**: 2026-11-27
-- **Mechanisms**: [G250](mechanisms/G250-used-library-features.md)
+- **Mechanisms**: [G250](../mechanisms/G250-used-library-features.md)
 - **Flags**: `used-features`
 - **Decides**: `used-features` adopted
 

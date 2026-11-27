@@ -31,9 +31,9 @@ and field pointers. Slab allocation can reduce object counts while increasing
 retained siblings; current broad speedup is not established by the individual
 allocator controls.
 
-Evidence records: [048](../048-a-typed-runtime-for-parsevalue.md),
-[074](../074-smaller-first-chunks-for-generated-typed-values.md),
-[098](../098-bootstrap-generated-typed-output-allocations.md); the growth past 256 cells is
+Evidence records: [048](../logs/048-a-typed-runtime-for-parsevalue.md),
+[074](../logs/074-smaller-first-chunks-for-generated-typed-values.md),
+[098](../logs/098-bootstrap-generated-typed-output-allocations.md); the growth past 256 cells is
 [A280](A280-typed-chunk-growth.md)'s.
 
 Source owners: [`astNew generation`](../../../internal/backend/codegen/golang/print/types.go),
@@ -46,6 +46,6 @@ distinguishes same-source controls, historical changes and full checkpoints.
 
 Related mechanisms: [A070](A070-typed-output-bootstrap.md), [A260](A260-typed-list-slabs.md), [A280](A280-typed-chunk-growth.md).
 
-Related rejected attempt: [record 094](../094-generated-typed-output-liveness.md).
+Related rejected attempt: [record 094](../logs/094-generated-typed-output-liveness.md).
 
 [Optimization Catalog](../README.md)

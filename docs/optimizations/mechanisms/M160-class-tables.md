@@ -31,8 +31,8 @@ Record 105 measures generated sources 6% to 14% smaller together with class runs
 time between -0.7% and +1.2% on the three grammars it timed. Record 136 repeated the measurement
 for the tables alone and made them an opt-in.
 
-Evidence records: [105](../105-character-class-tables.md),
-[136](../136-measured-effect-of-the-generation-flags.md).
+Evidence records: [105](../logs/105-character-class-tables.md),
+[136](../logs/136-measured-effect-of-the-generation-flags.md).
 
 Source owners: [`the class-tables Flow pass`](../../../internal/middleend/flowpass/passes.go),
 [`Class`](../../../pkg/runtime/libgo/class.go).

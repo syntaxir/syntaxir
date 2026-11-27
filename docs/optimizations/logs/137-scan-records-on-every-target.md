@@ -14,19 +14,19 @@ and 24 took quadratic time in generated Go and TypeScript parsers.
 
 Two changes close this.
 
-- **Every one-character scan of a rule that calls no rule is a site.** [Scan Sites](../../spec/runtime/parsing.md#scan-sites)
+- **Every one-character scan of a rule that calls no rule is a site.** [Scan Sites](../../../spec/runtime/parsing.md#scan-sites)
   take every unbounded repetition of a character class or of any character in a rule that calls no rule, other than
   the site of a skip run or a `#stream` repetition, whatever captures, actions and attributes surround it. An iteration
   tests one character and nothing else, so the walk from a start ends at a position, matches a number of characters,
   builds elements and examines a range that depend on the start and the input alone; a capture or an action reads only
-  the list that the walk gives. [Lemma 4](../../spec/proofs/run-sites.md#lemma-4-exactness-of-scan-records) shows
-  these records exact, and [Lemma 6](../../spec/proofs/run-sites.md#lemma-6-walks-again-from-one-start) bounds the
+  the list that the walk gives. [Lemma 4](../../../spec/proofs/run-sites.md#lemma-4-exactness-of-scan-records) shows
+  these records exact, and [Lemma 6](../../../spec/proofs/run-sites.md#lemma-6-walks-again-from-one-start) bounds the
   walks again from one start. The cost
   classifier treats a call of a **scan-only rule** (one that reads no variable, calls no rule, has no `#recover`,
   Operators Rule or `#stream`, and whose every unbounded repetition is a scan site, or a run site free of the
   environment with no minimum whose element repeats nothing without a bound, with no copying operation around it) as
   a call whose rescans the records answer, and accepts such grammars as linear
-  ([linear-cost proof](../../spec/proofs/linear-cost.md)).
+  ([linear-cost proof](../../../spec/proofs/linear-cost.md)).
 - **Generated parsers keep the same records.** The Core IR marks a scan site on its repetition, and the Flow IR lowers
   it to a counted loop that, at the hot span of 16 characters, looks up the record of its start, and at the end either
   makes the record or notes the walk for the hot test. The generated Go runtime (package `runtime`) and the TypeScript
@@ -145,6 +145,6 @@ Adopted on every target, always on, with the single counted loop described above
 
 Not covered: repetitions of several characters or of single-character literals (`"x"*`, `(" " / "!")*`), which are
 not scan sites; where such a repetition is a run site free of the environment with no minimum, its own records make
-the rule scan-only ([Lemma 7](../../spec/proofs/run-sites.md#lemma-7-run-site-walks-again-from-one-start)), and the
+the rule scan-only ([Lemma 7](../../../spec/proofs/run-sites.md#lemma-7-run-site-walks-again-from-one-start)), and the
 classifier accepts the calculator of the README with `rule ws = " "*` as linear; the skip and leaf scans of an Operators Rule, which measure linear but which the classifier does not
 exempt; five of the 25 grammars, which measure linear but which the classifier leaves unknown.

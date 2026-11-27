@@ -36,7 +36,7 @@ same-source samples. Other grammars/backends/units/length-changing edits are
 unmeasured. The 24-byte handle and read results belong to the separate
 cached-descriptor mechanism.
 
-Evidence records: [099](../099-share-document-snapshot-child-runs.md).
+Evidence records: [099](../logs/099-share-document-snapshot-child-runs.md).
 
 Source owners: [`shareSnapshotChildren and
 snapshotChildChunks`](../../../internal/runtime/document/document_snapshot.go), [`flat child

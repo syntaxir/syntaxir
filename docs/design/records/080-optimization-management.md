@@ -200,7 +200,7 @@ An attempt never ends as a deleted branch: it ends in a record in one of the fin
 
 ### Records
 
-Optimization records keep the template of `docs/optimizations/000-template.md`, with these changes:
+Optimization records keep the template of `docs/optimizations/logs/000-template.md`, with these changes:
 
 - The status is the record's own lifecycle state: one of Proposed, Experiment, Adopted, Opt-in, Rejected, Removed,
   or Measurement (a record that measures several optimizations, such as record 136).

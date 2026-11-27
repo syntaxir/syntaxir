@@ -31,8 +31,8 @@ across VMs. Added entry-generation storage and lookup comparisons are part of
 the historical change; current chunked input and other improvements must not be
 attributed to that ratio.
 
-Evidence records: [020](../020-splicing-the-memo-table-on-document-edits.md),
-[056](../056-applying-a-document-edit-to-memo-entries-when-they-are-looked-up.md).
+Evidence records: [020](../logs/020-splicing-the-memo-table-on-document-edits.md),
+[056](../logs/056-applying-a-document-edit-to-memo-entries-when-they-are-looked-up.md).
 
 Source owners: [`memoTable.splice`](../../../internal/runtime/state/memo.go),
 [`memoAdvance`](../../../spec/exec-ir/compositions.md#documents), [`callBegin edit

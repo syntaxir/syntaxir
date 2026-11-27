@@ -28,7 +28,7 @@ this one. The filter that avoids duplicate searches over these sets is an optimi
 Record 004 reports the Minilang allocation volume falling from 59 to 42 MB and the time from about 128 to 103 ms.
 Record 011 ports the representation to the generated parsers. The effect on each backend today is not measured.
 
-Evidence records: [004](../../optimizations/004-expected-sets-as-interned-ids-on-a-shared-stack-11a6ce3.md).
+Evidence records: [004](../../optimizations/logs/004-expected-sets-as-interned-ids-on-a-shared-stack-11a6ce3.md).
 
 Packages: `internal/runtime/state` (record, isolate and keep), `internal/frontend/check` (the expectation table),
 `pkg/runtime/libgo` (the IDs of generated Go parsers) and the TypeScript library.

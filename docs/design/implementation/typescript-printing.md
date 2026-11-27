@@ -58,7 +58,7 @@ without limit controls, and the comparison of like with like is in the record.
   functions of equal structure removes 691 of the 1,924 outlined functions of DuckDB and 3.8% of its bytes.
 - Limit controls: the form without them is at most 5.5% from the controlled form in time and 0.9% to 3.1% smaller.
 
-Evidence records: [122](../../optimizations/122-typescript-from-flow-ir.md).
+Evidence records: [122](../../optimizations/logs/122-typescript-from-flow-ir.md).
 
 Packages: `internal/middleend/flowlower` (the lowering) and `internal/backend/codegen/typescript/print` (the printer).
 

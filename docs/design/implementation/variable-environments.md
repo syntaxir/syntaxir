@@ -29,8 +29,8 @@ Record 069 measures a stream with three names keeping three bindings instead of 
 retained growth and faster reads of outer variables. Record 128 removes the walk over names and the copy of the prefix.
 Do not infer a universal reduction of allocation or time.
 
-Evidence records: [069](../../optimizations/069-bound-persistent-variable-binding-histories.md),
-[128](../../optimizations/128-indexed-variable-environments.md).
+Evidence records: [069](../../optimizations/logs/069-bound-persistent-variable-binding-histories.md),
+[128](../../optimizations/logs/128-indexed-variable-environments.md).
 
 Packages: `internal/runtime/state` (lookup and replacement), `pkg/runtime/libgo` (the environments of generated Go
 parsers) and the TypeScript library.

@@ -38,7 +38,7 @@ separate scoped gains and a slower first-match case. No-op source is
 byte-identical. These results concern qualifying pure predicates, not arbitrary
 OR expressions or all parsers.
 
-Evidence records: [091](../091-specialize-pure-literal-text-disjunctions.md).
+Evidence records: [091](../logs/091-specialize-pure-literal-text-disjunctions.md).
 
 Only predicates with two or more distinct literals become a switch: repeated literals collapse, and a single
 distinct literal stays the plain equality `ts == "x"`, which is shorter and says what it is.

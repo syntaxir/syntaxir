@@ -528,7 +528,7 @@ not universal latency bounds. Synchronous parsing cannot preempt a caller-held r
 
 ### Generated Go Ordinary-Path Specialization
 
-[Optimization 096](../../optimizations/096-specialize-generated-go-method-helpers.md)
+[Optimization 096](../../optimizations/logs/096-specialize-generated-go-method-helpers.md)
 records the selected nil-control method branches and ordinary allocation,
 capture and expectation helpers. Three alternating 500 ms samples across all
 131 profiles against `744138e` reduced the generated Node/recognition range to

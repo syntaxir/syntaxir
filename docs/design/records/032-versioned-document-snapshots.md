@@ -340,7 +340,7 @@ actions cannot be repaired by shifting spans. Any such design needs measured
 access bounds and exact results without walking an unbounded edit history. A
 private relative-position overlay was measured and remains off by default; its
 measured read and retention tradeoffs are recorded in
-[optimization 100](../../optimizations/100-relative-snapshot-position-overlays.md)
+[optimization 100](../../optimizations/logs/100-relative-snapshot-position-overlays.md)
 and summarized by [mechanism R160](../../optimizations/mechanisms/R160-relative-snapshot-position-overlays.md).
 
 Absolute scalar values produced by position-dependent actions cannot be repaired
@@ -372,7 +372,7 @@ Opaque handles cache their record and optional run descriptor to avoid repeated
 sidecar lookups; this grows a handle from 16 to 24 bytes on arm64. The snapshot
 graph stores records rather than one handle per node. Materialization expands
 runs directly, and the measured access/materialization tradeoffs are recorded
-in [optimization 099](../../optimizations/099-share-document-snapshot-child-runs.md).
+in [optimization 099](../../optimizations/logs/099-share-document-snapshot-child-runs.md).
 
 ### Compatibility and Implementation Sequence
 
@@ -562,9 +562,9 @@ allocation counts and `B/op`, with no consistent timing difference. Other
 workloads and backends remain unmeasured.
 
 The selected mechanism, copy fallback, and focused measurements are summarized
-in [optimization 097](../../optimizations/097-exact-document-snapshot-record-sharing.md).
+in [optimization 097](../../optimizations/logs/097-exact-document-snapshot-record-sharing.md).
 Additional sharing of child-ID runs inside changed records is measured in
-[optimization 099](../../optimizations/099-share-document-snapshot-child-runs.md).
+[optimization 099](../../optimizations/logs/099-share-document-snapshot-child-runs.md).
 
 Relative position overlays were evaluated in a private build-tag candidate
 against the no-tag absolute-position path from the same source. The candidate
@@ -582,7 +582,7 @@ Closure/Bytes full-history heap fell about 64–72%, while a latest-only window
 used 4.4–7.6% more. Heap totals include the live Document and memo state. Keep
 the candidate default-off: the measured access and latest-only costs do not
 justify general adoption. Method, allocation counts, ranges and retention
-windows are in [optimization 100](../../optimizations/100-relative-snapshot-position-overlays.md).
+windows are in [optimization 100](../../optimizations/logs/100-relative-snapshot-position-overlays.md).
 
 Reproduce capture and materialization with
 `go test ./internal/engine -run '^$' -bench '^BenchmarkDocumentSnapshotCapture$' -benchmem -benchtime=300ms -count=3`.

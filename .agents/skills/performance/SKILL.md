@@ -5,7 +5,7 @@ description: Maintain SyntaxIR's optimization method and reproducible performanc
 
 # Performance Evidence
 
-- Follow `docs/performance.md` and use `docs/optimizations/000-template.md` for
+- Follow `docs/performance.md` and use `docs/optimizations/logs/000-template.md` for
   focused mechanism records. State operation, workload, backend, position unit,
   toolchain, configuration and hardware.
 - Correctness comes before timing. Pin revisions and inputs; serialize runs and

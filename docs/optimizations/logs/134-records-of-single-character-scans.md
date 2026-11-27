@@ -9,7 +9,7 @@ A rule that matches input and calls no rule, such as a run of blanks, is not mem
 that leads back to its start walks the run again. A [run site](133-run-records-of-restarted-repetitions.md) does not
 cover it, since it does not repeat a single character. A parse of nested conditionals followed by a long run of blanks
 cost quadratic steps.
-[Scan Sites](../../spec/runtime/parsing.md#scan-sites) define the mechanism: an unbounded repetition of a character
+[Scan Sites](../../../spec/runtime/parsing.md#scan-sites) define the mechanism: an unbounded repetition of a character
 class or of any character in a pure scan rule (called from two places, no attribute but `@start`, no type, no action,
 no called rule, no capture, predicate or lookahead) is a scan site. A walk matches its first 16 characters
 (a constant of the charge model, separate from the 64 of run sites) as an ordinary repetition. At a hot site the walk then looks
@@ -17,7 +17,7 @@ for the record of its start. On a hit it moves to the recorded end, takes the co
 the recorded range. Otherwise it goes on and records itself, only if the input it examined is available. A site is
 hot by the rule of run sites, at 16 characters. The charge is one step for the lookup, one for the slot of a record
 that is found and one for a record that is made; the characters a record skips cost nothing.
-[Lemma 4](../../spec/proofs/run-sites.md#scan-sites) shows each record exact.
+[Lemma 4](../../../spec/proofs/run-sites.md#scan-sites) shows each record exact.
 
 ## Applicability
 

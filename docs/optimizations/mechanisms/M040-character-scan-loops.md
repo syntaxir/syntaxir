@@ -36,8 +36,8 @@ whole improvement to scanning or establish current performance in all six
 targets.
 
 Evidence records:
-[008](../008-fast-path-for-unmemoized-calls-scan-nesting-limit-d2db87d.md),
-[136](../136-measured-effect-of-the-generation-flags.md).
+[008](../logs/008-fast-path-for-unmemoized-calls-scan-nesting-limit-d2db87d.md),
+[136](../logs/136-measured-effect-of-the-generation-flags.md).
 
 Source owners: [`closure.Builder.ScanRepeat`](../../../internal/backend/closure/builder.go),
 the SCAN emission of the bytecode compiler,

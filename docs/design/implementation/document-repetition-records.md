@@ -41,9 +41,9 @@ runs across a parse without an edit: on a 100,000-line fixture with such a parse
 resumed again, and the closure engine goes from 6.90 to 0.778 ms and from 48.83 to 1.15 MB; without that parse, the
 timing ranges overlap and allocations are the same. The benefit depends on the length of runs and on chances to rejoin.
 
-Evidence records: [054](../../optimizations/054-resuming-long-repetitions-in-a-document.md),
-[059](../../optimizations/059-resuming-long-repetitions-in-the-vms.md),
-[070](../../optimizations/070-keep-repetition-records-across-unchanged-document-parses.md).
+Evidence records: [054](../../optimizations/logs/054-resuming-long-repetitions-in-a-document.md),
+[059](../../optimizations/logs/059-resuming-long-repetitions-in-the-vms.md),
+[070](../../optimizations/logs/070-keep-repetition-records-across-unchanged-document-parses.md).
 
 Packages: `internal/runtime/state` (run records and resumption), `internal/runtime/vm` (the run sites of the VMs),
 `internal/runtime/document` (saved runs, their generations and eligibility), `pkg/runtime/libgo` (the Documents of

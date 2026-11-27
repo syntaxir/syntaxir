@@ -33,8 +33,8 @@ source of six language grammars 6% to 14% smaller together with large-class tabl
 time between -0.7% and +1.2% on the three grammars it timed. The numbers are for the grammars
 of that record.
 
-Evidence records: [105](../105-character-class-tables.md),
-[136](../136-measured-effect-of-the-generation-flags.md).
+Evidence records: [105](../logs/105-character-class-tables.md),
+[136](../logs/136-measured-effect-of-the-generation-flags.md).
 
 Source owners: [`the class-runs Flow pass`](../../../internal/middleend/flowpass/passes.go),
 [`ClassesSkip`](../../../pkg/runtime/libgo/class.go).

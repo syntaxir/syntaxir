@@ -28,8 +28,8 @@ also records a rejected generic-result layout that slowed the iterative VM about
 20%. The adopted route's historical effects do not imply every Operators Rule
 allocation is eliminated.
 
-Evidence records: [011](../011-generated-parsers-catch-up-with-changes-410.md),
-[013](../013-allocation-free-operators-rule-attempts-and-pooled-operators-rule-frames-in-the-engine-and-vms.md).
+Evidence records: [011](../logs/011-generated-parsers-catch-up-with-changes-410.md),
+[013](../logs/013-allocation-free-operators-rule-attempts-and-pooled-operators-rule-frames-in-the-engine-and-vms.md).
 
 Source owners: [`parser.longest and saved
 captures`](../../../internal/runtime/state/runtime.go), [`Operators Rule attempt

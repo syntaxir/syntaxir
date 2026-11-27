@@ -30,7 +30,7 @@ counts. Its result is historical and not a token-only ablation. It explicitly
 records whole-input retention as a tradeoff.
 
 Evidence records:
-[010](../010-zero-copy-token-text-reusable-evaluation-context.md).
+[010](../logs/010-zero-copy-token-text-reusable-evaluation-context.md).
 
 Source owners: [`input.text and buildOffs`](../../../internal/runtime/state/input.go),
 [`generated text extraction`](../../../pkg/runtime/libgo/lib.go),

@@ -102,21 +102,21 @@ errors and memoization decisions are literally shared. The generator writes the 
   Failed alternatives restore captures, variable bindings and recovered
   errors. The generated wrappers retain rule call depth, memo and result
   ownership. Ordinary cut-bearing rules use the scoped direct path
-  ([record 78](../../optimizations/078-local-cuts-in-typed-direct-rules.md)).
+  ([record 78](../../optimizations/logs/078-local-cuts-in-typed-direct-rules.md)).
   Eligible left-recursion leaders can inline their unfinished typed body
   while the runtime retains seed growth and invocation ownership
-  ([record 79](../../optimizations/079-inline-eligible-typed-left-recursion-bodies.md)).
+  ([record 79](../../optimizations/logs/079-inline-eligible-typed-left-recursion-bodies.md)).
   Eligible unfinished operand, operator and skip matchers on typed Operators Rule lines
-  can also be inlined ([record 80](../../optimizations/080-inline-eligible-typed-operators-rule-lines.md)).
+  can also be inlined ([record 80](../../optimizations/logs/080-inline-eligible-typed-operators-rule-lines.md)).
   Eligible cut-bearing left-recursion and Operators Rule bodies use a separate framed
-  route ([record 81](../../optimizations/081-scoped-cuts-in-unfinished-typed-go-bodies.md)).
+  route ([record 81](../../optimizations/logs/081-scoped-cuts-in-unfinished-typed-go-bodies.md)).
   Frame-layout collection now follows the general emitter's build,
   predicate-capture, projection and slot-order rules, including dead syntax.
   It enables additional left-recursion, Operators Rule and owned-repetition bodies
-  without changing runtime frame ownership ([record 82](../../optimizations/082-match-typed-direct-frame-layouts.md)).
+  without changing runtime frame ownership ([record 82](../../optimizations/logs/082-match-typed-direct-frame-layouts.md)).
   Eligible unfinished ordinary, left-recursion and Operators Rule bodies containing
   `#recover` also use a structural typed path
-  ([record 83](../../optimizations/083-inline-typed-recovery-bodies.md)). Generated
+  ([record 83](../../optimizations/logs/083-inline-typed-recovery-bodies.md)). Generated
   recovery control flow preserves expectation handling, full-mark
   rollback and progress checks through the existing runtime helpers;
   unsupported layouts remain general.
@@ -124,7 +124,7 @@ errors and memoization decisions are literally shared. The generator writes the 
   shared Node-rule metadata. Owned repetition and projected-repetition element
   scopes use the general emitter's collector at the same build mode, including
   captures in dead syntax, so omitted slots retain their zero/nil value without
-  allocating a runtime frame ([record 84](../../optimizations/084-complete-typed-local-capture-layouts.md)).
+  allocating a runtime frame ([record 84](../../optimizations/logs/084-complete-typed-local-capture-layouts.md)).
   Each Operators Rule line owns its `toperatorsRuleLine.scope`; the runtime retains precedence,
   longest-match selection, frames and action finalization. Left-recursion
   runtime frames and growth remain in place; eligible callees can use either
@@ -158,7 +158,7 @@ zero values. Growing a chunk allocates a distinct zeroed array; it never copies,
 including values a failed or overwritten capture may still reference. Returned pointers can therefore still retain
 discarded siblings in the same array. Allocation granularity does not solve that separate retention problem.
 
-[Design 034](034-typed-output-liveness.md) evaluates cleanup of unreachable typed-output cells. Its measured full-sweep and bounded candidates are not implemented; the current scope and tradeoffs are summarized in [optimization record 094](../../optimizations/094-generated-typed-output-liveness.md).
+[Design 034](034-typed-output-liveness.md) evaluates cleanup of unreachable typed-output cells. Its measured full-sweep and bounded candidates are not implemented; the current scope and tradeoffs are summarized in [optimization record 094](../../optimizations/logs/094-generated-typed-output-liveness.md).
 
 ### Cost
 

@@ -36,9 +36,9 @@ cost more, supporting the threshold; batch controls show 0.76–3.31% cost. Thes
 results are workload-specific. Design 051 defines ownership and boundary
 behavior.
 
-Evidence records: [023](../023-splicing-the-text-of-a-document-in-place.md),
-[093](../093-chunked-document-input.md),
-[147](../147-decoded-text-of-generated-go-documents.md).
+Evidence records: [023](../logs/023-splicing-the-text-of-a-document-in-place.md),
+[093](../logs/093-chunked-document-input.md),
+[147](../logs/147-decoded-text-of-generated-go-documents.md).
 
 Source owners: [`useDocumentPieces`](../../../internal/runtime/state/input_pieces.go),
 [`piece input`](../../../internal/runtime/state/input_pieces.go), [`storage

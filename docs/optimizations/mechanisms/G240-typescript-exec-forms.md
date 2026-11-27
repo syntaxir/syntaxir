@@ -31,7 +31,7 @@ generator.
 
 ## Evidence and Implementation
 
-Record [143](../143-compact-typescript-exec-forms.md) decides the state on the generated size.
+Record [143](../logs/143-compact-typescript-exec-forms.md) decides the state on the generated size.
 
 Source owners: the package of the TypeScript Exec passes in the TypeScript backend.
 

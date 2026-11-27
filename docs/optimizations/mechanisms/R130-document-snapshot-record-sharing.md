@@ -34,7 +34,7 @@ in its closure CodePoints samples, and prefix insertion takes the low-reuse
 fallback. This trades capture work for version retention; it is not an ordinary
 parse speedup.
 
-Evidence records: [097](../097-exact-document-snapshot-record-sharing.md).
+Evidence records: [097](../logs/097-exact-document-snapshot-record-sharing.md).
 
 Source owners: [`snapshot graph freezing and exact
 sharing`](../../../internal/runtime/document/document_snapshot.go), [`default

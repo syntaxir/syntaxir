@@ -31,7 +31,7 @@ Record 067 measures the retention growth of discarded streams falling from tens 
 fewer allocated bytes on streams that memoize and grow left recursion. Batch timing stayed within about 4%. The result
 bounds obsolete ownership on those workloads; it is not a bound on the total heap.
 
-Evidence records: [067](../../optimizations/067-retire-memo-entries-when-their-lookup-slots-are-removed.md).
+Evidence records: [067](../../optimizations/logs/067-retire-memo-entries-when-their-lookup-slots-are-removed.md).
 
 Packages: `internal/runtime/state` (the memo and the ownership of left-recursion seeds) and `internal/runtime/document`
 (the invalidation of entries by edits).
