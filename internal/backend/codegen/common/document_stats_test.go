@@ -180,7 +180,17 @@ rule main = (item ";")* $$
 rule item = id ("=" [0-9]+)? / "(" main ")"
 rule id = [a-z]+ #atomic`,
 		strings.Repeat("a;bb=1;c;", 12),
-		[]string{"x;", "y=2;", "q", "k", "3", "(z;)", "w;", "ab;", "c=4;"}}}
+		[]string{"x;", "y=2;", "q", "k", "3", "(z;)", "w;", "ab;", "c=4;"}},
+		// A repetition of a choice of rules, whose last element fails at the end of the text: after
+		// an edit, the Documents call every alternative there again, each a failed memo hit.
+		{"choice of rules", `@start
+rule main = (setting / blank)* $$
+rule setting = key " = " value "\n"
+rule key = [a-z_]+ #atomic
+rule value = [^\n]+ #atomic
+rule blank = "\n"`,
+			strings.Repeat("key_a = value 1\n\nkey_b = value 22\n", 12),
+			[]string{"7", "x", "\n", "key_c = v\n", " = ", "q"}}}
 	resumed := 0
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
