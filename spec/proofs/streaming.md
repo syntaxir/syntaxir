@@ -1,6 +1,6 @@
 # Streaming
 
-Arata Furukawa · Last revised 2026-11-26
+Arata Furukawa · Last revised 2026-11-27
 
 This proof shows how a [stream parse](../runtime/streaming.md) relates to the
 ordinary parse of the same input. A stream hands each element of its `#stream`
@@ -468,13 +468,13 @@ $c - W - \lambda$ and at or before $c$. So the storage that $\mathcal{S}$
 holds after the commit is at most a constant times
 
 $$
-I_0 + E + (\lambda + 2 + B) + (W + \lambda + 1) \cdot C \cdot (1 + V),
+I_0 + V + E + (\lambda + 2 + B) + (W + \lambda + 1) \cdot C \cdot (1 + V),
 $$
 
-where $I_0$ is the storage of what the start rule built before $\rho$, of the
-values of variables and of the farthest failure, $E$ that of the recovered
-errors of the parse, $C$ the largest cost of an attempt, and $V$ the largest
-storage of the values of variables so far. The expected items and messages of
+where $I_0$ is the storage of what the start rule built before $\rho$ and of
+the farthest failure, $V$ the largest storage of the values of variables so
+far, $E$ that of the recovered errors of the parse, and $C$ the largest cost of
+an attempt. The expected items and messages of
 the farthest failure are those of the grammar, each at most once
 ([Syntax Errors](../runtime/parsing.md#syntax-errors)). Apart from $E$ and $V$,
 the bound does not grow with the number of elements delivered: it depends on
@@ -497,13 +497,18 @@ holds $W + \lambda$ positions, besides the attempt that starts at $0$.
 
 The memory a parse allocates is at most proportional to its cost
 ([Time and Memory](../runtime/parsing.md#time-and-memory)): each memo entry,
-node and value is built by cost that is counted. So what the attempts in the
-interval built, and with it what the stream holds of them, is at most a
+node and value is built by cost that is counted. The specification states this
+bound for a whole parse, and it holds for each attempt as well, because the
+accounting is per evaluation: what an evaluation builds is charged to the cost
+of that evaluation, so the evaluations of an attempt build at most a constant
+times the cost they are charged, which is at most $C$. So what the attempts in
+the interval built, and with it what the stream holds of them, is at most a
 constant times $(W + \lambda + 1) \cdot C$, and so is the number of memo
 entries, slots and records the stream holds. The key of each holds the values
 of variables when it was stored, so the keys take at most a constant times
 $(W + \lambda + 1) \cdot C \cdot (1 + V)$. The open evaluations hold what
-the start rule built before $\rho$ and the empty list of $\rho$ (Lemma 6).
+the start rule built before $\rho$ and the empty list of $\rho$ (Lemma 6), and
+the values of variables that the stream holds take at most $V$.
 $\square$
 
 The window of $W$ units is the one that
@@ -521,7 +526,7 @@ $n > 0$, the storage that $\mathcal{S}$ holds after each commit is at most a
 constant times
 
 $$
-I_0 + n \cdot C + (\lambda + 2 + B) + (W + \lambda + 1) \cdot C \cdot (1 + V),
+I_0 + V + n \cdot C + (\lambda + 2 + B) + (W + \lambda + 1) \cdot C \cdot (1 + V),
 $$
 
 so apart from $V$ it grows neither with the number of elements delivered nor
