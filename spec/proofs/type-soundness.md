@@ -684,6 +684,26 @@ other than `_` (T8).
 - **The checker as implemented.** The proof shows that the rules of the
   specification are sound, and that the inference they define ends. It does
   not show that the checker computes the types those rules give.
+- **The backends as implemented.** The proof is about the evaluation that the
+  language chapters define. That the engine and the generated parsers evaluate
+  so is not proved; the conformance tests check the theorem's first part on
+  the values that they return, with the relation of
+  [Typing of Values](#typing-of-values) written from its clauses and sharing
+  no code with the casts and checks of the backends. On the engine, the tests
+  check the value of every successful evaluation of a rule that a traced parse
+  reports on each backend, including the evaluations that the parse discards
+  later and those that it answers from a memo, and the values of parses of
+  each rule on the parts of the inputs that it matched. On the generated Go
+  and TypeScript parsers, whose traces do not report values, they check the
+  values of the parses from the start rule, and of the parses of each rule on
+  the parts of the inputs that it matched in the engine.
+  There the values are read from their JSON form, which writes a tuple and a
+  list alike and every number alike and leaves out the captures: an array is
+  checked as the tuple or the list that its type says, a number has type
+  `int` when it is an integer, whether the TypeScript runtime holds it as a
+  number or a `bigint`, and the captures of nodes are checked on the engine
+  only. Values that an evaluation inside a generated parser produces and that
+  no result holds are not observed.
 - **Typed APIs.** The corollary shows that the values of a parse have the
   types of their rules. That the types of the generated Go and TypeScript
   typed APIs represent those types, so that building the typed form never

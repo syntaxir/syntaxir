@@ -670,4 +670,8 @@ Typed parsers are compared on grammars that convert types of every row of the ta
 [Typed Values](#typed-values), which the tests derive from the types of the grammars: the typed values
 of Go and TypeScript parsers must be the engine's values as the tables map them, and a Go parser that
 builds its typed values directly must return what the conversion of its tree returns. Mutants of the
-conversion and of the direct route must make these comparisons fail.
+conversion and of the direct route must make these comparisons fail. The values that the parsers
+return for their start rule, and for each rule on the parts of inputs that it matched in the engine,
+are also checked against the checked types of the rules by the relation between values and types of
+the [Type Soundness](../proofs/type-soundness.md#typing-of-values) proof, and mutants that give a
+value another type must fail that check.

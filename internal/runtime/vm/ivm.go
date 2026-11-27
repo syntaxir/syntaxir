@@ -643,6 +643,6 @@ func (f *traceFrame) next(mc *ivmMachine, vm *Program, res iresult) (iframe, ire
 		p.TraceEnter(f.r, f.min)
 		return mc.callChild(f.r, f.min), iresult{}, false
 	}
-	p.TraceExit(res.ok)
+	p.TraceExit(res.v, res.ok)
 	return nil, res, true
 }

@@ -43,9 +43,22 @@ func TraceExpectations(e TraceEvent) []ExpID {
 	return nil
 }
 
+// TraceValue returns the value that the call of the exit event e, the one the trace function is
+// handling, produced, and whether the call produces a value of its rule: it does not for a call
+// that failed, for another event, for the value-free twin of a rule and a hidden rule spliced into
+// its caller, whose values are nil, and for a call of the start rule of a stream, whose top call
+// builds no value. It gives tests of the values of rules the values of the calls in their
+// contexts, which TraceEvent does not carry.
+func TraceValue(e TraceEvent) (*value.Node, bool) {
+	if t, ok := e.Source().(*Tracer); ok && e.Kind == TraceExit && e.Matched && t.valued {
+		return t.val, true
+	}
+	return nil, false
+}
+
 // Tracer is the tracing state of a parse. It is the TraceSource of the parse's events: the state
-// of the exit event being reported (far, exp and the recovered errors) is valid while the trace
-// function and the profile recorders handle it.
+// of the exit event being reported (far, exp, the recovered errors and the value) is valid while
+// the trace function and the profile recorders handle it.
 type Tracer struct {
 	traceRecorder
 	p *Parser
@@ -60,6 +73,10 @@ type Tracer struct {
 	exp  []ExpID
 	tail bool
 	rec  int
+	// val is the value of the call of the exit being reported, and valued whether the call
+	// produces a value of its rule (TraceValue).
+	val    *value.Node
+	valued bool
 }
 
 // LineCol returns the 1-based line and column of the position pos. In a stream parse, it returns
@@ -185,7 +202,7 @@ func (p *Parser) tracedCall(r *Rule, min int) (*value.Node, bool) {
 	p.TraceEnter(r, min)
 	p.Tr.direct = true
 	v, ok := p.Call(r, min)
-	p.TraceExit(ok)
+	p.TraceExit(v, ok)
 	return v, ok
 }
 
@@ -202,8 +219,8 @@ func (p *Parser) TraceEnter(r *Rule, min int) {
 	t.emit(TraceEvent{Kind: TraceEnter, Rule: r.Name, Level: min, Depth: len(t.stack), Pos: p.Pos, Lookahead: p.Silent > 0}.WithSource(t), selected)
 }
 
-// TraceExit reports the end of the innermost call in progress, whose result is ok.
-func (p *Parser) TraceExit(ok bool) {
+// TraceExit reports the end of the innermost call in progress, whose value is v and result ok.
+func (p *Parser) TraceExit(v *value.Node, ok bool) {
 	t := p.Tr
 	c := t.stack[len(t.stack)-1]
 	all := p.Stats.Evaluated - c.evals
@@ -211,14 +228,16 @@ func (p *Parser) TraceExit(ok bool) {
 	ev := TraceEvent{Kind: TraceExit, Rule: c.r.Name, Level: c.min, Depth: len(t.stack), Pos: c.start,
 		Lookahead: p.Silent > 0, Matched: ok, End: c.start, Memo: all == 0, Evals: all - c.nested,
 		Examined: p.Hw, ReusedElements: p.Resumed - c.resumed}.WithSource(t)
-	t.far, t.exp, t.tail, t.rec = far, inner, false, len(p.Recovered)
+	t.far, t.exp, t.tail, t.rec, t.val, t.valued = far, inner, false, len(p.Recovered), nil, false
 	if ok {
+		t.val = v
+		t.valued = !c.r.Novalue && !c.r.Splice && !(p.Input.Stream && c.r.ID == p.StreamID)
 		ev.End = p.Pos
 		t.tail = len(t.stack) == 1 && p.DiagnosticTail.Limit > 0
 		t.rec = c.rec
 	}
 	t.emit(ev, c.selected)
-	t.exp = nil
+	t.exp, t.val, t.valued = nil, nil, false
 	p.MergeExpected(far, inner)
 	p.Hw = max(c.hw, p.Hw)
 	t.stack = t.stack[:len(t.stack)-1]

@@ -171,7 +171,7 @@ func TestEngineCallConformanceDetectsBrokenEngine(t *testing.T) {
 				if !ok {
 					p.Pos = start + 1
 				}
-				p.TraceExit(ok)
+				p.TraceExit(v, ok)
 				return v, ok
 			})
 		},
@@ -180,7 +180,7 @@ func TestEngineCallConformanceDetectsBrokenEngine(t *testing.T) {
 				p.TraceEnter(r, 0)
 				p.Tr.direct = true
 				v, ok := p.Call(r, min)
-				p.TraceExit(ok)
+				p.TraceExit(v, ok)
 				return v, ok
 			})
 		},

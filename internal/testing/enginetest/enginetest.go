@@ -18,6 +18,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -33,6 +34,7 @@ func UseEngine() {
 	codegentest.Compile = CompileForGenerator
 	codegentest.Reference = Reference
 	codegentest.ReferenceStream = ReferenceStream
+	codegentest.ReferenceTraced = ReferenceTraced
 }
 
 // Main runs the tests of a package that builds generated programs: with the Go flags and the
@@ -139,6 +141,26 @@ func Reference(t *testing.T, src string, opts check.Options) codegentest.Referen
 		}
 		return prog.ParseWith("main", input, engine.ParseOptions{Unit: unit, Recognize: recognize, Expectations: true, MissingTokens: missing, ComputeReport: units})
 	}
+}
+
+// ReferenceTraced compiles src with opts and returns the traced parse of its rule main and the parse
+// of any of its rules, with positions in bytes (codegentest.ReferenceTraced). The traced parse
+// reports the value of every successful evaluation of a rule that produces a value of the rule at
+// its exit (state.TraceValue).
+func ReferenceTraced(t *testing.T, src string, opts check.Options) (codegentest.TracedParse, codegentest.RuleParse) {
+	t.Helper()
+	prog := CompileBare(t, src, opts)
+	traced := func(input string, missing int, call func(codegentest.RuleCall)) (*value.Node, error) {
+		return prog.ParseWith("main", input, engine.ParseOptions{Unit: sxirinput.Bytes, MissingTokens: missing, Trace: func(e engine.TraceEvent) {
+			if v, ok := state.TraceValue(e); ok {
+				call(codegentest.RuleCall{Rule: e.Rule, Start: e.Pos, End: e.End, Value: v})
+			}
+		}})
+	}
+	rule := func(r, input string, missing int) (*value.Node, error) {
+		return prog.ParseWith(r, input, engine.ParseOptions{Unit: sxirinput.Bytes, Expectations: true, MissingTokens: missing})
+	}
+	return traced, rule
 }
 
 // ReferenceStream compiles src with opts and returns the stream parse of its rule main
