@@ -12,7 +12,7 @@ latest full-suite analysis.
 
 Each stable ID uses a category letter and a three-digit number: `E` (value elision), `M` (matching and calls), `R` (memo and Document reuse), `A` (allocation and retention), and `G` (generation and compilation). Initial allocations use steps of ten, leaving gaps for related mechanisms. New mechanisms may use those unused numbers; existing IDs are never renumbered or reused. IDs are independent of numbered evidence records and backlog IDs.
 
-The registry of optimizations in the compiler is the source of this index ([design record 080](../design/records/080-optimization-management.md)). The tables between the generated markers are written by `go generate ./internal/optcatalog` from the registry, the profiles, the records and [`measured.json`](measured.json), and a test fails when they differ. Each mechanism is classified either as an optimization, which has a control and is listed under Optimization Mechanisms, or as an [implementation design](../design/implementation/README.md), which has no control and is described in the design pages; [Former Mechanism IDs](#former-mechanism-ids) maps the IDs that left the index.
+The registry of optimizations in the compiler is the source of this index ([design record 080](../design/records/080-optimization-management.md)). The tables between the generated markers are written by `go generate ./internal/optcatalog` from the registry, the profiles and the records, and a test fails when they differ. Each mechanism is classified either as an optimization, which has a control and is listed under Optimization Mechanisms, or as an [implementation design](../design/implementation/README.md), which has no control and is described in the design pages; [Former Mechanism IDs](#former-mechanism-ids) maps the IDs that left the index.
 
 <!-- generated:counts -->
 Unclassified mechanisms: 0. Optimization mechanisms without a control: 32. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
@@ -89,33 +89,33 @@ A backend cell is `✓` where the mechanism acts on every parser of the backend,
 
 ### Settings
 
-The settings are the same-source controls of the optimizations: the flags of `-optimize`, `-opt` and `-no-opt` of `sxir gen` and of the commands that build a parser for the engine, and of `compiler.Optimize` (the [code-generation guide](../guide/code-generation.md#optimizations) describes each; [Optimization Settings](../../spec/runtime/optimization-settings.md) is their contract). A flag is adopted when `speed` or another profile turns it on, an opt-in otherwise, or an experiment; the record decides the state, and the last timed run is the measurement window that last covered the flag.
+The settings are the same-source controls of the optimizations: the flags of `-optimize`, `-opt` and `-no-opt` of `sxir gen` and of the commands that build a parser for the engine, and of `compiler.Optimize` (the [code-generation guide](../guide/code-generation.md#optimizations) describes each; [Optimization Settings](../../spec/runtime/optimization-settings.md) is their contract). A flag is adopted when `speed` or another profile turns it on, an opt-in otherwise, or an experiment; the record decides the state. The timings of the settings, and the measurement window that last covered each flag, are kept with the timed results in [syntaxir/bench](https://github.com/syntaxir/bench), not in this repository.
 
 <!-- generated:settings -->
-| Setting | Mechanism | Kind | State | Backends | Record | Last timed run |
-|:--|:--|:--|:--|:--|:--|:--|
-| `dispatch` | M010 | pass | adopted (speed, memory, size) | recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [141](logs/141-dispatch-of-kept-guards.md) | none |
-| `guards` | M010 | pass | adopted (speed, memory, size) | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
-| `outline` | G220 | pass | adopted (speed, memory, size) | TypeScript | [146](logs/146-outlined-typescript-nodes.md) | none |
-| `scans` | M040 | pass | adopted (speed, memory, size) | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
-| `field-compare` | M120 | action pass | adopted (speed, memory, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
-| `text-dispatch` | G070 | action pass | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
-| `class-runs` | M150 | flow pass | adopted (speed, memory, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
-| `class-tables` | M160 | flow pass | adopted (size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
-| `guarded-classes` | M010 | flow pass | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
-| `inline-literals` | M130 | flow pass | adopted (speed, memory) | Go Node, Go recognizer, typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
-| `terminals` | M140 | flow pass | adopted (speed, memory, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
-| `ts-merged-records` | G240 | exec pass | adopted (speed, memory, size) | TypeScript | [143](logs/143-compact-typescript-exec-forms.md) | none |
-| `ts-tested-inits` | G240 | exec pass | adopted (speed, memory, size) | TypeScript | [143](logs/143-compact-typescript-exec-forms.md) | none |
-| `literal-sharing` | G130 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
-| `method-sharing` | G010 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
-| `ts-literal-sharing` | G130 | printer | opt-in | TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
-| `used-features` | G250 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [144](logs/144-library-of-the-used-features.md) | none |
-| `sparse-memo` | R030 | storage | adopted (speed, memory, size) | TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
-| `typed-chunk-growth` | A280 | storage | adopted (speed, memory, size) | typed Go | [139](logs/139-geometric-typed-value-chunks.md) | none |
-| `typed-list-slabs` | A260 | storage | adopted (speed, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
-| `typed-object-slabs` | A250 | storage | adopted (speed, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
-| `typed-output-bootstrap` | A070 | storage | adopted (speed, memory, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) | none |
+| Setting | Mechanism | Kind | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|
+| `dispatch` | M010 | pass | adopted (speed, memory, size) | recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [141](logs/141-dispatch-of-kept-guards.md) |
+| `guards` | M010 | pass | adopted (speed, memory, size) | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) |
+| `outline` | G220 | pass | adopted (speed, memory, size) | TypeScript | [146](logs/146-outlined-typescript-nodes.md) |
+| `scans` | M040 | pass | adopted (speed, memory, size) | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) |
+| `field-compare` | M120 | action pass | adopted (speed, memory, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) |
+| `text-dispatch` | G070 | action pass | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) |
+| `class-runs` | M150 | flow pass | adopted (speed, memory, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) |
+| `class-tables` | M160 | flow pass | adopted (size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) |
+| `guarded-classes` | M010 | flow pass | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) |
+| `inline-literals` | M130 | flow pass | adopted (speed, memory) | Go Node, Go recognizer, typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) |
+| `terminals` | M140 | flow pass | adopted (speed, memory, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) |
+| `ts-merged-records` | G240 | exec pass | adopted (speed, memory, size) | TypeScript | [143](logs/143-compact-typescript-exec-forms.md) |
+| `ts-tested-inits` | G240 | exec pass | adopted (speed, memory, size) | TypeScript | [143](logs/143-compact-typescript-exec-forms.md) |
+| `literal-sharing` | G130 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) |
+| `method-sharing` | G010 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) |
+| `ts-literal-sharing` | G130 | printer | opt-in | TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) |
+| `used-features` | G250 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [144](logs/144-library-of-the-used-features.md) |
+| `sparse-memo` | R030 | storage | adopted (speed, memory, size) | TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) |
+| `typed-chunk-growth` | A280 | storage | adopted (speed, memory, size) | typed Go | [139](logs/139-geometric-typed-value-chunks.md) |
+| `typed-list-slabs` | A260 | storage | adopted (speed, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) |
+| `typed-object-slabs` | A250 | storage | adopted (speed, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) |
+| `typed-output-bootstrap` | A070 | storage | adopted (speed, memory, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) |
 <!-- /generated:settings -->
 
 ### Reference Controls

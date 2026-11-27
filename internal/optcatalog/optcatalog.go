@@ -11,7 +11,6 @@ package optcatalog
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -33,7 +32,6 @@ import (
 const (
 	CatalogPath   = "docs/optimizations/README.md"
 	GuidePath     = "docs/guide/code-generation.md"
-	MeasuredPath  = "docs/optimizations/measured.json"
 	RecordsDir    = "docs/optimizations/logs"
 	MechanismsDir = "docs/optimizations/mechanisms"
 	DesignDir     = "docs/design"
@@ -251,27 +249,11 @@ func ReadFormer(root string) (map[string]FormerPage, error) {
 	return out, err
 }
 
-// ReadMeasured reads the file that maps each flag to the timed measurement run that last covered it.
-func ReadMeasured(root string) (map[string]string, error) {
-	data, err := os.ReadFile(filepath.Join(root, MeasuredPath))
-	if err != nil {
-		return nil, err
-	}
-	out := map[string]string{}
-	if err := json.Unmarshal(data, &out); err != nil {
-		return nil, fmt.Errorf("%s: %w", MeasuredPath, err)
-	}
-	return out, nil
-}
-
 // Generate returns the files with generated regions under root, each with its regions as the
-// registry, the profiles, the records and the measurement runs make them.
+// registry, the profiles and the records make them. Nothing in them depends on a measurement, so
+// the files are reproducible offline from the repository alone.
 func Generate(root string) (map[string][]byte, error) {
 	records, err := ReadRecords(root)
-	if err != nil {
-		return nil, err
-	}
-	measured, err := ReadMeasured(root)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +261,7 @@ func Generate(root string) (map[string][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	catalog, err := catalogRegions(records, measured, former)
+	catalog, err := catalogRegions(records, former)
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +333,7 @@ func stateText(f pass.Flag) (string, error) {
 // catalogRegions returns the regions of the catalog: the counts of the release criterion, the index of
 // the classified mechanisms, the settings, the reference controls, the map of the former IDs and the
 // rejected attempts.
-func catalogRegions(records map[int]Record, measured map[string]string, former map[string]FormerPage) (map[string]string, error) {
+func catalogRegions(records map[int]Record, former map[string]FormerPage) (map[string]string, error) {
 	flags := pass.Flags()
 	var none, partly int
 	for _, m := range pass.Mechanisms() {
@@ -397,7 +379,7 @@ func catalogRegions(records map[int]Record, measured map[string]string, former m
 	}
 
 	var settings strings.Builder
-	settings.WriteString("| Setting | Mechanism | Kind | State | Backends | Record | Last timed run |\n|:--|:--|:--|:--|:--|:--|:--|\n")
+	settings.WriteString("| Setting | Mechanism | Kind | State | Backends | Record |\n|:--|:--|:--|:--|:--|:--|\n")
 	for _, f := range flags {
 		st, err := stateText(f)
 		if err != nil {
@@ -407,11 +389,7 @@ func catalogRegions(records map[int]Record, measured map[string]string, former m
 		if !ok {
 			return nil, fmt.Errorf("flag %s names the record %03d, which does not exist", f.Name, f.Record)
 		}
-		run := measured[f.Name]
-		if run == "" {
-			run = "none"
-		}
-		fmt.Fprintf(&settings, "| `%s` | %s | %s | %s | %s | [%03d](%s) | %s |\n", f.Name, f.Mechanism, f.Kind, st, f.Backends, r.Number, r.Link(), run)
+		fmt.Fprintf(&settings, "| `%s` | %s | %s | %s | %s | [%03d](%s) |\n", f.Name, f.Mechanism, f.Kind, st, f.Backends, r.Number, r.Link())
 	}
 
 	refs := "None.\n"

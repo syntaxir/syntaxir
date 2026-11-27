@@ -54,7 +54,7 @@ deleted branch.
   registry says it acts on. A test checks the registry's backend claims against what the control changes.
 - Every optimization has a lifecycle state and a record that decided it. Every attempt ends in a record.
 - The effect of every setting is re-measured on the deterministic axes at each collection and in time in each
-  measurement window, and a stale measurement is visible.
+  measurement window, and a stale timing is visible where the timings are kept, in the benchmark repository.
 - The bisection limit reaches every setting: a limit of 0 builds the same parser as every setting off. Reference
   controls are outside it.
 - **Release criterion**: no mechanism is unclassified, and every optimization mechanism has at least one control with
@@ -126,9 +126,13 @@ it costs and gains, and the guide's row shows both.
 | Backends | The backends whose parser the flag changes: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | the backend-claims test |
 | Witnesses | Per listed backend, the corpus cases on which the flag changes that backend's parser (one case may serve several backends) | the backend-claims test |
 
-The run of the timed measurement that last covered each flag is not in the code: a data file beside the records,
-`docs/optimizations/measured.json`, maps each flag name to its run, and the generator joins it into the index. A
-measurement window updates that file only, with no code change; a test checks that its keys are registered flags.
+The run of the timed measurement that last covered each flag is not in this repository. Timing results and their
+provenance live in `syntaxir/bench`, which renders from its own results a table of each flag's last measurement window;
+the catalog links to that table. This repository holds no measurement provenance, so its generated files depend only
+on the repository and are reproducible offline, and a measurement window adds no commit here. Two alternatives were
+rejected: fetching a published artifact (an issue or a release asset) at generation time makes generation depend on
+the network, and the generated-diff test would fail whenever the artifact changes; and a data file in this repository
+that names each flag's run needs a commit in every window and duplicates provenance that the results already carry.
 
 The state of a flag that is not an experiment is derived, not stored: **adopted** if `speed` or a profile turns it on,
 **opt-in** otherwise. The generated tables show all three states.
@@ -241,15 +245,16 @@ The effect of an optimization is measured where its axis is reproducible.
   over every flag and profile, with its A/A control, taken in an exclusive window by the timed measurement method of
   [docs/performance.md](../../performance.md). It runs at each performance milestone, before a release, and for any
   change that proposes a state change. Its results are published from `syntaxir/bench` with the other timed results,
-  and `measured.json` names the run for each flag it covered. A state change justified by time follows the A/A rules of the timed
-  method; where the timing does not separate from the control, the decision rests on the deterministic axes.
+  whose provenance names the run that covered each flag. A state change justified by time follows the A/A rules of
+  the timed method; where the timing does not separate from the control, the decision rests on the deterministic axes.
 - **Ownership.** A landing whose `compare` shows that it changes a setting's effect updates that flag's record (or
   adds one) in the same landing. The milestone review belongs to the project's maintainer: the standing table is read
   against the states, an adopted flag that no longer moves any axis or an opt-in whose users' axis no longer improves
   gets a record that keeps it with the new numbers or removes it, and each reference control is reviewed for whether a
   zero-cost setting has become possible.
-- **Staleness.** The generated index shows each flag's last run from `measured.json`. A listing, run at the milestone review and not a
-  failing test, names the adopted and opt-in flags whose run is older than the current milestone.
+- **Staleness.** `syntaxir/bench` shows each flag's last measurement window, rendered from its results, and the
+  catalog links to that table. A listing there, run at the milestone review and not a failing test, names the adopted
+  and opt-in flags whose window is older than the current milestone.
 
 ### Bisection
 
@@ -368,8 +373,8 @@ and a timed window show that the default path costs nothing more.
    gaps: `Recognize` against `json.Valid`, TypeScript against Go, typed CSV and left recursion, typed allocation
    growth, Document memory of Minilang, the DuckDB size profile; then the rest. Each is one commit series with its
    record.
-6. The `settings` part of `bench/metrics`, the window procedure, the staleness listing, and the contributor
-   documentation in [docs/performance.md](../../performance.md).
+6. The `settings` part of `bench/metrics`, the window procedure, the staleness listing in `syntaxir/bench`, and the
+   contributor documentation in [docs/performance.md](../../performance.md).
 7. Records for the recent attempts that have none.
 
 ## Alternatives Considered

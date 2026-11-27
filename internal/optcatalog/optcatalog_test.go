@@ -42,7 +42,7 @@ func TestRegistryKeepsTheCatalogRules(t *testing.T) {
 }
 
 // Each flag names a record that decides the state the flag has, each state that a record decides
-// is a registered flag's, and each run of the measurement file is a registered flag's.
+// is a registered flag's.
 func TestRecordsDecideTheStates(t *testing.T) {
 	records, err := ReadRecords(root)
 	if err != nil {
@@ -67,15 +67,6 @@ func TestRecordsDecideTheStates(t *testing.T) {
 			if _, ok := pass.Lookup(name); !ok {
 				t.Errorf("record %s decides the state of %s, which is not a registered flag", r.File, name)
 			}
-		}
-	}
-	measured, err := ReadMeasured(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for name := range measured {
-		if _, ok := pass.Lookup(name); !ok {
-			t.Errorf("%s names %s, which is not a registered flag", MeasuredPath, name)
 		}
 	}
 }
