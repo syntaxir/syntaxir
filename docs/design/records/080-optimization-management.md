@@ -489,7 +489,7 @@ row names it as the starting point.
 | R130 | Document snapshot record sharing | Reference: `sxir_snapshot_sharing_reference` (engine); a snapshot may share records |
 | R140 | Document snapshot child run sharing | Reference: `sxir_snapshot_child_chunks_reference` (engine) |
 | R150 | Cached snapshot child descriptors | None yet |
-| R160 | Relative snapshot position overlays | Reference: `sxir_snapshot_position_overlays` (engine), which turns this off-by-default experiment on |
+| R160 | Relative snapshot position overlays | None yet; the build tag `sxir_snapshot_position_overlays` turns this unadopted candidate on, so it is an experiment switch, not a reference control |
 
 ### Implementation Designs
 

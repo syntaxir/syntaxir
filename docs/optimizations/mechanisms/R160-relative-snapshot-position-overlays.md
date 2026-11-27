@@ -4,10 +4,7 @@
 - **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
 - **Path scope**: Document snapshots, as an experiment that is off by default
 - **Every parser of**: closure, recursive VM, iterative VM
-
-| Control | Kind | Default | Profiles | State | Backends | Record |
-|:--|:--|:--|:--|:--|:--|:--|
-| `sxir_snapshot_position_overlays` | reference build tag | — | — | — | closure, recursive VM, iterative VM | [100](../logs/100-relative-snapshot-position-overlays.md) |
+- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
 <!-- /generated:facts -->
 
 Shifted immutable records can share payload storage when version-specific
@@ -34,8 +31,10 @@ enabled handles are 32 bytes.
 
 ## Controls and Measurements
 
-Unlike the other reference build tags, this one enables the candidate rather than selecting a reference form:
-the no-tag build is the default and the comparator.
+The mechanism has no control yet. The build tag `sxir_snapshot_position_overlays` is an experiment switch: it
+turns the unadopted candidate on, and the no-tag build, without overlays, is the default and the comparator. It
+is not a reference control, which selects the reference form of an adopted mechanism; the candidate gets a
+control when it is adopted.
 
 ## Evidence and Implementation
 

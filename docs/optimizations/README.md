@@ -15,7 +15,7 @@ Each stable ID uses a category letter and a three-digit number: `E` (value elisi
 The registry of optimizations in the compiler is the source of this index ([design record 080](../design/records/080-optimization-management.md)). The tables between the generated markers are written by `go generate ./internal/optcatalog` from the registry, the profiles and the records, and a test fails when they differ. Each mechanism is classified either as an optimization, which has a control and is listed under Optimization Mechanisms, or as an [implementation design](../design/implementation/README.md), which has no control and is described in the design pages; [Former Mechanism IDs](#former-mechanism-ids) maps the IDs that left the index.
 
 <!-- generated:counts -->
-Unclassified mechanisms: 0. Optimization mechanisms without a control: 32. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
+Unclassified mechanisms: 0. Optimization mechanisms without a control: 33. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
 <!-- /generated:counts -->
 
 ### Optimization Mechanisms
@@ -84,7 +84,7 @@ A backend cell is `✓` where the mechanism acts on every parser of the backend,
 | [R130](mechanisms/R130-document-snapshot-record-sharing.md) | Document Snapshot Record Sharing | Document snapshots of the engine | ✓ | ✓ | ✓ | — | — | — | — | `sxir_snapshot_sharing_reference` (reference) |
 | [R140](mechanisms/R140-share-document-snapshot-child-runs.md) | Document Snapshot Child Run Sharing | Child runs of Document snapshots | ✓ | ✓ | ✓ | — | — | — | — | `sxir_snapshot_child_chunks_reference` (reference) |
 | [R150](mechanisms/R150-cache-snapshot-child-run-descriptors.md) | Cached Snapshot Child Descriptors | Records of Document snapshots | ✓ | ✓ | ✓ | — | — | — | — | none yet |
-| [R160](mechanisms/R160-relative-snapshot-position-overlays.md) | Relative Snapshot Position Overlays | Document snapshots, as an experiment that is off by default | ✓ | ✓ | ✓ | — | — | — | — | `sxir_snapshot_position_overlays` (reference) |
+| [R160](mechanisms/R160-relative-snapshot-position-overlays.md) | Relative Snapshot Position Overlays | Document snapshots, as an experiment that is off by default | ✓ | ✓ | ✓ | — | — | — | — | none yet |
 <!-- /generated:index -->
 
 ### Settings
@@ -135,7 +135,6 @@ A reference control is a build tag that builds the parser without the mechanism,
 | `sxir_reference_document_pieces` | R060 | closure, recursive VM, iterative VM | [093](logs/093-chunked-document-input.md) |
 | `sxir_snapshot_sharing_reference` | R130 | closure, recursive VM, iterative VM | [097](logs/097-exact-document-snapshot-record-sharing.md) |
 | `sxir_snapshot_child_chunks_reference` | R140 | closure, recursive VM, iterative VM | [099](logs/099-share-document-snapshot-child-runs.md) |
-| `sxir_snapshot_position_overlays` | R160 | closure, recursive VM, iterative VM | [100](logs/100-relative-snapshot-position-overlays.md) |
 <!-- /generated:reference-controls -->
 
 Records [025](logs/025-discarding-separators-in-the-example-grammars.md) and [055](logs/055-tracing-hook-on-the-call-path.md) remain in the evidence archive but are not optimization mechanisms: the first covers grammar-author output choices and the second measures tracing-instrumentation cost.

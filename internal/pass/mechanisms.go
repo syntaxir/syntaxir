@@ -139,7 +139,6 @@ var referenceControls = []ReferenceControl{
 	{Mechanism: "R060", Tag: "sxir_reference_document_pieces", Backends: Engines, Record: 93},
 	{Mechanism: "R130", Tag: "sxir_snapshot_sharing_reference", Backends: Engines, Record: 97},
 	{Mechanism: "R140", Tag: "sxir_snapshot_child_chunks_reference", Backends: Engines, Record: 99},
-	{Mechanism: "R160", Tag: "sxir_snapshot_position_overlays", Backends: Engines, Record: 100},
 }
 
 var removedFlags = []Removed{
