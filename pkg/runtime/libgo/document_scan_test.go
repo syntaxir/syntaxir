@@ -95,7 +95,7 @@ func TestPrivateDocumentScanRecordHitExaminedEnd(t *testing.T) {
 		// The last matched character, at run-1, reads the two characters after it.
 		want := run + 2
 		e := d.memo.get(last.Id, 0, 0, nil)
-		if e == nil || e.examined != want {
+		if e == nil || int(e.examined) != want {
 			t.Fatalf("unit %d: entry = %+v, want examined %d", unit, e, want)
 		}
 		// An edit of the position before the recorded end must drop the entry.

@@ -349,7 +349,7 @@ func (t *memoTable) splice(log []documentEdit) {
 			// it at its position or moves it by the delta.
 			if advanceEntry(e, log[:len(log)-1]) {
 				to := pos
-				if e.examined > ed.start {
+				if int(e.examined) > ed.start {
 					to += ed.delta
 				}
 				if advanceEntry(e, log) {

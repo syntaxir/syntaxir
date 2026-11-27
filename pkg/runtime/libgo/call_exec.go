@@ -79,11 +79,11 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 		found = false
 	}
 	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && !p.insertsRule(r) {
-		p.MergeExpected(e.far, e.exps())
+		p.MergeExpected(int(e.far), e.exps())
 		if !e.ok {
 			return nil, false
 		}
-		p.Pos = e.end
+		p.Pos = int(e.end)
 		p.recAdd(e.recs())
 		return e.node, true
 	}
@@ -129,12 +129,12 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 			}
 		}
 		entry := p.memo.alloc()
-		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, vgen: p.gen, ngen: p.gen}
+		*entry = memoEntry{node: v, ok: ok, end: int32(p.Pos), silent: p.Silent > 0, vgen: p.gen, ngen: p.gen}
 		entry.setRecs(p.recSince(rec))
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
-			entry.far = far
+			entry.far = int32(far)
 			entry.setExps(kept)
 		}
 	} else if store == storeCtx {
@@ -444,13 +444,13 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && !p.insertsRule(r.Rule) {
 		p.Observation.memoHit()
 		if p.track {
-			p.documentTouch(e.examined)
+			p.documentTouch(int(e.examined))
 		}
-		p.MergeExpected(e.far, e.exps())
+		p.MergeExpected(int(e.far), e.exps())
 		if !e.ok {
 			return nil, false
 		}
-		p.Pos = e.end
+		p.Pos = int(e.end)
 		p.recAdd(e.recs())
 		return e.val, true
 	}
@@ -500,15 +500,15 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 			}
 		}
 		entry := p.memoSlab.one()
-		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, vgen: p.gen}
+		*entry = tmemoEntry{val: v, ok: ok, end: int32(p.Pos), silent: p.Silent > 0, vgen: p.gen}
 		entry.setRecs(p.recSince(rec))
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
-			entry.far = far
+			entry.far = int32(far)
 			entry.setExps(kept)
 			if p.track {
-				entry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false
+				entry.examined, entry.from, entry.pinned = uint32(p.docExamined), int32(p.docLow), false
 			}
 		}
 	} else if store == storeCtx {
@@ -570,13 +570,13 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && !p.insertsRule(r.Rule) {
 		p.Observation.memoHit()
 		if p.track {
-			p.documentTouch(e.examined)
+			p.documentTouch(int(e.examined))
 		}
-		p.MergeExpected(e.far, e.exps())
+		p.MergeExpected(int(e.far), e.exps())
 		if !e.ok {
 			return nil, false
 		}
-		p.Pos = e.end
+		p.Pos = int(e.end)
 		p.recAdd(e.recs())
 		return e.val, true
 	}
@@ -626,15 +626,15 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 			}
 		}
 		entry := p.memoSlab.one()
-		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, vgen: p.gen}
+		*entry = tmemoEntry{val: v, ok: ok, end: int32(p.Pos), silent: p.Silent > 0, vgen: p.gen}
 		entry.setRecs(p.recSince(rec))
 		entry = p.memoPut(r.Id, start, 0, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
-			entry.far = far
+			entry.far = int32(far)
 			entry.setExps(kept)
 			if p.track {
-				entry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false
+				entry.examined, entry.from, entry.pinned = uint32(p.docExamined), int32(p.docLow), false
 			}
 		}
 	} else if store == storeCtx {
@@ -889,19 +889,19 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && (!(p.Document != nil) || p.documentMove(e)) && !p.insertsRule(r) {
 		p.Observation.memoHit()
 		if p.track {
-			p.documentTouch(e.examined)
+			p.documentTouch(int(e.examined))
 			if p.Document != nil {
-				if e.from < start {
+				if int(e.from) < start {
 					p.documentTouchFrom(start + -1)
 				}
 				p.Document.stats.Reused++
 			}
 		}
-		p.MergeExpected(e.far, e.exps())
+		p.MergeExpected(int(e.far), e.exps())
 		if !e.ok {
 			return nil, false
 		}
-		p.Pos = e.end
+		p.Pos = int(e.end)
 		p.recAdd(e.recs())
 		return e.node, true
 	}
@@ -959,21 +959,21 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 			}
 		}
 		entry := p.memo.alloc()
-		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, vgen: p.gen, ngen: p.gen}
+		*entry = memoEntry{node: v, ok: ok, end: int32(p.Pos), silent: p.Silent > 0, vgen: p.gen, ngen: p.gen}
 		entry.setRecs(p.recSince(rec))
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
-			entry.far = far
+			entry.far = int32(far)
 			entry.setExps(kept)
 			if p.track {
 				if p.Document != nil {
-					entry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false
+					entry.examined, entry.from, entry.pinned = uint32(p.docExamined), int32(p.docLow), false
 					if r.Positional {
 						entry.pinned = true
 					}
 				} else {
-					entry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false
+					entry.examined, entry.from, entry.pinned = uint32(p.docExamined), int32(p.docLow), false
 				}
 			}
 		}
@@ -1115,16 +1115,16 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	}
 	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && typedMove(e) && !p.insertsRule(r.Rule) {
 		p.Observation.memoHit()
-		p.documentTouch(e.examined)
-		if e.from < start {
+		p.documentTouch(int(e.examined))
+		if int(e.from) < start {
 			p.documentTouchFrom(start + -1)
 		}
 		p.Document.stats.Reused++
-		p.MergeExpected(e.far, e.exps())
+		p.MergeExpected(int(e.far), e.exps())
 		if !e.ok {
 			return nil, false
 		}
-		p.Pos = e.end
+		p.Pos = int(e.end)
 		p.recAdd(e.recs())
 		return e.val, true
 	}
@@ -1183,14 +1183,14 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 			}
 		}
 		entry := p.memoSlab.one()
-		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, vgen: p.gen}
+		*entry = tmemoEntry{val: v, ok: ok, end: int32(p.Pos), silent: p.Silent > 0, vgen: p.gen}
 		entry.setRecs(p.recSince(rec))
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
-			entry.far = far
+			entry.far = int32(far)
 			entry.setExps(kept)
-			entry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false
+			entry.examined, entry.from, entry.pinned = uint32(p.docExamined), int32(p.docLow), false
 			if r.Positional {
 				entry.pinned = true
 			}
@@ -1235,8 +1235,8 @@ func (p *Parser) advanceEntry(e *memoEntry, log []documentEdit) bool {
 	if len(log)-int(e.vgen) > 128 {
 		return false
 	}
-	from := e.from
-	examined := e.examined
+	from := int(e.from)
+	examined := int(e.examined)
 	shift := 0
 	shifted := e.shifted
 	for i = int(e.vgen); i < len(log); i++ {
@@ -1252,9 +1252,9 @@ func (p *Parser) advanceEntry(e *memoEntry, log []documentEdit) bool {
 		shift = shift + delta
 		shifted = shifted || delta != 0
 	}
-	e.end += shift
-	e.from, e.examined = from, examined
-	e.far += shift
+	e.end += int32(shift)
+	e.from, e.examined = int32(from), uint32(examined)
+	e.far += int32(shift)
 	e.shift += int32(shift)
 	e.vgen = uint32(len(log))
 	e.shifted = shifted
@@ -1282,8 +1282,8 @@ func advanceEntry(e *memoEntry, log []documentEdit) bool {
 	if len(log)-int(e.vgen) > 128 {
 		return false
 	}
-	from := e.from
-	examined := e.examined
+	from := int(e.from)
+	examined := int(e.examined)
 	shift := 0
 	shifted := e.shifted
 	for i = int(e.vgen); i < len(log); i++ {
@@ -1299,9 +1299,9 @@ func advanceEntry(e *memoEntry, log []documentEdit) bool {
 		shift = shift + delta
 		shifted = shifted || delta != 0
 	}
-	e.end += shift
-	e.from, e.examined = from, examined
-	e.far += shift
+	e.end += int32(shift)
+	e.from, e.examined = int32(from), uint32(examined)
+	e.far += int32(shift)
 	e.shift += int32(shift)
 	e.vgen = uint32(len(log))
 	e.shifted = shifted
@@ -1329,8 +1329,8 @@ func (p *TParser) advanceEntry(e *tmemoEntry, log []documentEdit) bool {
 	if len(log)-int(e.vgen) > 128 {
 		return false
 	}
-	from := e.from
-	examined := e.examined
+	from := int(e.from)
+	examined := int(e.examined)
 	shift := 0
 	shifted := (e.shift != 0)
 	for i = int(e.vgen); i < len(log); i++ {
@@ -1346,9 +1346,9 @@ func (p *TParser) advanceEntry(e *tmemoEntry, log []documentEdit) bool {
 		shift = shift + delta
 		shifted = shifted || delta != 0
 	}
-	e.end += shift
-	e.from, e.examined = from, examined
-	e.far += shift
+	e.end += int32(shift)
+	e.from, e.examined = int32(from), uint32(examined)
+	e.far += int32(shift)
 	e.shift += int32(shift)
 	e.vgen = uint32(len(log))
 	return true
@@ -1375,8 +1375,8 @@ func advanceTEntry(e *tmemoEntry, log []documentEdit) bool {
 	if len(log)-int(e.vgen) > 128 {
 		return false
 	}
-	from := e.from
-	examined := e.examined
+	from := int(e.from)
+	examined := int(e.examined)
 	shift := 0
 	shifted := (e.shift != 0)
 	for i = int(e.vgen); i < len(log); i++ {
@@ -1392,9 +1392,9 @@ func advanceTEntry(e *tmemoEntry, log []documentEdit) bool {
 		shift = shift + delta
 		shifted = shifted || delta != 0
 	}
-	e.end += shift
-	e.from, e.examined = from, examined
-	e.far += shift
+	e.end += int32(shift)
+	e.from, e.examined = int32(from), uint32(examined)
+	e.far += int32(shift)
 	e.shift += int32(shift)
 	e.vgen = uint32(len(log))
 	return true
