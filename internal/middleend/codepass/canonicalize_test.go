@@ -2,6 +2,7 @@ package codepass
 
 import (
 	"context"
+	"io"
 	"slices"
 	"testing"
 
@@ -59,9 +60,14 @@ func TestExecPatterns(t *testing.T) {
 	if !slices.Equal(names, want) {
 		t.Errorf("patterns %v, want %v", names, want)
 	}
+	// Neither the pass nor its patterns change a generated parser, so none is an optimization: the
+	// names are removed ones, which a setting rejects.
 	for _, name := range append(want, PassCanonicalize) {
-		if _, ok := pass.Lookup(name); !ok {
-			t.Errorf("%s is not a registered optimization", name)
+		if _, ok := pass.Lookup(name); ok {
+			t.Errorf("%s is a registered optimization", name)
+		}
+		if _, err := (pass.Settings{}).Without(name); err == nil {
+			t.Errorf("-no-opt %s is accepted", name)
 		}
 	}
 }
@@ -134,19 +140,27 @@ func TestFlowPatterns(t *testing.T) {
 	}
 }
 
-// runCanonicalize runs canonicalize of the Exec stage on the function of patternSites with the flags
-// off turned off, and returns its listing and the statistics of the pass.
-func runCanonicalize(t *testing.T, off ...string) (string, pipe.InstanceStats) {
+// vetoPatterns is an observer that refuses every application of the named patterns, as a bisection
+// limit refuses the applications beyond it.
+type vetoPatterns []string
+
+func (vetoPatterns) Needs() pipe.Needs { return pipe.Needs{Veto: true} }
+
+func (v vetoPatterns) Before(e pipe.Event, _ func(io.Writer)) bool {
+	return !e.Step.Pattern || !slices.Contains(v, e.Step.Name)
+}
+
+func (vetoPatterns) After(pipe.Event, *pipe.Result) {}
+
+// runCanonicalize runs canonicalize of the Exec stage on the function of patternSites with every
+// application of the patterns refused vetoed, and returns its listing and the statistics of the pass.
+func runCanonicalize(t *testing.T, refused ...string) (string, pipe.InstanceStats) {
 	t.Helper()
 	m := module()
 	m.Dialects = []string{""} // the operations of the test module belong to no dialect
 	patternSites(m)
-	s, err := pass.Settings{}.Without(off...)
-	if err != nil {
-		t.Fatal(err)
-	}
 	st := pipe.NewStats()
-	out, err := pipe.Execute(context.Background(), &pipe.Run{Settings: s, VerifyEach: true, Observers: []pipe.Observer{st}},
+	out, err := pipe.Execute(context.Background(), &pipe.Run{VerifyEach: true, Observers: []pipe.Observer{vetoPatterns(refused), st}},
 		OnFuncs(ExecCanonicalize), EnterExec(m))
 	if err != nil {
 		t.Fatal(err)
@@ -155,28 +169,31 @@ func runCanonicalize(t *testing.T, off ...string) (string, pipe.InstanceStats) {
 	return FuncString(out.Module().Func("f")), stats
 }
 
-// The pass and each of its patterns turn off under their names: with the pass off the function is as
-// the lowering made it, and with a pattern off its applications are skipped and its site stays.
-func TestCanonicalizePassOff(t *testing.T) {
+// The pass runs in the pipeline, and each application of a pattern is a decision of the manager:
+// with the applications of a pattern refused (as a bisection refuses them), they are skipped and its
+// site stays, and with every application refused the function is as the lowering made it.
+func TestCanonicalizeDecisions(t *testing.T) {
 	all, _ := canonicalized(t)
 	if got, st := runCanonicalize(t); got != all || st.Runs != 1 || st.Changed != 1 {
-		t.Errorf("on: %+v\n%s", st, got)
+		t.Errorf("every application admitted: %+v\n%s", st, got)
 	}
-	m := module()
-	asLowered := FuncString(patternSites(m))
-	if got, st := runCanonicalize(t, PassCanonicalize); got != asLowered || st.Runs != 0 {
-		t.Errorf("-no-opt canonicalize: %+v\n%s", st, got)
-	}
+	var names []string
 	for _, p := range PatternsAt[Exec]() {
+		names = append(names, p.Name)
 		want, _ := canonicalized(t, p.Name)
 		got, st := runCanonicalize(t, p.Name)
 		if got != want {
-			t.Errorf("-no-opt %s:\n%s\nwant\n%s", p.Name, got, want)
+			t.Errorf("%s refused:\n%s\nwant\n%s", p.Name, got, want)
 		}
 		for _, d := range st.Patterns {
 			if d.Pattern == p.Name && (d.Applied != 0 || d.Skipped == 0) {
-				t.Errorf("-no-opt %s: %+v", p.Name, d)
+				t.Errorf("%s refused: %+v", p.Name, d)
 			}
 		}
+	}
+	m := module()
+	asLowered := FuncString(patternSites(m))
+	if got, st := runCanonicalize(t, names...); got != asLowered || st.Runs != 1 || st.Changed != 0 {
+		t.Errorf("every application refused: %+v\n%s", st, got)
 	}
 }

@@ -27,10 +27,9 @@ its compilation built; loading it builds nothing, so it takes no setting.
 Each optimization has a kind: `pass` (a transformation of the Core IR, the first intermediate representation built
 from the grammar), `action pass` (a transformation of the lowered action expressions of a table), `flow pass` and
 `exec pass` (a transformation of Code IR at the Flow stage and at the Exec stage that is converted from it),
-`code pass` (a transformation of Code IR at both stages), `pattern` (a local rewrite that a code pass applies, each
-application on its own), `printer` (a choice of what the Go and TypeScript printers emit) or `runtime` (a control
-of the runtime structures that the printers emit). `sxir gen -h` lists every optimization with its kind, its
-default and whether it takes a count.
+`printer` (a choice of what the Go and TypeScript printers emit) or `storage` (a control
+of the storage that the printers emit for results and tables). `sxir gen -h` lists every optimization with its
+kind, its default, whether it takes a count and whether it is experimental.
 
 ### Rules
 
@@ -67,7 +66,8 @@ The commands that compile a grammar take the three flags with the same names and
 An unknown profile, a name that is not an optimization, a value that the optimization does not take, a count that
 is not a decimal number, an empty item and a name given twice in `-opt` are errors. A command reports the error
 with the name of its flag, as in `-no-opt: unknown optimization "x"`, and the list of valid names, before it
-compiles or writes anything; `compiler.WithOptimize` makes it an error of every compile function. A command given
+compiles or writes anything. The name of a removed optimization is an error that names the optimization record
+that removed it; `compiler.WithOptimize` makes it an error of every compile function. A command given
 a compiled grammar (`.sxirc`) and any of the three flags fails: the file holds the bytecode that its own setting
 built, so the setting is chosen when `sxir compile` saves it.
 
@@ -85,6 +85,10 @@ The first parse returns what it returns without the flag. `sxir parse -g json.sx
 ## Compatibility and Support
 
 The names of the profiles and optimizations are part of the command line and of `compiler.Optimize`. An
-optimization may be added in any version; removing or renaming one is a breaking change. The debugging flags of
+optimization may be added in any version; removing or renaming one is a breaking change. An experimental
+optimization, which `sxir gen -h` marks as such and no profile turns on, has no such promise: it may be renamed or
+removed in any version. After the first release, a removed optimization's name is accepted for one version with a
+warning that names the record that removed it, and ignored, which changes no parser's results; the version after
+rejects it. Before the first release, it is rejected at once. The debugging flags of
 `sxir gen` that observe the pass pipeline are not part of this contract
 ([Generated Parsers](generated-parsers.md#optimization-and-debugging-flags)).

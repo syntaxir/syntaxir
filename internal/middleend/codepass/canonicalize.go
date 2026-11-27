@@ -7,7 +7,10 @@ import (
 )
 
 // PassCanonicalize is the name of the pass that applies the local rewrite patterns of a stage until
-// none applies (code.ApplyPatterns). It runs at the Flow and at the Exec stage.
+// none applies (code.ApplyPatterns). It runs at the Flow and at the Exec stage. It is a required step
+// with no flag, and its patterns have none: they change no generated parser and no bytecode, only the
+// IR between the stages (optimization record 142). Each application of a pattern stays a decision of
+// its own, which -opt-bisect-limit numbers and can skip, and -stats counts.
 const PassCanonicalize = "canonicalize"
 
 // patternNames returns the names of every pattern (code.Patterns): the patterns of all stages.
@@ -19,21 +22,13 @@ func patternNames() []string {
 	return names
 }
 
-// The pass and each pattern are optimizations under their names.
-func init() {
-	flags := []pass.Flag{{Name: PassCanonicalize, Kind: pass.KindCodePass, Default: 1, Doc: "apply the local rewrite patterns of Code IR until none applies"}}
-	for _, p := range code.Patterns() {
-		flags = append(flags, pass.Flag{Name: p.Name, Kind: pass.KindPattern, Default: 1, Doc: p.Doc})
-	}
-	pass.Register(flags...)
-}
-
-// canonicalizeDecl is the declaration of canonicalize, the same at both stages: one name, one flag,
+// canonicalizeDecl is the declaration of canonicalize, the same at both stages: one name, required,
 // and the patterns of every stage, each of which the pass asks about only at a stage that has it. The
 // pass imports no dialect: it reads the patterns of its stage, which the stage's dialect declares
 // (code.RegisterPatterns), when it runs.
 var canonicalizeDecl = pipe.Decl{
 	Name:       PassCanonicalize,
+	Required:   true,
 	Obligation: "Each pattern keeps the behavior of what it rewrites: the same results, the same calls of operations with the same arguments in the same order, and the same way of ending.",
 	Patterns:   patternNames(),
 }

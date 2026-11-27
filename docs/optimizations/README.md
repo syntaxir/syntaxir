@@ -12,11 +12,81 @@ latest full-suite analysis.
 
 Each stable ID uses a category letter and a three-digit number: `E` (value elision), `M` (matching and calls), `R` (memo and Document reuse), `A` (allocation and retention), and `G` (generation and compilation). Initial allocations use steps of ten, leaving gaps for related mechanisms. New mechanisms may use those unused numbers; existing IDs are never renumbered or reused. IDs are independent of numbered evidence records and backlog IDs.
 
-Backend cells describe default applicability: `✓` applies; `Partial` applies only to the stated eligible subset; `Private off` marks a private/default-off implementation; `No` means the backend could use the mechanism but does not implement it; and `—` means the mechanism has no corresponding path. The separate state and control columns distinguish default selection from same-source comparison support. Shared compilation, setup and editor mechanisms identify their scope in the Path scope column; they are not runtime matching claims.
+The registry of optimizations in the compiler is the source of this index ([design record 080](../design/records/080-optimization-management.md)). The tables between the generated markers are written by `go generate ./internal/optcatalog` from the registry, the profiles, the records and [`measured.json`](measured.json), and a test fails when they differ. Each mechanism is classified either as an optimization, which has a control and is listed under Optimization Mechanisms, or as an implementation design, which is described in the design pages; the mechanisms not classified yet are listed by hand under [Unclassified Mechanisms](#unclassified-mechanisms).
 
-Backend headers use C for Closure, RVM for recursive VM, IVM for iterative VM, Go Node / Recognize for generated Go Node parsing and recognition, Typed Go for generated `ParseValue`, and TS for generated TypeScript. Path scope abbreviations GN and TG refer to those generated Go paths.
+<!-- generated:counts -->
+Unclassified mechanisms: 77. Optimization mechanisms without a control: 0. Both are 0 at a release.
+<!-- /generated:counts -->
 
-The same-source controls of parsers are the optimization settings (`-optimize profile`, `-no-opt name`, `-opt name=count` of `sxir gen` and of the commands that build a parser for the engine; the [code-generation guide](../guide/code-generation.md#optimizations) lists them and [record 136](136-measured-effect-of-the-generation-flags.md) measures each one). The settings are the same for every backend, and [Optimization Settings](../../spec/runtime/optimization-settings.md) says which backends apply them. The controls of the closure backend and the VMs that are not optimizations are build tags and compile options.
+### Optimization Mechanisms
+
+A backend cell is `✓` where the mechanism acts on every parser of the backend, `Partial` where it acts on the eligible subset that its page names, and `—` where it does not act. A mechanism acts on a backend exactly where one of its controls lists that backend. The closure backend builds from the Core IR, the recursive and the iterative VM from the same bytecode, and the Go Node, Go recognizer, typed Go and TypeScript backends are the generated parsers.
+
+<!-- generated:index -->
+| ID | Mechanism | Path scope | closure | recursive VM | iterative VM | Go Node | Go recognizer | typed Go | TypeScript | Controls |
+|:--|:--|:--|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:--|
+| [A070](mechanisms/A070-typed-output-bootstrap.md) | Independent initial typed allocations before slab growth | Typed Go output | — | — | — | — | — | ✓ | — | `typed-output-bootstrap` |
+| [A250](mechanisms/A250-typed-object-slabs.md) | Typed object/terminal slab growth | Typed Go output | — | — | — | — | — | ✓ | — | `typed-object-slabs` |
+| [A260](mechanisms/A260-typed-list-slabs.md) | Typed list slab growth | Typed Go output | — | — | — | — | — | ✓ | — | `typed-list-slabs` |
+| [A280](mechanisms/A280-typed-chunk-growth.md) | Typed slab and match chunk growth past the fixed limit | Typed Go output | — | — | — | — | — | ✓ | — | `typed-chunk-growth` |
+| [G010](mechanisms/G010-generated-helper-sharing.md) | Share exact generated helper bodies | Generated parsers with exactly equal bodies | — | — | — | Partial | Partial | Partial | Partial | `method-sharing` |
+| [G070](mechanisms/G070-literal-text-predicates.md) | Pure literal-text disjunction lowering | Predicates that compare a capture's text with literals, without limit controls | — | — | — | Partial | Partial | Partial | Partial | `text-dispatch` |
+| [G130](mechanisms/G130-generated-literal-sharing.md) | Share generated literal tables | Generated parsers with equal literals; TypeScript as an opt-in | — | — | — | Partial | Partial | Partial | Partial | `literal-sharing`, `ts-literal-sharing` |
+| [G220](mechanisms/G220-outlined-typescript-nodes.md) | Outlined TypeScript nodes | Large and repeated nodes of TypeScript Node and recognizer tables | — | — | — | — | — | — | Partial | `outline` |
+| [G240](mechanisms/G240-typescript-exec-forms.md) | Compact TypeScript Exec forms | Expectation merges and tested calls in TypeScript | — | — | — | — | — | — | Partial | `ts-merged-records`, `ts-tested-inits` |
+| [G250](mechanisms/G250-used-library-features.md) | Library of the used features | Generated parsers with an embedded library | — | — | — | Partial | Partial | Partial | Partial | `used-features` |
+| [M010](mechanisms/M010-first-character-dispatch.md) | First-character guards for ordered choices | Choices whose alternatives have known first characters | Partial | Partial | Partial | Partial | Partial | Partial | Partial | `dispatch`, `guards`, `guarded-classes` |
+| [M040](mechanisms/M040-character-scan-loops.md) | Value-free character repetition scan loops | Value-free repetitions of a class or of any character | Partial | Partial | Partial | Partial | Partial | Partial | Partial | `scans` |
+| [M130](mechanisms/M130-short-literal-comparisons.md) | In-place short literal comparison | Short literals of generated Go | — | — | — | Partial | Partial | Partial | — | `inline-literals` |
+| [M140](mechanisms/M140-terminal-programs.md) | Run large value-free keyword choices as one table-driven program | Lean typed Go; value-free choices of at least 16 literals and classes | — | — | — | — | — | Partial | — | `terminals` |
+| [M150](mechanisms/M150-class-runs.md) | Match consecutive value-free classes as one run | Lean typed Go; two or more consecutive classes | — | — | — | — | — | Partial | — | `class-runs` |
+| [M160](mechanisms/M160-class-tables.md) | Match large classes through a shared membership table | Lean typed Go; classes of at least the configured number of ranges | — | — | — | — | — | Partial | — | `class-tables` |
+<!-- /generated:index -->
+
+### Settings
+
+The settings are the same-source controls of the optimizations: the flags of `-optimize`, `-opt` and `-no-opt` of `sxir gen` and of the commands that build a parser for the engine, and of `compiler.Optimize` (the [code-generation guide](../guide/code-generation.md#optimizations) describes each; [Optimization Settings](../../spec/runtime/optimization-settings.md) is their contract). A flag is adopted when `speed` or another profile turns it on, an opt-in otherwise, or an experiment; the record decides the state, and the last timed run is the measurement window that last covered the flag.
+
+<!-- generated:settings -->
+| Setting | Mechanism | Kind | State | Backends | Record | Last timed run |
+|:--|:--|:--|:--|:--|:--|:--|
+| `dispatch` | M010 | pass | adopted (speed, memory, size) | recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [141](141-dispatch-of-kept-guards.md) | none |
+| `guards` | M010 | pass | adopted (speed, memory, size) | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `outline` | G220 | pass | adopted (speed, memory, size) | TypeScript | [146](146-outlined-typescript-nodes.md) | none |
+| `scans` | M040 | pass | adopted (speed, memory, size) | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `field-compare` | M120 | action pass | adopted (speed, memory, size) | typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `text-dispatch` | G070 | action pass | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `class-runs` | M150 | flow pass | adopted (speed, memory, size) | typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `class-tables` | M160 | flow pass | adopted (size) | typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `guarded-classes` | M010 | flow pass | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `inline-literals` | M130 | flow pass | adopted (speed, memory) | Go Node, Go recognizer, typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `terminals` | M140 | flow pass | adopted (speed, memory, size) | typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `ts-merged-records` | G240 | exec pass | adopted (speed, memory, size) | TypeScript | [143](143-compact-typescript-exec-forms.md) | none |
+| `ts-tested-inits` | G240 | exec pass | adopted (speed, memory, size) | TypeScript | [143](143-compact-typescript-exec-forms.md) | none |
+| `literal-sharing` | G130 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `method-sharing` | G010 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `ts-literal-sharing` | G130 | printer | opt-in | TypeScript | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `used-features` | G250 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [144](144-library-of-the-used-features.md) | none |
+| `sparse-memo` | R030 | storage | adopted (speed, memory, size) | TypeScript | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `typed-chunk-growth` | A280 | storage | adopted (speed, memory, size) | typed Go | [139](139-geometric-typed-value-chunks.md) | none |
+| `typed-list-slabs` | A260 | storage | adopted (speed, size) | typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `typed-object-slabs` | A250 | storage | adopted (speed, size) | typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
+| `typed-output-bootstrap` | A070 | storage | adopted (speed, memory, size) | typed Go | [136](136-measured-effect-of-the-generation-flags.md) | none |
+<!-- /generated:settings -->
+
+### Reference Controls
+
+A reference control is a build tag that builds the parser without the mechanism, for a mechanism that has no zero-cost setting; it compares two builds instead of two settings.
+
+<!-- generated:reference-controls -->
+None.
+<!-- /generated:reference-controls -->
+
+Records [025](025-discarding-separators-in-the-example-grammars.md) and [055](055-tracing-hook-on-the-call-path.md) remain in the evidence archive but are not optimization mechanisms: the first covers grammar-author output choices and the second measures tracing-instrumentation cost.
+
+## Unclassified Mechanisms
+
+These mechanisms are not classified yet; a release needs none. Backend cells describe default applicability: `✓` applies; `Partial` applies only to the stated eligible subset; `Private off` marks a private/default-off implementation; `No` means the backend could use the mechanism but does not implement it; and `—` means the mechanism has no corresponding path. Shared compilation, setup and editor mechanisms identify their scope in the Path scope column; they are not runtime matching claims. Backend headers use C for Closure, RVM for recursive VM, IVM for iterative VM, Go Node / Recognize for generated Go Node parsing and recognition, Typed Go for generated `ParseValue`, and TS for generated TypeScript. Path scope abbreviations GN and TG refer to those generated Go paths.
 
 Each linked mechanism page describes its source, eligibility, interactions, control/reference scope, and evidence. Numbered records remain historical measurement reports and may cover multiple mechanisms. Their results apply only to the workloads, backends, and baselines stated in each record.
 
@@ -35,10 +105,8 @@ Each linked mechanism page describes its source, eligibility, interactions, cont
 
 | ID | Mechanism | Path scope | C | RVM | IVM | Go Node / Recognize | Typed Go | TS | Default state | Same-source control |
 |:--|:--|:--|:-:|:-:|:-:|:-:|:-:|:-:|:--|:--|
-| [M010](mechanisms/M010-first-character-dispatch.md) | First-character guards for ordered choices | C/RVM/IVM/GN/TG/TS; eligibility-based | Partial | Partial | Partial | Partial | Partial | Partial | Default | `-no-opt guards`, `-no-opt guarded-classes` (generated parsers) |
 | [M020](mechanisms/M020-character-class-tests.md) | Backend-specific character-class tests/representations | C/RVM/IVM/GN/TG/TS; distinct implementations by backend | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained |
 | [M030](mechanisms/M030-literal-matching.md) | Loaded-input literal matching | All six; input paths differ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained |
-| [M040](mechanisms/M040-character-scan-loops.md) | Value-free character repetition scan loops | Value-free character repetitions | Partial | Partial | Partial | Partial | Partial | Partial | Default | `-no-opt scans` (generated parsers) |
 | [M050](mechanisms/M050-plain-rule-calls.md) | Calls to eligible uncaptured/unmemoized rules | C/RVM/IVM/GN/TG/TS; each backend has separate call route | Partial | Partial | Partial | Partial | Partial | Partial | Default | None maintained |
 | [M060](mechanisms/M060-left-recursion-growth.md) | Reuse state during left-recursion growth | Go seed-growth storage | ✓ | ✓ | ✓ | ✓ | ✓ | — | Default | None maintained |
 | [M070](mechanisms/M070-vm-predecoded-match-data.md) | Predecoded VM literals and ASCII class masks | VM-program setup; predecoded literal/class data is used on RVM/IVM matching paths | — | ✓ | ✓ | — | — | — | Default | None maintained |
@@ -47,10 +115,6 @@ Each linked mechanism page describes its source, eligibility, interactions, cont
 | [M100](mechanisms/M100-absent-expectation-filter.md) | Fixed-size absent expectation filter | C/RVM/IVM/GN/TG Go only; TS unchanged | Partial | Partial | Partial | Partial | Partial | — | Default | None maintained |
 | [M110](mechanisms/M110-compact-vm-backtracking-state.md) | Compact VM entries and separate label state | RVM/IVM only | — | ✓ | ✓ | — | — | — | Default | None maintained |
 | [M120](mechanisms/M120-unboxed-text-comparisons.md) | Native text equality without boxing | All six eligible comparison paths | Partial | Partial | Partial | Partial | Partial | Partial | Default | `-no-opt field-compare` (typed Go string fields only) |
-| [M130](mechanisms/M130-short-literal-comparisons.md) | In-place short literal comparison | GN/TG direct Go CodePoints only | — | — | — | Partial | Partial | — | Default | `-opt inline-literals=0` |
-| [M140](mechanisms/M140-terminal-programs.md) | Run large value-free keyword choices as one table-driven program | TG lean only; eligible choices of at least 16 literals and classes | — | — | — | — | Partial | — | Default | `-no-opt terminals` |
-| [M150](mechanisms/M150-class-runs.md) | Match consecutive value-free classes as one run | TG lean only; two or more consecutive classes | — | — | — | — | Partial | — | Default | `-no-opt class-runs` |
-| [M160](mechanisms/M160-class-tables.md) | Match large classes through a shared membership table | TG lean only; classes of at least the configured number of ranges | — | — | — | — | Partial | — | `speed` off; `size` on | `-opt class-tables=N` |
 
 ### R — Memo and Document Reuse
 
@@ -85,7 +149,6 @@ Each linked mechanism page describes its source, eligibility, interactions, cont
 | [A040](mechanisms/A040-action-operand-scratch.md) | Reusable action operands and plumbing | All six by route; no TS cross-call pool | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained |
 | [A050](mechanisms/A050-streaming-state-reuse.md) | Bounded stream input and memo storage | C/RVM/IVM streaming only | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
 | [A060](mechanisms/A060-direct-typed-output-construction.md) | Construct typed output directly | TG eligible direct path; conversion remains fallback | — | — | — | — | Partial | — | Default | None maintained |
-| [A070](mechanisms/A070-typed-output-bootstrap.md) | Independent initial typed allocations before slab growth | TG only; default applied, control `typed-output-bootstrap` | — | — | — | — | ✓ | — | Default | `-no-opt typed-output-bootstrap` |
 | [A080](mechanisms/A080-generated-node-capture-scratch.md) | Reusable generated Node capture scratch | Generated Go Node capture frames | — | — | — | ✓ | — | — | Default | — |
 | [A090](mechanisms/A090-typed-output-liveness-cleanup.md) | Clear unreachable generated typed output slots | TG measured; not adopted or implemented | — | — | — | — | — | — | — | — |
 | [A100](mechanisms/A100-document-vm-value-stack.md) | Reuse bounded VM value stack for Document parses | RVM/IVM Document paths only | — | ✓ | ✓ | — | — | — | Default | sxir_reference_document_vm_values |
@@ -102,22 +165,17 @@ Each linked mechanism page describes its source, eligibility, interactions, cont
 | [A220](mechanisms/A220-stream-prefix-isolation.md) | Isolate live stream prefix ownership | C/RVM/IVM; sxir_reference_stream_prefix | ✓ | ✓ | ✓ | — | — | — | Default | sxir_reference_stream_prefix |
 | [A230](mechanisms/A230-stream-undo-cleanup.md) | Clear inactive stream undo backing | C/RVM/IVM; sxir_reference_stream_undo | ✓ | ✓ | ✓ | — | — | — | Default | sxir_reference_stream_undo |
 | [A240](mechanisms/A240-stream-vm-stack-cleanup.md) | Clear inactive stream VM value stack | RVM/IVM; sxir_reference_stream_stack | — | ✓ | ✓ | — | — | — | Default | sxir_reference_stream_stack |
-| [A250](mechanisms/A250-typed-object-slabs.md) | Typed object/terminal slab growth | TG; `typed-object-slabs` | — | — | — | — | ✓ | — | Default | `-no-opt typed-object-slabs` |
-| [A260](mechanisms/A260-typed-list-slabs.md) | Typed list slab growth | TG; `typed-list-slabs` | — | — | — | — | ✓ | — | Default | `-no-opt typed-list-slabs` |
 | [A270](mechanisms/A270-shared-empty-capture-frame.md) | Share immutable capture-free frame | All six; capture-free scopes only | Partial | Partial | Partial | Partial | Partial | Partial | Default | None maintained |
-| [A280](mechanisms/A280-typed-chunk-growth.md) | Typed slab and match chunk growth past the fixed limit | TG; `typed-chunk-growth` | — | — | — | — | ✓ | — | Default | `-no-opt typed-chunk-growth` |
 
 ### G — Generation and Compilation
 
 | ID | Mechanism | Path scope | C | RVM | IVM | Go Node / Recognize | Typed Go | TS | Default state | Same-source control |
 |:--|:--|:--|:-:|:-:|:-:|:-:|:-:|:-:|:--|:--|
-| [G010](mechanisms/G010-generated-helper-sharing.md) | Share exact generated helper bodies | GN/TG/TS default; literals independent | — | — | — | ✓ | ✓ | ✓ | Default | `-no-opt method-sharing` |
 | [G020](mechanisms/G020-lazy-backend-preparation.md) | Lazy one-time setup of optional engine recognizer/VM backends | First-use engine setup; closure recognition only, ordinary closure graph is eager | Partial | Partial | Partial | — | — | — | Default on demand | None maintained |
 | [G030](mechanisms/G030-constructor-dependency-analysis.md) | Sample constructor dependency propagation | Shared sampling analysis, runtime cells N/A | — | — | — | — | — | — | Default setup path | None maintained |
 | [G040](mechanisms/G040-copy-on-change-attribute-normalization.md) | Reuse unchanged AST paths during attribute normalization | Shared compile/generation preprocessing only, not runtime matching | — | — | — | — | — | — | Default setup path | Compile Options.EagerAttributeCopies |
 | [G050](mechanisms/G050-generated-budget-control-specialization.md) | Print one form of the generated Go functions per option set | GN/TG only; adopted; effect scope from record 096 | — | — | — | ✓ | ✓ | — | Default | — |
 | [G060](mechanisms/G060-ordinary-typed-direct-rules.md) | Ordinary typed direct bodies | TG eligible default; later extensions separately keyed | — | — | — | — | Partial | — | Default | None maintained |
-| [G070](mechanisms/G070-literal-text-predicates.md) | Pure literal-text disjunction lowering | GN/TG/TS eligible default | — | — | — | Partial | Partial | Partial | Default | `-no-opt text-dispatch` |
 | [G080](mechanisms/G080-equal-capture-type-reuse.md) | Reuse structurally equal capture types | Shared type analysis, runtime cells N/A | — | — | — | — | — | — | Default setup path | None maintained |
 | [G085](mechanisms/G085-action-free-positional-items.md) | Skip positional item typing for action-free rules | Shared type analysis, runtime cells N/A | — | — | — | — | — | — | Default setup path | None maintained |
 | [G090](mechanisms/G090-variable-read-components.md) | Variable reads by dependency component | Shared compiler metadata, runtime cells N/A | — | — | — | — | — | — | Default setup path | None maintained |
@@ -125,7 +183,6 @@ Each linked mechanism page describes its source, eligibility, interactions, cont
 | [G110](mechanisms/G110-one-pass-code-point-preparation.md) | Decode/validate/build offsets in one pass | CodePoints input preparation; GN/TG eager, core recognition lazy, TypeScript uses its own decoder | Partial | Partial | Partial | Partial | Partial | Partial | Default by input path | None maintained |
 | [G120](mechanisms/G120-lsp-position-checkpoints.md) | LSP UTF-16/code-point checkpoints | Editor preprocessing only; backend cells N/A | — | — | — | — | — | — | Default editor path | None maintained |
 | [G125](mechanisms/G125-bounded-diagnostic-prefixes.md) | Bound displayed lint expression prefixes | CLI/LSP lint diagnostics only; runtime backend cells N/A | — | — | — | — | — | — | Default lint path | None maintained |
-| [G130](mechanisms/G130-generated-literal-sharing.md) | Share generated literal tables | GN/TG default; TS experimental/private off | — | — | — | ✓ | ✓ | Private off | Go default; TS off | `-no-opt literal-sharing`; TS opt-in `ts-literal-sharing` (off) |
 | [G140](mechanisms/G140-typed-local-cuts.md) | Local cuts in ordinary direct typed rules | TG default eligible | — | — | — | — | Partial | — | Default | None maintained |
 | [G150](mechanisms/G150-typed-left-recursion-bodies.md) | Inline typed LR leader bodies | TG default eligible | — | — | — | — | Partial | — | Default | None maintained |
 | [G160](mechanisms/G160-typed-operators-line-bodies.md) | Inline typed Operators Rule line bodies | TG default eligible | — | — | — | — | Partial | — | Default | None maintained |
@@ -134,8 +191,6 @@ Each linked mechanism page describes its source, eligibility, interactions, cont
 | [G190](mechanisms/G190-typed-recovery-bodies.md) | Inline eligible typed recovery bodies | TG default eligible | — | — | — | — | Partial | — | Default | None maintained |
 | [G200](mechanisms/G200-typed-local-capture-layouts.md) | Complete typed Go-local capture layouts | TG default eligible | — | — | — | — | Partial | — | Default | None maintained |
 | [G210](mechanisms/G210-typescript-from-flow-ir.md) | Print generated TypeScript from Flow IR | TS default; Node and recognizer tables | — | — | — | — | — | ✓ | Default | None maintained |
-
-Records [025](025-discarding-separators-in-the-example-grammars.md) and [055](055-tracing-hook-on-the-call-path.md) remain in the evidence archive but are not optimization mechanisms: the first covers grammar-author output choices and the second measures tracing-instrumentation cost.
 
 ## Optimization History
 
@@ -285,6 +340,12 @@ Records [025](025-discarding-separators-in-the-example-grammars.md) and [055](05
 - [138. Typed-only output of generated TypeScript](138-typed-only-output-of-generated-typescript.md)
 - [139. Geometric typed value chunks](139-geometric-typed-value-chunks.md)
 - [140. Compute units counted down as fuel](140-compute-units-counted-down-as-fuel.md)
+- [141. Dispatch of the kept guards](141-dispatch-of-kept-guards.md)
+- [142. Canonicalization without flags](142-canonicalization-without-flags.md)
+- [143. Compact TypeScript Exec forms](143-compact-typescript-exec-forms.md)
+- [144. Library of the used features](144-library-of-the-used-features.md)
+- [145. TypeScript spend runs removed](145-typescript-spend-runs-removed.md)
+- [146. Outlined TypeScript nodes](146-outlined-typescript-nodes.md)
 
 ## Experiments That Did Not Pay Off
 

@@ -21,16 +21,14 @@ func init() {
 		Flag{Name: "t-count", Kind: KindActionPass, Int: true, Default: 4, Doc: "a count"},
 		Flag{Name: "t-flow", Kind: KindFlowPass, Default: 1, Doc: "a flow pass"},
 		Flag{Name: "t-ablation", Kind: KindCorePass, Default: 1, Doc: "a pass named before guards"},
-		Flag{Name: "t-pattern", Kind: KindPattern, Default: 1, Doc: "a pattern"},
-		Flag{Name: "t-code", Kind: KindCodePass, Default: 1, Doc: "a code pass"},
 	)
 }
 
-// The registry lists the flags by kind, in the order pass, lowering, flow pass, exec pass, code
-// pass, pattern, printer, storage, and by name within a kind, whatever order the parts registered them in: the usage text
+// The registry lists the flags by kind, in the order pass, action pass, flow pass, exec pass,
+// printer, storage, and by name within a kind, whatever order the parts registered them in: the usage text
 // and the errors that list the names are the same in every build.
 func TestRegistryOrder(t *testing.T) {
-	want := []string{"t-ablation", "t-guards", "t-count", "t-flow", "t-exec", "t-code", "t-pattern", "t-opt-in", "t-sharing", "t-slabs"}
+	want := []string{"t-ablation", "t-guards", "t-count", "t-flow", "t-exec", "t-opt-in", "t-sharing", "t-slabs"}
 	if got := Names(); !slices.Equal(got, want) {
 		t.Errorf("Names() = %v, want %v", got, want)
 	}
@@ -41,7 +39,7 @@ func TestRegistryOrder(t *testing.T) {
 	if !slices.IsSorted(kinds) {
 		t.Errorf("kinds out of order: %v", kinds)
 	}
-	if got := []string{KindCorePass.String(), KindActionPass.String(), KindFlowPass.String(), KindExecPass.String(), KindCodePass.String(), KindPattern.String(), KindPrinter.String(), KindStorage.String()}; !slices.Equal(got, []string{"pass", "action pass", "flow pass", "exec pass", "code pass", "pattern", "printer", "storage"}) {
+	if got := []string{KindCorePass.String(), KindActionPass.String(), KindFlowPass.String(), KindExecPass.String(), KindPrinter.String(), KindStorage.String()}; !slices.Equal(got, []string{"pass", "action pass", "flow pass", "exec pass", "printer", "storage"}) {
 		t.Errorf("kind names %v", got)
 	}
 	// Sorting is a function of the set alone.
@@ -49,7 +47,7 @@ func TestRegistryOrder(t *testing.T) {
 	b := slices.Clone(a)
 	slices.Reverse(b)
 	SortFlags(b)
-	if !slices.Equal(a, b) {
+	if !slices.EqualFunc(a, b, func(x, y Flag) bool { return x.Name == y.Name }) {
 		t.Errorf("sorting a reversed list gives %v", b)
 	}
 	if got := Summaries(); !strings.HasPrefix(got, "t-ablation (pass, on), t-guards (pass, on), t-count (action pass, 4; count), ") {
@@ -69,10 +67,12 @@ func TestCheckFlags(t *testing.T) {
 		{"repeated", []Flag{{Name: "a", Doc: "x"}, {Name: "a", Doc: "y"}}, "twice"},
 		{"undocumented", []Flag{{Name: "a"}}, "no description"},
 		{"unnamed", []Flag{{Doc: "x"}}, "no name"},
-		{"unknown kind", []Flag{{Name: "a", Doc: "x", Kind: KindStorage + 1}}, "unknown kind(8)"},
+		{"unknown kind", []Flag{{Name: "a", Doc: "x", Kind: KindStorage + 1}}, "unknown kind(6)"},
 		{"on and off flag with a count", []Flag{{Name: "a", Doc: "x", Default: 2}}, "speed value is 2"},
 		{"output change that is on", []Flag{{Name: "a", Doc: "x", Default: 1, ChangesOutput: true}}, "must be an opt-in"},
 		{"integer output change that is on", []Flag{{Name: "a", Doc: "x", Int: true, Default: 4, ChangesOutput: true}}, "must be an opt-in"},
+		{"experiment that is on", []Flag{{Name: "a", Doc: "x", Default: 1, Experiment: true}}, "is an experiment but is on"},
+		{"removed name", []Flag{{Name: "canonicalize", Doc: "x"}}, "the name of the optimization that record 142 removed"},
 	} {
 		if err := CheckFlags(c.flags); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: %v, want an error with %q", c.name, err, c.want)

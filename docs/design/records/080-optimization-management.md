@@ -121,7 +121,7 @@ it costs and gains, and the guide's row shows both.
 | --- | --- | --- |
 | Mechanism | The catalog ID the flag implements | registration: the ID is a declared optimization mechanism |
 | Experiment | Whether the flag is an experiment | registration: an experiment is off in `speed` and set by no profile |
-| Record | The optimization record that decided the flag's state (for an experiment, the record that opened it) | test: the record exists and its status agrees with the derived state |
+| Record | The optimization record that decided the flag's state (for an experiment, the record that opened it) | test: the record exists and its Decides line gives the flag the derived state |
 | Trade-off | What it costs and what it gains | generation |
 | Backends | The backends whose parser the flag changes: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | the backend-claims test |
 | Witnesses | Per listed backend, the corpus cases on which the flag changes that backend's parser (one case may serve several backends) | the backend-claims test |
@@ -197,10 +197,16 @@ An attempt never ends as a deleted branch: it ends in a record in one of the fin
 
 Optimization records keep the template of `docs/optimizations/000-template.md`, with these changes:
 
-- The status is one of Proposed, Experiment, Adopted, Opt-in, Rejected, Removed, or Measurement (a record that
-  measures and decides nothing, such as record 136).
+- The status is the record's own lifecycle state: one of Proposed, Experiment, Adopted, Opt-in, Rejected, Removed,
+  or Measurement (a record that measures several optimizations, such as record 136).
 - Header lines name the mechanisms (`none` for an attempt that belongs to no mechanism, such as a rejected idea) and
   the flags the record is about, and, for Rejected, `Revisit when`.
+- A record that decides the state of flags says so in a header line, one entry per flag:
+  ``- **Decides**: `guards` adopted, `ts-literal-sharing` opt-in``. One record may decide several flags and give
+  them different states: record 136 measured every flag of its time and decided their states, adopted for most (for
+  `class-tables` through the `size` profile alone) and opt-in for `ts-literal-sharing`, so the flags it decided name
+  it. A later record that changes a flag's
+  state takes the flag's entry over, and the flag names it.
 - **Axes measured**: one row per axis (time, allocations, bytes allocated, retained memory, generated code size,
   compile time), each with the workloads, the result or "not measured" and why.
 - **Decision**: the state chosen, the objective it serves, the profile values and why, and for Rejected the revisit
@@ -208,8 +214,9 @@ Optimization records keep the template of `docs/optimizations/000-template.md`, 
 
 The table of rejected attempts is generated from the records with status Rejected, with their result and their
 revisit condition as columns. The earlier rows of "Experiments That Did Not Pay Off" become short records with status
-Rejected. The migration of the existing records to this vocabulary is a scripted rewrite of their headers, checked by
-the test that the status of the record a flag names agrees with the flag's derived state.
+Rejected. The migration of the existing records to this vocabulary is a scripted rewrite of their headers. A test
+checks that the Decides line of the record a flag names gives the flag its derived state, and that every flag a
+Decides line names is registered.
 
 ### Re-Measurement
 
@@ -302,7 +309,7 @@ The checks extend the existing tests instead of adding parallel ones.
   `TestOptimizationsAreInTheGuide` becomes part of it. The index states the counts of unclassified mechanisms and of
   mechanisms with Control `none`.
 - **Catalog**: every mechanism has a page under `docs/optimizations/mechanisms/`, every page is a declared mechanism,
-  and every record a flag names exists with a status that agrees.
+  and every record a flag names exists with a Decides entry that agrees.
 - **Parity.** `TestOptimizationsHaveTests` also checks that each test it names exists. The observable of a backend is
   what it builds: the generated source for the generated backends (Go Node, Go recognizer, typed Go, TypeScript), the
   printed Core IR that the closure engine builds from, and the marshalled bytecode for the recursive and iterative

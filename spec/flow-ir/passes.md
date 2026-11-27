@@ -13,8 +13,8 @@ from the Flow stage, goes through the passes of that pipeline that run at the Fl
 function is converted to the Exec stage or printed.
 
 - A pass has a name that no pass of Core IR has, and that no pass of the Exec stage has unless it is one pass of Code IR
-  that runs at both stages, such as `canonicalize` (below). The name is also the name of the optimization that turns
-  the pass off, and of the dump that shows the function after it.
+  that runs at both stages, such as `canonicalize` (below). The name of an optional pass is also the name of the
+  optimization that turns it off; the name of every pass is that of the dump that shows the function after it.
 - A pass that is off does not run, and neither does one that does not apply to the build, whatever its optimization
   says. A build that reports rule events applies only the passes that keep them.
 - Where the pipeline leaves the stage the function MUST satisfy the [invariants](invariants.md). Verification runs right

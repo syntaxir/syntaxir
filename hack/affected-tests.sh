@@ -14,10 +14,11 @@
 #   - the packages that hold or check a copy of the Go library (COPIES below), when a file of it changed: the
 #     engine's shared copies (internal/runtime/state/sharedsrc) and the embedded copy (libsrc) read it by path.
 # A change of go.mod, go.work, go.sum or this script selects every package and both of the following lines. The output ends with the lines
-# "# generate" and "# alpha" when `go generate ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language/...` or hack/test-alpha-parsers.sh is affected.
+# "# generate" and "# alpha" when `go generate ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language/... ./internal/optcatalog` or hack/test-alpha-parsers.sh is affected.
 # Both run the generator, cmd/sxir: a change of a non-test Go file of cmd/sxir or of a package it depends on, or of a
 # file such a package embeds, affects both, besides the paths that the rules below name (the grammars, the generate
-# targets and their inputs).
+# targets and their inputs). go generate is also affected by a change of a non-test Go file of a package that the
+# catalog generator, internal/optcatalog, depends on, or of the catalog pages it reads and writes.
 set -eu
 why=0
 [ "${1:-}" = -why ] && { why=1; shift; }
@@ -71,6 +72,9 @@ allp = False; gen = False; alpha = False
 sxir = pk.get(mod + "/cmd/sxir")
 if sxir is None: sys.exit("affected-tests: no package cmd/sxir, the generator")
 gdeps = set(sxir.get("Deps") or []) | {mod + "/cmd/sxir"}
+oc = pk.get(mod + "/internal/optcatalog")
+if oc is None: sys.exit("affected-tests: no package internal/optcatalog, the catalog generator")
+odeps = set(oc.get("Deps") or []) | {mod + "/internal/optcatalog", mod + "/internal/optcatalog/gen"}
 for f in files:
     if f in ("go.mod", "go.work", "go.sum", "hack/affected-tests.sh"):
         allp = True; gen = True; alpha = True; sel.update({p: f for p in pk}); continue
@@ -90,6 +94,8 @@ for f in files:
                 if a in t: add(p, f)
     if (own in gdeps and f.endswith((".go", ".s")) and not f.endswith("_test.go")) or any(p in gdeps for p in embed.get(f, ())):
         gen = True; alpha = True
+    if (own in odeps and f.endswith(".go") and not f.endswith("_test.go")) or f.startswith(("docs/optimizations/", "docs/guide/code-generation.md")):
+        gen = True
     if f.startswith("pkg/runtime/libgo/"):
         for c in COPIES: add(mod + "/" + c, f, True)
     if f.startswith(HEAVY_TRIG):

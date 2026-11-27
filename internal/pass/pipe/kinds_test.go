@@ -17,8 +17,8 @@ var canonFn = New(Def[*fn, *fn]{Decl: canon.Decl(), In: fnIR, Out: fnIR,
 		return f, pass.PreserveNone(), nil
 	}})
 
-// A pass registered at two kinds is one pass: its instances are numbered across both, its flag and
-// its pattern's flag govern both, and its statistics have the declared patterns at each.
+// A pass registered at two kinds is one pass: its instances are numbered across both, its flag
+// governs both, and its statistics have the declared patterns at each.
 func TestPassAtTwoKinds(t *testing.T) {
 	p := tablePipe(Then(Seq(modIR, canon), PerFunc(funcsView, Seq(fnIR, canonFn))))
 	rec := &recorder{}
@@ -36,11 +36,9 @@ func TestPassAtTwoKinds(t *testing.T) {
 	if got, ok := st.Instance("", "t-canon#2"); !ok || len(got.Patterns) != 1 || got.Patterns[0].Applied != 2 {
 		t.Errorf("statistics of the second instance: %+v", got)
 	}
-	for _, off := range []string{"t-canon", "t-fold"} {
-		out, err = run(t, &Run{Settings: settings(t, off)}, p, &prog{tables: []string{"a"}})
-		if err != nil || out.String() != "[a]\na1: x\na2: y\n" {
-			t.Errorf("-no-opt %s does not turn off both instances: %v %v", off, out, err)
-		}
+	out, err = run(t, &Run{Settings: settings(t, "t-canon")}, p, &prog{tables: []string{"a"}})
+	if err != nil || out.String() != "[a]\na1: x\na2: y\n" {
+		t.Errorf("-no-opt t-canon does not turn off both instances: %v %v", out, err)
 	}
 	// Its text names it alike at both kinds, and the resolver takes the registration at the kind of
 	// each place, so the pipeline read back runs as the typed one.

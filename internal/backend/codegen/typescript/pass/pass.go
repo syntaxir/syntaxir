@@ -52,8 +52,14 @@ var Pipeline = pipe.Seq(execdata.LoweredIR, Passes...)
 
 func init() {
 	pass.Register(
-		pass.Flag{Name: PassMergedRecords, Kind: pass.KindExecPass, Default: 1, Doc: "the end of an expectation record and the merge of its expectations are one call (TypeScript)"},
-		pass.Flag{Name: PassTestedInits, Kind: pass.KindExecPass, Default: 1, Doc: "an If tests the call of its Init in its condition, without the bool the call sets (TypeScript)"},
+		pass.Flag{Name: PassMergedRecords, Kind: pass.KindExecPass, Default: 1, Doc: "the end of an expectation record and the merge of its expectations are one call (TypeScript)",
+			Tradeoff:  "Saves a copy of the expectations and a local per merge",
+			Mechanism: "G240", Record: 143, Backends: pass.On(pass.BackendTypeScript),
+			Witnesses: []string{"recovery"}},
+		pass.Flag{Name: PassTestedInits, Kind: pass.KindExecPass, Default: 1, Doc: "an `if` that tests whether its first call matched tests the call's result in its condition (TypeScript)",
+			Tradeoff:  "Saves the boolean local that the call sets",
+			Mechanism: "G240", Record: 143, Backends: pass.On(pass.BackendTypeScript),
+			Witnesses: []string{"recovery"}},
 	)
 }
 

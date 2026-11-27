@@ -6,6 +6,7 @@
   [A250](mechanisms/A250-typed-object-slabs.md) and [A260](mechanisms/A260-typed-list-slabs.md) and counts the
   bootstrap values of [A070](mechanisms/A070-typed-output-bootstrap.md)
 - **Flags**: `typed-chunk-growth`
+- **Decides**: `typed-chunk-growth` adopted
 - **Revisit when**: the objects of [A250](mechanisms/A250-typed-object-slabs.md) or the lists of
   [A260](mechanisms/A260-typed-list-slabs.md) change their fixed limits or their bootstrap, a later mechanism
   bounds the allocations that are not chunk allocations, or the deterministic metrics show the typed bytes more

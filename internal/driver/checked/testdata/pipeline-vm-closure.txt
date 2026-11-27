@@ -50,7 +50,7 @@ pipeline program -> []output {
                       class-runs
                       class-tables
                       inline-literals
-                      canonicalize[fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
+                      canonicalize![fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
                     }
                   }
                 }

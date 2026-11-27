@@ -103,7 +103,7 @@ var (
 )
 
 func init() {
-	for _, n := range []string{"t-upper", "t-append", "t-fn-upper", "t-noop", "t-canon", "t-fold", "t-feat", "t-query"} {
+	for _, n := range []string{"t-upper", "t-append", "t-fn-upper", "t-noop", "t-canon", "t-feat", "t-query"} {
 		pass.Register(pass.Flag{Name: n, Kind: pass.KindCorePass, Doc: "A pass of the tests of the manager.", Default: 1})
 	}
 }

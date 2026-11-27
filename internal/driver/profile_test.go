@@ -33,14 +33,20 @@ func TestEveryCorePassIsAFlag(t *testing.T) {
 	}
 }
 
-// Every pass of the Flow pipeline is an optimization that can be turned off, under its own name, and
-// no Flow pass has the name of a Core pass. A pass of Code IR that runs at both stages is of kind code
-// pass and is also an Exec pass.
+// Every optional pass of the Flow pipeline is an optimization that can be turned off, under its own
+// name, and a required one has no flag; no Flow pass has the name of a Core pass. A pass of Code IR
+// that runs at both stages (canonicalize) is required and is also an Exec pass.
 func TestEveryFlowPassIsAFlag(t *testing.T) {
-	for _, name := range flowpass.Names() {
+	for _, p := range flowpass.Passes {
+		name := p.Name()
 		f, ok := pass.Lookup(name)
-		if !ok || f.Kind != pass.KindFlowPass && (f.Kind != pass.KindCodePass || !slices.Contains(codepass.Names(), name)) {
-			t.Errorf("pass %s is not a registered optimization of kind flow pass, or of kind code pass at both stages", name)
+		switch {
+		case p.Decl().Required:
+			if ok || !slices.Contains(codepass.Names(), name) {
+				t.Errorf("the required pass %s is a flag, or not a pass of Code IR at both stages", name)
+			}
+		case !ok || f.Kind != pass.KindFlowPass:
+			t.Errorf("pass %s is not a registered optimization of kind flow pass", name)
 		}
 		if slices.Contains(corepass.Names(), name) {
 			t.Errorf("pass %s is both a Core and a Flow pass", name)
@@ -57,16 +63,18 @@ func TestEveryFlowPassIsAFlag(t *testing.T) {
 	}
 }
 
-// Every pass of the Exec pipeline is an optimization that can be turned off, under its own name, and
-// no Exec pass has the name of a Core or Flow pass, except a pass of Code IR of kind code pass, which
-// runs at both stages.
+// Every optional pass of the Exec pipeline is an optimization that can be turned off, under its own
+// name, and a required one has no flag; no Exec pass has the name of a Core or Flow pass, except the
+// required pass of Code IR that runs at both stages.
 func TestEveryExecPassIsAFlag(t *testing.T) {
-	for _, name := range codepass.Names() {
+	for _, p := range codepass.Passes {
+		name := p.Name()
 		f, ok := pass.Lookup(name)
-		if !ok || f.Kind != pass.KindExecPass && f.Kind != pass.KindCodePass {
-			t.Errorf("pass %s is not a registered optimization of kind exec pass or code pass", name)
+		required := p.Decl().Required
+		if required && ok || !required && (!ok || f.Kind != pass.KindExecPass) {
+			t.Errorf("pass %s is a required pass with a flag, or an optional one that is not a registered optimization of kind exec pass", name)
 		}
-		if slices.Contains(corepass.Names(), name) || f.Kind != pass.KindCodePass && slices.Contains(flowpass.Names(), name) {
+		if slices.Contains(corepass.Names(), name) || !required && slices.Contains(flowpass.Names(), name) {
 			t.Errorf("pass %s is also a Core or Flow pass", name)
 		}
 	}

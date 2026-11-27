@@ -39,7 +39,10 @@ const InPlaceResult = "tr"
 
 func init() {
 	pass.Register(pass.Flag{Name: PassFieldCompare, Kind: pass.KindActionPass, Default: 1,
-		Doc: "typed Go compares fields in the actions and predicates of typed rules without boxing string fields"})
+		Doc:       "typed Go compares fields in the actions and predicates of typed rules without boxing string fields",
+		Tradeoff:  "Fewer allocations, no cost",
+		Mechanism: "M120", Record: 136, Backends: pass.On(pass.BackendTypedGo),
+		Witnesses: []string{"typed text fields"}})
 }
 
 // siteOf returns the function of a unit of one site and its attributes.

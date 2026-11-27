@@ -261,7 +261,8 @@ func TestFeatureReachesThePass(t *testing.T) {
 }
 
 // TestAllowNumbersPatterns checks that each application of a pattern is a decision of its own:
-// numbered, turned off by its flag, and vetoed by an observer.
+// numbered and vetoed by an observer; the pattern has no flag, and its pass's flag turns off the pass
+// with its decisions.
 func TestAllowNumbersPatterns(t *testing.T) {
 	rec := &recorder{veto: func(e Event) bool { return e.Seq == 3 }}
 	out, err := run(t, &Run{Observers: []Observer{rec}}, tablePipe(Seq(modIR, canon)), &prog{tables: []string{"a"}})
@@ -274,9 +275,16 @@ func TestAllowNumbersPatterns(t *testing.T) {
 	if !contains(rec.lines, "2 t-canon/t-fold [a] ran=true changed=false") || !contains(rec.lines, "3 t-canon/t-fold [a] ran=false changed=false") {
 		t.Errorf("events:\n%s", strings.Join(rec.lines, "\n"))
 	}
-	out, err = run(t, &Run{Settings: settings(t, "t-fold")}, tablePipe(Seq(modIR, canon)), &prog{tables: []string{"a"}})
+	if _, err := (pass.Settings{}).Without("t-fold"); err == nil {
+		t.Error("the pattern t-fold is a flag")
+	}
+	rec = &recorder{}
+	out, err = run(t, &Run{Settings: settings(t, "t-canon"), Observers: []Observer{rec}}, tablePipe(Seq(modIR, canon)), &prog{tables: []string{"a"}})
 	if err != nil || out.String() != "[a]\na1: x\na2: y\n" {
-		t.Errorf("the pattern's flag does not turn it off: %v %v", out, err)
+		t.Errorf("the pass's flag does not turn its pattern off: %v %v", out, err)
+	}
+	if strings.Contains(strings.Join(rec.lines, "\n"), "t-canon/t-fold") {
+		t.Errorf("a pass that is off decides its pattern:\n%s", strings.Join(rec.lines, "\n"))
 	}
 }
 

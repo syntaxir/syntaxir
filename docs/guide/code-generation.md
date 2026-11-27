@@ -324,11 +324,11 @@ the table, is always an opt-in, and is never part of a profile. Two uses of the 
 The kind says what the optimization changes: a `pass` rewrites the parser before it is lowered, an `action pass`
 chooses the form of the lowered action expressions, a `flow pass` replaces the form in which the lowered code matches a construct with
 another where the target language prints it, an `exec pass` replaces operations of the lowered code with a form
-that one target prints more compactly, a `code pass` rewrites the lowered code before and after it is converted for
-the target, a `pattern` is one local rewrite of such a pass, a `printer` is a choice of what the Go and TypeScript printers emit, and a `storage`
-optimization is a control of the storage the parser emits. The names are the following, by kind and by name within a kind, as the usage text lists them, and an unknown name in `-opt` or `-no-opt` is an error that lists them. No flag in this
+that one target prints more compactly, a `printer` is a choice of what the Go and TypeScript printers emit, and a `storage`
+optimization is a control of the storage the parser emits. The names are the following, by kind and by name within a kind, as the usage text lists them, an unknown name in `-opt` or `-no-opt` is an error that lists them, and the name of a removed optimization is an error that names the optimization record that removed it. No flag in this
 table changes output yet:
 
+<!-- generated:flags -->
 | Name | Kind | Default | What it does and what it costs |
 | --- | --- | --- | --- |
 | `dispatch` | pass | on | Keep the guards of the alternatives whose skip leaves what their evaluation would. Off, the parser tries every alternative, as with `-no-opt guards` |
@@ -338,27 +338,22 @@ table changes output yet:
 | `field-compare` | action pass | on | Typed Go compares fields in the actions and predicates of typed rules without boxing string fields. Fewer allocations, no cost |
 | `text-dispatch` | action pass | on | A predicate that compares the text of a capture with literals tests them at once when the parse runs without limit controls. One test of the literals against a chain of comparisons, and the text is computed once |
 | `class-runs` | flow pass | on | Consecutive classes of a value-free sequence run as one (lean typed Go). One run against one test and call per class |
-| `class-tables` | flow pass | off | Match a class of at least this many ranges through a membership table (lean typed Go); `-opt class-tables=5` is the measured choice, and 0 turns the tables off. Table data against code: about 3% smaller source, and about 1% slower parsing on the language grammars (3.7% on TypeScript). It is an opt-in |
+| `class-tables` | flow pass | off | Match a class of at least this many ranges through a membership table (lean typed Go). `-opt class-tables=5` is the measured choice, and 0 turns the tables off. Table data against code: about 3% smaller source, and about 1% slower parsing on the language grammars (3.7% on TypeScript). It is on in the `size` profile |
 | `guarded-classes` | flow pass | on | A leading class of a guarded alternative consumes the character its guard read (ordinary Go parsers). Saves a second read and test of that character |
-| `inline-literals` | flow pass | 4 | Compare literals of at most four code points in place first; the number is the longest literal, and 0 turns it off. Code against calls: faster, with more code |
+| `inline-literals` | flow pass | 4 | Compare literals of at most this many code points in place first; 0 turns it off. Code against calls: faster, with more code |
 | `terminals` | flow pass | on | Value-free choices of many literals and classes run as one program (lean typed Go). Data against code: the choice becomes a table in the parser instead of nested alternatives |
-| `ts-merged-records` | exec pass | on | Ending an expectation record and merging its expectations into the enclosing record are one call that merges in place (TypeScript). Saves a copy of the expectations and a local per merge |
+| `ts-merged-records` | exec pass | on | The end of an expectation record and the merge of its expectations are one call (TypeScript). Saves a copy of the expectations and a local per merge |
 | `ts-tested-inits` | exec pass | on | An `if` that tests whether its first call matched tests the call's result in its condition (TypeScript). Saves the boolean local that the call sets |
-| `canonicalize` | code pass | on | Apply the local rewrite patterns below to each lowered function until none applies. Simpler code at no cost to the parse |
-| `drop-after-exit` | pattern | on | The statements after an exit, break, continue or return in a block are removed. Less code |
-| `drop-unused-labels` | pattern | on | The label of a block that no exit names is removed. Less code |
-| `fold-branches` | pattern | on | An `if` or a loop with a constant condition becomes the code that runs. Less code and no test |
-| `fold-constants` | pattern | on | An operator or a conversion on constants becomes its value. Less code |
-| `splice-blocks` | pattern | on | A block without a label that declares no local is spliced into its parent. Less code |
-| `literal-sharing` | printer | on | Emit one table for equal literals (Go; TypeScript also needs `ts-literal-sharing`). Smaller source against an indirection to the table |
+| `literal-sharing` | printer | on | Emit one table for equal literals (Go; TypeScript also needs ts-literal-sharing). Smaller source against an indirection to the table |
 | `method-sharing` | printer | on | Emit one helper for generated bodies that are exactly equal (Go and TypeScript). Code against calls: smaller source, with a call where a body was |
 | `ts-literal-sharing` | printer | off | Share literal tables in TypeScript parsers. Smaller code against speed: a small cold parse measured about 1.5 times slower. It is an opt-in: turn it on with `-opt ts-literal-sharing` |
-| `used-features` | printer | on | Leave out the library code of the features that the grammar and the options rule out, such as left recursion, recovery, Operators Rules, streams or Documents, and the declarations of the embedded library that the parser does not name (Go and TypeScript, with `-lib embed`; `-lib only` writes the whole library). Off, the parser carries every feature; what a parse returns and charges is the same either way. Smaller source and binary, at no cost on average; single TypeScript workloads move by about 3% either way, as the JavaScript engine inlines the smaller library differently |
+| `used-features` | printer | on | Leave out the library code of the features that the grammar and the options rule out, and the declarations of the embedded library that the parser does not name (with -lib embed). The features are such as left recursion, recovery, Operators Rules, streams or Documents; `-lib only` writes the whole library. Off, the parser carries every feature; what a parse returns and charges is the same either way. Smaller source and binary, at no cost on average; single TypeScript workloads move by about 3% either way, as the JavaScript engine inlines the smaller library differently |
 | `sparse-memo` | storage | on | Keep the first-call table of large TypeScript parsers sparse. Memory in proportion to the positions visited against a page lookup per check |
-| `typed-chunk-growth` | storage | on | Let the slabs of typed values and the chunks of typed match cells grow past their fixed size with the values allocated before them, to 1/32 of those (typed Go). Allocations that grow with the logarithm of the output against an unused tail of at most 1/33 of the values |
+| `typed-chunk-growth` | storage | on | Grow the slabs of typed values with the values allocated before them (typed Go). Allocations that grow with the logarithm of the output against an unused tail of at most 1/33 of the values |
 | `typed-list-slabs` | storage | on | Allocate typed lists in slabs (typed Go). Fewer allocations against memory, as for objects |
 | `typed-object-slabs` | storage | on | Allocate typed objects in slabs (typed Go). Fewer allocations against memory: an object that escapes keeps the unused objects of its chunk |
 | `typed-output-bootstrap` | storage | on | Size the first slab of the typed output from the input (typed Go). A small parse keeps little memory, against a few allocations before the slabs start |
+<!-- /generated:flags -->
 
 A profile is chosen with `-optimize` (`compiler.WithOptimize` with a `compiler.Optimize` for `compiler.GenerateGo` and `compiler.GenerateTypeScript`). Each sets flags of the table above to other values
 than `speed` has and nothing else, so `-opt` and `-no-opt` still apply after it:

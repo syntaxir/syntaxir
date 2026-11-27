@@ -82,8 +82,8 @@ var profileDefs = []profileDef{
 }
 
 // checkProfiles reports a profile that breaks the rules: a repeated or undocumented one, a value of
-// a flag that flags does not hold or one the flag does not take, and a value for a flag that changes
-// the output.
+// a flag that flags does not hold or one the flag does not take, a value for a flag that changes
+// the output, and an experiment turned on.
 func checkProfiles(defs []profileDef, flags []pass.Flag) error {
 	seen := map[string]bool{}
 	for _, d := range defs {
@@ -99,6 +99,8 @@ func checkProfiles(defs []profileDef, flags []pass.Flag) error {
 				return fmt.Errorf("profile %s sets %q, which is not a registered flag: the part of the pipeline that registers it is not linked", d.Name, name)
 			case flags[i].ChangesOutput:
 				return fmt.Errorf("profile %s sets %s, which changes the output", d.Name, name)
+			case flags[i].Experiment && v != 0:
+				return fmt.Errorf("profile %s turns on %s, which is an experiment", d.Name, name)
 			case v < 0 || !flags[i].Int && v > 1:
 				return fmt.Errorf("profile %s gives %s the value %d", d.Name, name, v)
 			}

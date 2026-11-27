@@ -7,16 +7,16 @@ import (
 
 // Canonicalization (design: the pass pipeline, Canonicalization): local rewrite patterns that a pass
 // applies to a function until none applies. A pattern rewrites one statement or expression, or a few
-// adjacent ones, into a simpler form that does the same. Each pattern has a name, which is the name
-// of the optimization that turns it off, and each application is a decision of its own, so that
-// bisection can skip one application. The dialect of each stage declares the patterns of the stage
-// (RegisterPatterns): the patterns of its own operations, and those of the statements and expressions
-// of the base that keep the invariants of the stage. Package code makes every pattern (Patterns), so
+// adjacent ones, into a simpler form that does the same. Each pattern has a name, and each
+// application is a decision of its own, so that bisection can skip one application. The dialect of
+// each stage declares the patterns of the stage (RegisterPatterns): the patterns of its own
+// operations, and those of the statements and expressions of the base that keep the invariants of
+// the stage. Package code makes every pattern (Patterns), so
 // a pass that applies them can declare them all without importing a dialect.
 
 // Pattern is a named local rewrite of the body of a function.
 type Pattern struct {
-	// Name is the name of the pattern and of the optimization that turns it off.
+	// Name is the name of the pattern, under which the pipeline numbers and counts its applications.
 	Name string
 	// Doc says in one line what the pattern rewrites.
 	Doc string

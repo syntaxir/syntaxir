@@ -1,7 +1,8 @@
 # 136. Measured Effect of the Generation Flags
 
-- **Status**: Implemented
+- **Status**: Measurement
 - **Date**: 2026-11-08
+- **Decides**: `guards` adopted, `scans` adopted, `inline-literals` adopted, `terminals` adopted, `guarded-classes` adopted, `class-runs` adopted, `class-tables` adopted, `literal-sharing` adopted, `method-sharing` adopted, `typed-object-slabs` adopted, `typed-list-slabs` adopted, `typed-output-bootstrap` adopted, `ts-literal-sharing` opt-in, `sparse-memo` adopted, `text-dispatch` adopted, `field-compare` adopted
 
 ## Problem and Mechanism
 

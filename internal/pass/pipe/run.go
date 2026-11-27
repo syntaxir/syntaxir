@@ -87,7 +87,7 @@ type Result struct {
 }
 
 // Decisions counts the answers to the applications of one pattern: Applied ran, and Skipped were
-// refused, by the pattern's flag or by an observer.
+// refused by an observer.
 type Decisions struct{ Applied, Skipped int }
 
 // An Observer watches every step, required ones included.
@@ -365,14 +365,14 @@ func check(n node, provided map[FeatureID]bool, seen map[string]bool) error {
 }
 
 // checkFlags reports a flag that the pass reads and that the registry does not know: the flag of an
-// optional pass that is no test pass, of a pattern or of a parameter. Without the check the run would
+// optional pass that is no test pass, or of a parameter. Without the check the run would
 // panic at the first step that reads it.
 func checkFlags(d *passDesc) error {
 	var want []string
 	if !d.Required && !d.Test {
 		want = append(want, d.Name)
 	}
-	want = append(append(want, d.Patterns...), d.Params...)
+	want = append(want, d.Params...)
 	for _, f := range want {
 		if _, ok := pass.Lookup(f); !ok {
 			return fmt.Errorf("%w: pass %s reads the flag %s, which is not registered", errCheck, d.Name, f)
@@ -1251,16 +1251,10 @@ func setList(l reflect.Value, i int, v any) {
 }
 
 // allow decides one application of the pattern of a running pass: a run of its own, numbered like
-// an optional pass, which the pattern's flag turns off and an observer may veto. A decision changes
-// nothing by itself (Result.Changed is false); its pass reports the change.
+// an optional pass, which an observer may veto. A decision changes nothing by itself
+// (Result.Changed is false); its pass reports the change.
 func (rs *runner) allow(cs *ctxState, pattern string) bool {
 	observed := len(rs.r.Observers) > 0
-	if rs.r.Settings.Value(pattern) == 0 {
-		if observed {
-			cs.decide(pattern, false)
-		}
-		return false
-	}
 	*rs.seq++
 	if !observed {
 		return true

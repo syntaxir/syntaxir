@@ -38,9 +38,9 @@ that are off is gone, and with it the calls of their operations.
 
 One pass, `canonicalize`, applies named local patterns to a function until none applies, trying them in a fixed
 order, so that the result is the same on every run. It runs at the Exec stage and, with the patterns that keep the
-invariants of that stage, at the [Flow stage](../flow-ir/passes.md#canonicalization). Each pattern is an optimization
-with its own name, which turns it off, and each application of a pattern is counted on its own when passes are
-bisected. A specialization applies every pattern, whatever optimizations a build turns off. The patterns of the Exec
+invariants of that stage, at the [Flow stage](../flow-ir/passes.md#canonicalization). The pass is required and has no
+optimization that turns it off, and neither have its patterns; each pattern has its own name, and each application of
+a pattern is counted on its own when passes are bisected. A specialization applies every pattern. The patterns of the Exec
 stage fold constant expressions and remove code that cannot run, in place, in this order:
 
 - `fold-constants`: an operator or a conversion whose operands are constants becomes its value, computed as running it

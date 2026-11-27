@@ -33,7 +33,10 @@ const CounterOutlined = "outlined"
 
 func init() {
 	pass.Register(pass.Flag{Name: PassOutline, Kind: pass.KindCorePass, Default: 1,
-		Doc: "large and repeated parts of a rule run as functions of their own (TypeScript)"})
+		Doc:       "large and repeated parts of a rule run as functions of their own (TypeScript)",
+		Tradeoff:  "Smaller functions that the JavaScript engine compiles faster, and equal parts share one function, against a call per outlined part",
+		Mechanism: "G220", Record: 146, Backends: pass.On(pass.BackendTypeScript),
+		Witnesses: []string{"outlined keywords"}})
 }
 
 // Outlining is the pass outline: it chooses the nodes of each Node and recognizer table of the

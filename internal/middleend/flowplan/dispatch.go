@@ -28,7 +28,10 @@ const CounterGuarded = "guarded"
 
 func init() {
 	pass.Register(pass.Flag{Name: PassDispatch, Kind: pass.KindCorePass, Default: 1,
-		Doc: "keep the guards of the alternatives whose skip leaves what their evaluation would"})
+		Doc:       "keep the guards of the alternatives whose skip leaves what their evaluation would",
+		Tradeoff:  "Off, the parser tries every alternative, as with `-no-opt guards`",
+		Mechanism: "M010", Record: 141, Backends: pass.On(pass.BackendRecursiveVM, pass.BackendIterativeVM) | pass.Generated,
+		Witnesses: []string{"guards"}})
 }
 
 // Dispatching is the pass dispatch: it chooses the alternatives of each table of the program that keep

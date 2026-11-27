@@ -19,7 +19,7 @@
 #           hack/test-reference-tags.sh, the last only when the affected packages include internal/runtime/engine,
 #           internal/runtime/state or internal/runtime/document (the reference tags build the engine; it also fails
 #           closed: it is planned when the affected packages cannot be computed); then go generate
-#           ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language/... with a check that it changed
+#           ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language/... ./internal/optcatalog with a check that it changed
 #           nothing.
 #   full    only the long tier of the affected packages (the test-long step that engine also plans; a step that two
 #           levels share runs once).
@@ -266,9 +266,9 @@ if want engine || want all; then
 		skipstep reference-tags "internal/runtime/engine, internal/runtime/state and internal/runtime/document are not affected since $base"
 	fi
 	if aff_has_marker generate; then
-		step generate 'go generate ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language/...; the tree must not change' "$snap_def"'
+		step generate 'go generate ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language/... ./internal/optcatalog; the tree must not change' "$snap_def"'
 before=$(snap)
-go generate ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language/...
+go generate ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language/... ./internal/optcatalog
 [ "$(snap)" = "$before" ] || { echo "gate: go generate changed the tree; commit the regenerated files" >&2; git status --short >&2; exit 1; }'
 	else
 		skipstep generate "no generator, generator input or generated file is affected since $base"

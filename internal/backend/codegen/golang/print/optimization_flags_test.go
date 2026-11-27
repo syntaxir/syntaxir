@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
 	"strings"
@@ -56,7 +57,9 @@ rule lit = "a" / "ab" / "abc" / "abcd" / "abcde" / "abcdef" / "日本" / "日本
 
 // optimizationTests says for each registered optimization the test that shows a parser generated
 // without it returns what the engine does, or "" where this file's TestOptimizationDisabledParity does.
-// A flag that is missing here fails TestOptimizationsHaveTests, so a new optimization comes with a test.
+// A test of another package names that package's directory from the root of the repository in
+// parentheses. A flag that is missing here fails TestOptimizationsHaveTests, so a new optimization comes
+// with a test, and so does a test that does not exist.
 var optimizationTests = map[string]string{
 	"terminals":              "TestTerminalProgramDisabledParity",
 	"text-dispatch":          "TestLiteralTextPredicateDispatchDisabledParity",
@@ -65,7 +68,7 @@ var optimizationTests = map[string]string{
 	"guards":                 "",
 	"guarded-classes":        "TestGuardedClassDisabledParity",
 	"scans":                  "",
-	"outline":                "TestOptimizationDisabledTSParity (typescript/print)",
+	"outline":                "TestOptimizationDisabledTSParity (internal/backend/codegen/typescript/print)",
 	"class-runs":             "",
 	"class-tables":           "",
 	"inline-literals":        "",
@@ -76,16 +79,10 @@ var optimizationTests = map[string]string{
 	"typed-object-slabs":     "TestGeneratedTypedOutputRetentionFixture",
 	"typed-list-slabs":       "TestGeneratedTypedOutputRetentionFixture",
 	"typed-output-bootstrap": "TestGeneratedTypedOutputRetentionFixture",
-	"typed-chunk-growth":     "",
-	"sparse-memo":            "TestGeneratedTSSparseMemoControls (print)",
-	"ts-merged-records":      "TestTSExecPassesKeepResultsAndSpends (typescript/print)",
-	"ts-tested-inits":        "TestTSExecPassesKeepResultsAndSpends (typescript/print)",
-	"canonicalize":           "TestCanonicalizePassOff (internal/middleend/codepass)",
-	"drop-after-exit":        "TestCanonicalizePatternOff (internal/middleend/codepass)",
-	"drop-unused-labels":     "TestCanonicalizePatternOff (internal/middleend/codepass)",
-	"fold-branches":          "TestCanonicalizePatternOff (internal/middleend/codepass)",
-	"fold-constants":         "TestCanonicalizePatternOff (internal/middleend/codepass)",
-	"splice-blocks":          "TestCanonicalizePatternOff (internal/middleend/codepass)",
+	"typed-chunk-growth":     "TestTypedChunkGrowthControl (internal/backend/codegen/golang/print)",
+	"sparse-memo":            "TestGeneratedTSSparseMemoControls (internal/backend/codegen/typescript/print)",
+	"ts-merged-records":      "TestTSExecPassesKeepResultsAndSpends (internal/backend/codegen/typescript/print)",
+	"ts-tested-inits":        "TestTSExecPassesKeepResultsAndSpends (internal/backend/codegen/typescript/print)",
 }
 
 // outputFlagTests says for each registered optimization that changes the output (ChangesOutput) the
@@ -139,6 +136,64 @@ func TestOptimizationsHaveTests(t *testing.T) {
 	for _, p := range flagTestProblems(pass.Flags(), optimizationTests, outputFlagTests) {
 		t.Error(p)
 	}
+	for _, tests := range []map[string]string{optimizationTests, outputFlagTests} {
+		for flag, test := range tests {
+			if test == "" {
+				continue
+			}
+			if err := testExists(test); err != nil {
+				t.Errorf("the test of %s: %v", flag, err)
+			}
+		}
+	}
+}
+
+// root is the root of the repository, from the directory of this package.
+const root = "../../../../.."
+
+// namedTest matches a test that optimizationTests or outputFlagTests names: "TestName" for a test of
+// this package, or "TestName (dir)" for one of the package in dir.
+var namedTest = regexp.MustCompile(`^(Test\w+)(?: \(([\w/]+)\))?$`)
+
+// testExists reports an error unless a test file of its package declares the test that test names.
+func testExists(test string) error {
+	m := namedTest.FindStringSubmatch(test)
+	if m == nil {
+		return fmt.Errorf("%q is not \"TestName\" or \"TestName (dir)\"", test)
+	}
+	dir := "."
+	if m[2] != "" {
+		dir = filepath.Join(root, m[2])
+	}
+	files, err := filepath.Glob(filepath.Join(dir, "*_test.go"))
+	if err != nil {
+		return err
+	}
+	for _, f := range files {
+		src, err := os.ReadFile(f)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(src), "\nfunc "+m[1]+"(t *testing.T) {") {
+			return nil
+		}
+	}
+	return fmt.Errorf("no test file of %s declares %s", dir, m[1])
+}
+
+// testExists finds a test of this package and of another, and fails for a test that no file declares,
+// for a directory without it, and for a name of another form.
+func TestTestExists(t *testing.T) {
+	for _, test := range []string{"TestOptimizationsHaveTests", "TestCanonicalizeDecisions (internal/middleend/codepass)"} {
+		if err := testExists(test); err != nil {
+			t.Errorf("%s: %v", test, err)
+		}
+	}
+	for _, test := range []string{"TestNoSuchTest", "TestCanonicalizePassOff (internal/middleend/flowpass)", "TestCanonicalizePassOff (codepass", "canonicalize"} {
+		if err := testExists(test); err == nil {
+			t.Errorf("%s: found", test)
+		}
+	}
 }
 
 // A registry with an optimization that changes the output, which no flag of the real one does yet,
@@ -172,7 +227,7 @@ func TestOutputChangingFlagChecks(t *testing.T) {
 }
 
 // A program that links the generators has the flags of every part of the pipeline, listed by kind
-// (pass, lowering, flow pass, exec pass, code pass, pattern, printer, storage) and by name within a kind, which is the
+// (pass, action pass, flow pass, exec pass, printer, storage) and by name within a kind, which is the
 // order of the usage text of -opt and -no-opt and of the errors that list the names. The registry
 // and the profiles over it are valid, and the profiles resolve to the values they declare.
 func TestRegistryOfTheGenerators(t *testing.T) {
@@ -181,8 +236,6 @@ func TestRegistryOfTheGenerators(t *testing.T) {
 		"field-compare", "text-dispatch",
 		"class-runs", "class-tables", "guarded-classes", "inline-literals", "terminals",
 		"ts-merged-records", "ts-tested-inits",
-		"canonicalize",
-		"drop-after-exit", "drop-unused-labels", "fold-branches", "fold-constants", "splice-blocks",
 		"literal-sharing", "method-sharing", "ts-literal-sharing", "used-features",
 		"sparse-memo", "typed-chunk-growth", "typed-list-slabs", "typed-object-slabs", "typed-output-bootstrap",
 	}
@@ -210,40 +263,6 @@ func TestRegistryOfTheGenerators(t *testing.T) {
 			if f.ChangesOutput && s.Value(f.Name) != f.Default {
 				t.Errorf("profile %s sets %s, which changes the output", name, f.Name)
 			}
-		}
-	}
-}
-
-// The guide lists every registered optimization, with the name that -no-opt takes, in the order of
-// the registry, and the row carries the kind and the default of the registry (and "changes output"
-// for a flag that does).
-func TestOptimizationsAreInTheGuide(t *testing.T) {
-	doc, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "docs", "guide", "code-generation.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	last, lastName := -1, ""
-	for _, f := range pass.Flags() {
-		prefix := "| `" + f.Name + "` | "
-		row, at := "", -1
-		for i, line := range strings.Split(string(doc), "\n") {
-			if strings.HasPrefix(line, prefix) {
-				row, at = line, i
-			}
-		}
-		if row == "" {
-			t.Errorf("the guide has no row for the optimization %s", f.Name)
-			continue
-		}
-		if at < last {
-			t.Errorf("the guide lists %s before %s, against the order of the registry", f.Name, lastName)
-		}
-		last, lastName = at, f.Name
-		if want := prefix + f.Kind.String() + " | " + f.DefaultText() + " | "; !strings.HasPrefix(row, want) {
-			t.Errorf("the guide row of %s does not start with %q (the kind and the default of the registry): %.80s", f.Name, want, row)
-		}
-		if f.ChangesOutput && !strings.Contains(row, "changes output") {
-			t.Errorf("the guide row of %s does not say that it changes the output", f.Name)
 		}
 	}
 }

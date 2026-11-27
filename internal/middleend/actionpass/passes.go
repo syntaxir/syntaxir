@@ -27,7 +27,10 @@ const (
 
 func init() {
 	pass.Register(pass.Flag{Name: PassTextDispatch, Kind: pass.KindActionPass, Default: 1,
-		Doc: "a predicate that compares the text of a capture with literals tests them at once when the parse runs without limit controls"})
+		Doc:       "a predicate that compares the text of a capture with literals tests them at once when the parse runs without limit controls",
+		Tradeoff:  "One test of the literals against a chain of comparisons, and the text is computed once",
+		Mechanism: "G070", Record: 136, Backends: pass.Generated,
+		Witnesses: []string{"text dispatch"}})
 }
 
 // funcOf returns the function of a unit of one site and its attributes.

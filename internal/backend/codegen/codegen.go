@@ -48,9 +48,18 @@ const (
 
 func init() {
 	pass.Register(
-		pass.Flag{Name: MethodSharing, Kind: pass.KindPrinter, Default: 1, Doc: "emit one helper for generated bodies that are exactly equal (Go and TypeScript)"},
-		pass.Flag{Name: LiteralSharing, Kind: pass.KindPrinter, Default: 1, Doc: "emit one table for equal literals (Go; TypeScript also needs ts-literal-sharing)"},
-		pass.Flag{Name: UsedFeatures, Kind: pass.KindPrinter, Default: 1, Doc: "leave out the library code of the features that the grammar and the options rule out (Go with the embedded library); off, the parser carries every feature"},
+		pass.Flag{Name: MethodSharing, Kind: pass.KindPrinter, Default: 1, Doc: "emit one helper for generated bodies that are exactly equal (Go and TypeScript)",
+			Tradeoff:  "Code against calls: smaller source, with a call where a body was",
+			Mechanism: "G010", Record: 136, Backends: pass.Generated,
+			Witnesses: []string{"equal bodies", "recovery"}},
+		pass.Flag{Name: LiteralSharing, Kind: pass.KindPrinter, Default: 1, Doc: "emit one table for equal literals (Go; TypeScript also needs ts-literal-sharing)",
+			Tradeoff:  "Smaller source against an indirection to the table",
+			Mechanism: "G130", Record: 136, Backends: pass.GeneratedGo,
+			Witnesses: []string{"recovery"}},
+		pass.Flag{Name: UsedFeatures, Kind: pass.KindPrinter, Default: 1, Doc: "leave out the library code of the features that the grammar and the options rule out, and the declarations of the embedded library that the parser does not name (with -lib embed)",
+			Tradeoff:  "The features are such as left recursion, recovery, Operators Rules, streams or Documents; `-lib only` writes the whole library. Off, the parser carries every feature; what a parse returns and charges is the same either way. Smaller source and binary, at no cost on average; single TypeScript workloads move by about 3% either way, as the JavaScript engine inlines the smaller library differently",
+			Mechanism: "G250", Record: 144, Backends: pass.Generated,
+			Witnesses: []string{"guards"}},
 	)
 }
 

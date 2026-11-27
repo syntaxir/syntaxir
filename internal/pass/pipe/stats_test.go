@@ -83,7 +83,7 @@ func TestStatsSumsRunsChangesAndCountersInDeclarationOrder(t *testing.T) {
 }
 
 // The decisions of a pattern are counted in the result of the pass that asked: applied, or skipped
-// by the pattern's flag or by an observer. The events of the decisions add no runs.
+// by an observer. The events of the decisions add no runs.
 func TestStatsCountsTheDecisionsOfPatterns(t *testing.T) {
 	in := &prog{tables: []string{"a"}}
 	veto := &recorder{veto: func(e Event) bool { return e.Step.Pattern && e.Seq == 3 }}
@@ -97,12 +97,13 @@ func TestStatsCountsTheDecisionsOfPatterns(t *testing.T) {
 		t.Errorf("with a veto: %+v, want %+v", got, want)
 	}
 	st = NewStats()
-	if _, err := run(t, &Run{Settings: settings(t, "t-fold"), Observers: []Observer{st}}, tablePipe(Seq(modIR, canon)), in); err != nil {
+	all := &recorder{veto: func(e Event) bool { return e.Step.Pattern }}
+	if _, err := run(t, &Run{Observers: []Observer{all, st}}, tablePipe(Seq(modIR, canon)), in); err != nil {
 		t.Fatal(err)
 	}
 	got, _ = st.Instance("", "t-canon")
 	if want := []PatternDecisions{{"t-fold", Decisions{Skipped: 2}}}; !reflect.DeepEqual(got.Patterns, want) {
-		t.Errorf("with the flag off: %+v, want %+v", got.Patterns, want)
+		t.Errorf("with every decision vetoed: %+v, want %+v", got.Patterns, want)
 	}
 }
 

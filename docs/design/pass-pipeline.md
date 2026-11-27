@@ -357,9 +357,11 @@ One pass of Code IR, `canonicalize`, applies local rewrite patterns until none a
 declares which patterns apply at the stage, and the pass runs at both stages: at the Flow stage after fail-merge/thread, and at the Exec stage after specialization for
 the features of a build and before dead-store removal, so that what specialization made unreachable is gone before
 liveness is computed. A pattern rewrites one operation, or a few adjacent ones, into a simpler form: it folds a
-constant, removes code after an exit or splices a block into its parent. Each pattern has a name in the registry, so
-`-opt` and `-no-opt` turn it on or off, `-opt-bisect-limit` gives each of its applications a number of its own,
-`-print-pipeline` lists it under the pass, and the statistics count its applications. The pass tries the patterns in a
+constant, removes code after an exit or splices a block into its parent. The pass is a required step: the printers
+already leave out what the patterns remove, so neither it nor its patterns change a generated parser or the bytecode,
+and neither has a flag ([optimization record 142](../optimizations/142-canonicalization-without-flags.md)). Each
+pattern has a name, so `-opt-bisect-limit` gives each of its applications a number of its own, `-print-pipeline`
+lists it under the pass, and the statistics count its applications. The pass tries the patterns in a
 fixed order, so it reaches the same fixed point and the same output on every run. Running the patterns together to a
 fixed point lets one rewrite expose the next without another pass in the pipeline, and the names of the patterns keep
 each rewrite measurable and bisectable by itself.
@@ -423,7 +425,7 @@ An optimization is a **flag** with a name in one registry, the generic registry 
 the pipeline registers its own passes where the part is defined (name, description, default and applicability), and the
 controls of printers and libraries are registered with the kind `library` by the code generators that own them. Each
 name is declared in one place, and every name differs from the others, so one name selects one pass in the flags and in
-the dumps. A flag has a kind, which says what it changes: a pass of the pipeline, a pattern of `canonicalize`, or a
+the dumps. A flag has a kind, which says what it changes: a pass of the pipeline, a choice of a printer, or a
 library control (the runtime structures and helpers that the printers emit, such as allocating typed objects in slabs or
 sparse memo tables).
 
@@ -597,8 +599,8 @@ change in any version; the flags and the fields are the interface.
 to N and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once for each
 function. The passes of a module of many functions, such as the module of a planned table, run pass by pass: the first
 pass on each function in the order of the module, then the second, so the numbers, and the dumps after each pass, follow
-the passes and, within a pass, the functions. A run of `canonicalize` on a unit takes one number like every pass, and
-each application of one of its patterns takes a number of its own, so that skipping a number skips that one application.
+the passes and, within a pass, the functions. Each application of a pattern, such as one of `canonicalize`, takes a
+number of its own, required pass or not, so that skipping a number skips that one application.
 Required passes always run, so the output stays a valid parser whatever N is. Each decision is reported with its number,
 the name of the pass, the unit and whether the pass ran, as `opt-bisect: <number> run|skip <instance> [<unit>]`. The
 numbers run on over every stage and table of a build. In Go, the limit is `OptBisectLimit` of `Debug`, a pointer that is

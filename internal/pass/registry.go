@@ -29,11 +29,6 @@ const (
 	KindFlowPass
 	// KindExecPass is a pass over Exec IR.
 	KindExecPass
-	// KindCodePass is a pass of Code IR that runs at the Flow and the Exec stage.
-	KindCodePass
-	// KindPattern is a local rewrite pattern that a pass applies (canonicalize): each application
-	// is a decision of its own.
-	KindPattern
 	// KindPrinter is a choice of what the Go and TypeScript printers emit: the form of an action expression of an
 	// action or a predicate, or whether equal generated bodies and tables share one helper.
 	KindPrinter
@@ -52,10 +47,6 @@ func (k Kind) String() string {
 		return "flow pass"
 	case KindExecPass:
 		return "exec pass"
-	case KindCodePass:
-		return "code pass"
-	case KindPattern:
-		return "pattern"
 	case KindPrinter:
 		return "printer"
 	case KindStorage:
@@ -79,6 +70,24 @@ type Flag struct {
 	// opt-in (Default 0), no preset sets it, and it has a contract test of its own in place of the
 	// disabled-form tests of the flags that keep behavior.
 	ChangesOutput bool
+	// Mechanism is the ID of the mechanism of the optimization catalog that the flag implements, as
+	// "M010" (CheckCatalog).
+	Mechanism string
+	// Experiment reports that the flag is an experiment: off in speed and in every profile, listed as
+	// experimental, and its name may change or go in any version. A flag that is not an experiment is
+	// adopted if speed or a profile turns it on and an opt-in otherwise.
+	Experiment bool
+	// Record is the number of the optimization record (docs/optimizations) that decided the state of the
+	// flag; for an experiment, the record that opened it.
+	Record int
+	// Tradeoff says what the optimization costs and what it gains; Doc says what it does.
+	Tradeoff string
+	// Backends are the backends whose parser the flag changes.
+	Backends Backends
+	// Witnesses name the cases of the corpus of the backend-claims test (internal/testing/opttest)
+	// on which turning the flag off, or an opt-in on, changes the parser: for each backend of
+	// Backends, at least one of them.
+	Witnesses []string
 }
 
 // DefaultText is the default value as the guide and the usage text write it: "on" or "off" for a
@@ -103,12 +112,16 @@ func (f Flag) Summary() string {
 	if f.ChangesOutput {
 		s += "; changes output"
 	}
+	if f.Experiment {
+		s += "; experimental"
+	}
 	return s + ")"
 }
 
 // CheckFlags reports a flag list that breaks the rules of the registry: a name or a description
 // missing or repeated, a kind that is not one of the kinds, a value that is neither 0 or 1 nor a
-// count, and an optimization that changes the output without being an opt-in.
+// count, an optimization that changes the output without being an opt-in, an experiment that is on in
+// speed, and the name of a removed optimization. The rules of the catalog are CheckCatalog's.
 func CheckFlags(flags []Flag) error {
 	seen := map[string]bool{}
 	for _, f := range flags {
@@ -123,6 +136,11 @@ func CheckFlags(flags []Flag) error {
 			return fmt.Errorf("flag %s is on or off but its speed value is %d", f.Name, f.Default)
 		case f.ChangesOutput && f.Default != 0:
 			return fmt.Errorf("flag %s changes the output but is on in the speed profile: it must be an opt-in", f.Name)
+		case f.Experiment && f.Default != 0:
+			return fmt.Errorf("flag %s is an experiment but is on in the speed profile", f.Name)
+		}
+		if r, ok := removedNamed(f.Name); ok {
+			return fmt.Errorf("flag %s has the name of the optimization that record %d removed", f.Name, r.Record)
 		}
 		seen[f.Name] = true
 	}
@@ -216,7 +234,7 @@ func (s Settings) Value(name string) int {
 func (s Settings) With(name string, value int) (Settings, error) {
 	f, ok := Lookup(name)
 	if !ok {
-		return Settings{}, fmt.Errorf("unknown optimization %q (valid: %s)", name, strings.Join(Names(), ", "))
+		return Settings{}, unknown(name)
 	}
 	if value < 0 || !f.Int && value > 1 {
 		return Settings{}, fmt.Errorf("optimization %s does not take the value %d", name, value)
@@ -233,7 +251,7 @@ func (s Settings) Without(names ...string) (Settings, error) {
 	for _, n := range names {
 		n = strings.TrimSpace(n)
 		if _, ok := Lookup(n); !ok {
-			return Settings{}, fmt.Errorf("unknown optimization %q (valid: %s)", n, strings.Join(Names(), ", "))
+			return Settings{}, unknown(n)
 		}
 		out.over[n] = 0
 	}
@@ -248,6 +266,15 @@ func (s Settings) Equal(t Settings) bool {
 		}
 	}
 	return true
+}
+
+// unknown is the error for a name that is not a registered optimization: it names the record that
+// removed the optimization of the name, or lists the valid names.
+func unknown(name string) error {
+	if r, ok := removedNamed(name); ok {
+		return fmt.Errorf("optimization %q was removed (optimization record %d)", name, r.Record)
+	}
+	return fmt.Errorf("unknown optimization %q (valid: %s)", name, strings.Join(Names(), ", "))
 }
 
 func (s Settings) clone() Settings {

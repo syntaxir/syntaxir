@@ -55,7 +55,7 @@ pipeline program -> []output {
                         class-runs
                         class-tables
                         inline-literals
-                        canonicalize[fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
+                        canonicalize![fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
                       }
                     }
                   }
@@ -65,7 +65,7 @@ pipeline program -> []output {
                 within module@exec {
                   func funcs@exec {
                     slot exec-passes {
-                      canonicalize#2[fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
+                      canonicalize#2![fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
                     }
                   }
                   func lowered-funcs@exec {
@@ -126,7 +126,7 @@ pipeline program -> []output {
                         class-runs
                         class-tables
                         inline-literals
-                        canonicalize[fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
+                        canonicalize![fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
                       }
                     }
                   }
@@ -136,7 +136,7 @@ pipeline program -> []output {
                 within module@exec {
                   func funcs@exec {
                     slot exec-passes {
-                      canonicalize#2[fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
+                      canonicalize#2![fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
                     }
                   }
                   func lowered-funcs@exec {

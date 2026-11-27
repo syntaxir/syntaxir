@@ -93,8 +93,8 @@ func values(name string) int {
 	return 0
 }
 
-// lowered is a function lowered from the forms rule, the passes that ran on it, and its listing
-// after Finish.
+// lowered is a function lowered from the forms rule, the passes of forms that ran on it, and its
+// listing after Finish. Canonicalize, which every run ends with, is not among ran: lower checks it.
 type lowered struct {
 	ran  []string
 	text string
@@ -109,9 +109,6 @@ type testEnv struct {
 	Observe bool
 	Flag    func(name string) bool
 	Value   func(name string) int
-	// Canonicalize runs canonicalize after the passes of forms, which the tests of the forms leave
-	// out, so that a function shows what the passes of forms made.
-	Canonicalize bool
 }
 
 // options returns the options of a run under e that verifies after each pass.
@@ -130,8 +127,6 @@ func (e *testEnv) options(t *testing.T) RunOptions {
 	}
 	for _, name := range append(Names(), corepass.PassGuards) {
 		switch {
-		case name == codepass.PassCanonicalize && !e.Canonicalize:
-			set(name, 0)
 		case e.Flag != nil && !e.Flag(name):
 			set(name, 0)
 		case name == PassClassTables || name == PassInlineLiterals:
@@ -141,8 +136,8 @@ func (e *testEnv) options(t *testing.T) RunOptions {
 	return RunOptions{Settings: s, Observe: e.Observe, Target: e.Target, VerifyEach: true}
 }
 
-// lower lowers the forms rule with opts, runs the passes under env, verifying after each, and ends
-// them.
+// lower lowers the forms rule with opts, runs the passes under env, verifying after each, checks that
+// canonicalize ran once and last, and ends them.
 func lower(t *testing.T, opts lowerdata.Options, env *testEnv) lowered {
 	t.Helper()
 	m, r := forms(t)
@@ -155,6 +150,10 @@ func lower(t *testing.T, opts lowerdata.Options, env *testEnv) lowered {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if i := slices.Index(ran, codepass.PassCanonicalize); i != len(ran)-1 {
+		t.Fatalf("ran %v: canonicalize is not the last pass", ran)
+	}
+	ran = ran[:len(ran)-1]
 	finishModule(f, nil)
 	if err := flow.VerifyModule(f); err != nil {
 		t.Fatalf("after Finish: %v\n%s", err, code.FuncStringIn(f, flow.FuncOf(f)))
@@ -337,18 +336,18 @@ func TestFinish(t *testing.T) {
 	}
 }
 
-// Canonicalize runs after the passes of forms and keeps what they made.
+// Canonicalize, which no flag turns off, runs after the passes of forms, also when none applies, and
+// keeps what they made (lower checks that it runs last).
 func TestCanonicalizeRunsLast(t *testing.T) {
-	base := lower(t, lowerdata.Options{}, &testEnv{Target: all})
-	l := lower(t, lowerdata.Options{}, &testEnv{Target: all, Canonicalize: true})
-	if want := append(FormNames(), codepass.PassCanonicalize); !slices.Equal(l.ran, want) {
-		t.Errorf("ran %v, want %v", l.ran, want)
+	if _, ok := pass.Lookup(codepass.PassCanonicalize); ok {
+		t.Errorf("canonicalize is a flag")
 	}
-	if !slices.Equal(shows(l), shows(base)) {
-		t.Errorf("canonicalize changed the forms: %v, want %v", shows(l), shows(base))
+	l := lower(t, lowerdata.Options{}, &testEnv{Target: all})
+	if !slices.Equal(l.ran, FormNames()) || !slices.Equal(shows(l), FormNames()) {
+		t.Errorf("ran %v, shows %v, want %v", l.ran, shows(l), FormNames())
 	}
-	plain := lower(t, lowerdata.Options{}, &testEnv{Canonicalize: true})
-	if !slices.Equal(plain.ran, []string{codepass.PassCanonicalize}) {
+	plain := lower(t, lowerdata.Options{}, &testEnv{})
+	if len(plain.ran) != 0 {
 		t.Errorf("empty target: ran %v", plain.ran)
 	}
 }

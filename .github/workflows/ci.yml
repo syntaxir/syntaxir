@@ -43,7 +43,7 @@ jobs:
       - name: Vet root module
         run: go vet ./...
       - name: Regenerate generated files
-        run: go generate ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language/...
+        run: go generate ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language/... ./internal/optcatalog
       - name: Require an unchanged tree
         run: |
           if [ -n "$(git status --porcelain)" ]; then
