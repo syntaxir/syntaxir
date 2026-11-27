@@ -39,17 +39,22 @@
 # command can check that it holds the lock (the timed harness of syntaxir/bench does).
 #
 # The power guard: a timed (exclusive) job runs on AC power with at least BENCHLOCK_MIN_CHARGE percent
-# of charge (default 50, on AC too; see sxir_power in lib.sh), for the whole run. It checks the power
-# before it queues and again once admitted, and refuses to start on battery or under the floor: it
-# says why on stderr, logs it to benchlock-power.log and exits 75. While the command runs it reads
-# the power every BENCHLOCK_POWER_POLL seconds (default 30) into power/<tag>.<pid>.log, whose path
-# and first reading it passes to the command in SXIR_POWER_LOG and SXIR_POWER_START. After the
-# command it reads the power once more: when any reading was on battery or under the floor, the run
-# is invalid: it says so on stderr and in benchlock-power.log, keeps the readings, and exits 75
-# whatever the command's own status, which the message gives. On a Mac, a reading whose probe
-# failed or named neither AC nor battery is refused like battery. A machine with no probe (not a
-# Mac, probe=none) runs unchecked: benchlock-power.log notes it, and its readings are kept. Shared
-# jobs measure no time and are not checked.
+# of charge (default 50, on AC too; see sxir_power in lib.sh), for the whole run and for a lead time
+# before it. It checks the power before it queues and again once admitted, and refuses to start on
+# battery or under the floor: it says why on stderr, logs it to benchlock-power.log and exits 75. Once
+# admitted it holds the lock for BENCHLOCK_POWER_LEAD seconds (default 300; 0 skips the lead) and
+# reads the power every BENCHLOCK_POWER_POLL seconds (default 30) and at the end of the lead; a bad
+# reading refuses the job in the same way, so that a run starts only on power that has held. While the
+# command runs it reads the power every BENCHLOCK_POWER_POLL seconds into power/<tag>.<pid>.log, whose
+# path and first reading it passes to the command in SXIR_POWER_LOG and SXIR_POWER_START. The first
+# reading on battery or under the floor stops the command: the sampler signals the wrapper, which
+# stops the command's group as on TERM. After the command it reads the power once more: when any
+# reading was on battery or under the floor, the run is invalid: it says so on stderr (and that the
+# command was stopped, when the guard stopped it) and in benchlock-power.log, keeps the readings, and
+# exits 75 whatever the command's own status, which the message gives. On a Mac, a reading whose
+# probe failed or named neither AC nor battery is refused like battery. A machine with no probe (not
+# a Mac, probe=none) runs unchecked, without a lead: benchlock-power.log notes it, and its readings
+# are kept. Shared jobs measure no time and are not checked.
 #
 # Deadlock freedom: every waiter is ranked by the key (start, seq). seq is a counter handed out
 # under flock, so no two waiters share a key and exactly one live waiter is first; all waiters
@@ -78,6 +83,7 @@ tag=$1; shift
 P=$D/power
 plog=$D/benchlock-power.log
 ppoll=${BENCHLOCK_POWER_POLL:-30}
+plead=${BENCHLOCK_POWER_LEAD:-300}
 power_now=
 # power_ok WHEN reads the power for an exclusive job and sets power_now; when the reading does not
 # allow a timed run it says why, logs it and returns 1. A machine with no probe is logged and allowed.
@@ -98,6 +104,7 @@ command -v perl >/dev/null 2>&1 || { echo "benchlock.sh: perl is required for th
 if [ "$class" = exclusive ]; then
   floor=$(sxir_power_floor)
   case $ppoll in '' | *[!0-9]* | 0) echo "benchlock.sh: BENCHLOCK_POWER_POLL must be a positive number of seconds, not '$ppoll'" >&2; exit 2 ;; esac
+  case $plead in '' | *[!0-9]*) echo "benchlock.sh: BENCHLOCK_POWER_LEAD must be a number of seconds, not '$plead'" >&2; exit 2 ;; esac
   power_ok queued || exit 75
 fi
 mkdir -p "$R"
@@ -230,6 +237,28 @@ if [ "$class" = exclusive ] && ! power_ok admitted; then
   with_flock release || true
   exit 75
 fi
+# The lead: the power must hold for BENCHLOCK_POWER_LEAD seconds before the command starts. The job
+# holds the lock meanwhile, so the machine is as quiet as during the run. A signal ends the lead and
+# gives the lock back.
+if [ "$class" = exclusive ] && [ "$plead" -gt 0 ]; then
+  case $power_now in
+    source=unknown*) ;;
+    *)
+      trap 'rm -f "$rec"; with_flock release || true; exit 143' TERM INT HUP
+      lead_end=$((SECONDS + plead))
+      while [ "$SECONDS" -lt "$lead_end" ]; do
+        nap=$((lead_end - SECONDS)); [ "$nap" -le "$ppoll" ] || nap=$ppoll
+        sleep "$nap"
+        if ! power_ok lead; then
+          rm -f "$rec"
+          with_flock release || true
+          exit 75
+        fi
+      done
+      trap - TERM INT HUP
+      ;;
+  esac
+fi
 term=
 child=
 sampler=
@@ -254,9 +283,20 @@ if [ "$class" = exclusive ]; then
   powerlog=$P/$tag.$$.log
   printf '%s %s\n' "$(date +%FT%T)" "$power_now" > "$powerlog"
   export SXIR_POWER_LOG=$powerlog SXIR_POWER_START=$power_now
+  stopfile=$powerlog.stopped
   # The sampler writes nothing to this script's output, so that a caller reading it is not held open.
-  # kill -0 $$ ends the sampler when the wrapper dies without running its EXIT trap (SIGKILL).
-  ( while kill -0 $$ 2>/dev/null && sleep "$ppoll"; do printf '%s %s\n' "$(date +%FT%T)" "$(sxir_power)" >> "$powerlog"; done ) < /dev/null > /dev/null 2>&1 &
+  # kill -0 $$ ends the sampler when the wrapper dies without running its EXIT trap (SIGKILL). On the
+  # first reading that does not allow timing it marks the run as stopped and signals the wrapper,
+  # which stops the command.
+  ( while kill -0 $$ 2>/dev/null && sleep "$ppoll"; do
+      reading=$(sxir_power) || true
+      printf '%s %s\n' "$(date +%FT%T)" "$reading" >> "$powerlog"
+      if [ -n "$(sxir_power_refusal "$reading" "$floor")" ]; then
+        : > "$stopfile"
+        kill -TERM $$ 2>/dev/null || true
+        exit 0
+      fi
+    done ) < /dev/null > /dev/null 2>&1 &
   sampler=$!
 else
   unset SXIR_BENCHLOCK SXIR_POWER_LOG SXIR_POWER_START
@@ -301,9 +341,11 @@ if [ "$class" = exclusive ]; then
     if [ -n "$why" ]; then bad="$why at $when"; break; fi
     case $reading in source=unknown*) unchecked=${unchecked:-$when} ;; esac
   done < "$powerlog"
+  stopped=
+  if [ -e "$stopfile" ]; then stopped=' was stopped and'; rm -f "$stopfile"; fi
   if [ -n "$bad" ]; then
-    echo "benchlock.sh: $tag ran on power that does not allow timing ($bad): its timings are invalid; the command exited $rc; readings in $powerlog" >&2
-    printf '%s invalid: %s.%s ran %s; the command exited %s; readings in %s\n' "$(date +%FT%T)" "$tag" "$$" "$bad" "$rc" "$powerlog" >> "$plog"
+    echo "benchlock.sh: $tag ran on power that does not allow timing ($bad): its timings are invalid; the command$stopped exited $rc; readings in $powerlog" >&2
+    printf '%s invalid: %s.%s ran %s; the command%s exited %s; readings in %s\n' "$(date +%FT%T)" "$tag" "$$" "$bad" "$stopped" "$rc" "$powerlog" >> "$plog"
     exit 75
   fi
   if [ -n "$unchecked" ]; then

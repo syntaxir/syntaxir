@@ -58,9 +58,10 @@ func scriptEnv(t *testing.T, state string) []string {
 		"SXIR_AGENT_STATE="+state, "BENCHLOCK_POLL=1",
 		// The power guard of benchlock.sh reads a machine on AC power with a full battery, whatever
 		// the power of the machine that runs the tests; the tests of the guard replace the probe.
-		// SXIR_POWER_CMD counts only with SXIR_POWER_TEST=1 beside it.
+		// SXIR_POWER_CMD counts only with SXIR_POWER_TEST=1 beside it. Timed jobs start without the
+		// lead, which the tests of the lead set themselves.
 		"SXIR_POWER_TEST=1", "SXIR_POWER_CMD=echo \"Now drawing from 'AC Power' -InternalBattery-0 (id=1) 100%; charged;\"",
-		"BENCHLOCK_MIN_CHARGE=50", "BENCHLOCK_POWER_POLL=30", "SXIR_POWER_LOG=", "SXIR_POWER_START=",
+		"BENCHLOCK_MIN_CHARGE=50", "BENCHLOCK_POWER_POLL=30", "BENCHLOCK_POWER_LEAD=0", "SXIR_POWER_LOG=", "SXIR_POWER_START=",
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.com",
 		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.com")
 	return append(env, gitIsolated...)

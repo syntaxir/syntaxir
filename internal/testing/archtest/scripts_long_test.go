@@ -1517,11 +1517,13 @@ func queueEmpty(t *testing.T, what, state string) {
 }
 
 // The power guard of a timed (exclusive) benchlock.sh job: it refuses to start on battery or under the
-// charge floor, on AC too, both when it queues and once admitted; it reads the power while the command
-// runs and fails the run with exit 75 when any reading was bad, even one between two good ones; a
-// failed probe or a reading that names neither AC nor battery is refused like battery, at the start
-// and during the run; a machine with no probe runs, with a trace in the log; the test probe counts
-// only with SXIR_POWER_TEST=1; the sampler dies with a killed wrapper; and shared jobs are not checked.
+// charge floor, on AC too, both when it queues and once admitted; it holds the lock for a lead time in
+// which the power must hold, and refuses the job at a bad reading there; it reads the power while the
+// command runs and stops the command at the first bad reading, failing the run with exit 75, and
+// fails the run as well when only the reading after the command was bad; a failed probe or a reading
+// that names neither AC nor battery is refused like battery, at the start and during the run; a
+// machine with no probe runs, without a lead and with a trace in the log; the test probe counts only
+// with SXIR_POWER_TEST=1; the sampler dies with a killed wrapper; and shared jobs are not checked.
 func TestBenchlockPowerGuard(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
 	needTools(t)
@@ -1596,13 +1598,15 @@ func TestBenchlockPowerGuard(t *testing.T) {
 		}
 		queueEmpty(t, "a job refused once admitted", state)
 	})
-	// midRun makes the probe report source/charge while a timed job runs, then AC again before the
-	// end: the reading between is enough to fail the run. flagged is what queue-status.sh says then.
-	midRun := func(t *testing.T, source string, charge int, seen, why, flagged string) {
+	// midRun makes the probe report source/charge while a timed job runs: the sampler records the
+	// reading and the guard stops the command, which never ends on its own (it waits for a file that
+	// the test does not write), and fails the run.
+	midRun := func(t *testing.T, source string, charge int, seen, why string) {
 		state := t.TempDir()
 		env, set := powerProbe(t, append(scriptEnv(t, state), "BENCHLOCK_POWER_POLL=1"))
 		work, run := overlapWork(t)
 		hold := filepath.Join(run, "release")
+		t.Cleanup(func() { write(t, hold, "", 0o644) })
 		var stderr strings.Builder
 		x := exec.Command("bash", scriptPath(t, "benchlock.sh"), "timed", work, run, "x", "0")
 		x.Env = append(env, "WORK_HOLD="+hold)
@@ -1612,43 +1616,118 @@ func TestBenchlockPowerGuard(t *testing.T) {
 		}
 		t.Cleanup(func() { _ = x.Process.Kill() })
 		waitEvent(t, run, "start x")
-		set(source, charge)
 		logs, _ := filepath.Glob(filepath.Join(state, "power", "timed.*.log"))
 		if len(logs) != 1 {
 			t.Fatalf("power logs: %v", logs)
 		}
-		for begin := time.Now(); ; time.Sleep(50 * time.Millisecond) {
-			if b, _ := os.ReadFile(logs[0]); strings.Contains(string(b), seen) {
-				break
-			}
-			if time.Since(begin) > 30*time.Second {
-				t.Fatalf("the sampler recorded no %q reading", seen)
-			}
-		}
-		// queue-status.sh flags a timed job that runs on such power.
-		if out, err := runIn(t, ".", env, "bash", scriptPath(t, "queue-status.sh")); err == nil || !strings.Contains(out, flagged) {
-			t.Errorf("queue-status.sh during the run: %v\n%s", err, out)
-		}
-		set("AC Power", 100)
-		write(t, hold, "", 0o644)
-		if code := waitExit(t, x); code != 75 || !strings.Contains(stderr.String(), "its timings are invalid; the command exited 0") {
+		set(source, charge)
+		if code := waitExit(t, x); code != 75 || !strings.Contains(stderr.String(), "its timings are invalid; the command was stopped and exited") {
 			t.Errorf("exit %d, stderr %q", code, stderr.String())
 		}
-		if log := powerLog(state); !strings.Contains(log, "invalid: timed.") || !strings.Contains(log, why) {
+		if ev := events(t, run); slices.Contains(ev, "end x") {
+			t.Errorf("the command ran to its end: %q", ev)
+		}
+		if b, _ := os.ReadFile(logs[0]); !strings.Contains(string(b), seen) {
+			t.Errorf("the readings have no %q: %q", seen, b)
+		}
+		if log := powerLog(state); !strings.Contains(log, "invalid: timed.") || !strings.Contains(log, why) ||
+			!strings.Contains(log, "the command was stopped and exited") {
 			t.Errorf("benchlock-power.log: %q", log)
 		}
-		if _, err := os.Stat(logs[0]); err != nil {
-			t.Errorf("the readings of an invalid run are gone: %v", err)
+		if m, _ := filepath.Glob(logs[0] + ".stopped"); len(m) > 0 {
+			t.Errorf("the mark of the stop is left: %v", m)
 		}
-		queueEmpty(t, "an invalid run", state)
+		queueEmpty(t, "a stopped run", state)
 	}
 	t.Run("battery during the run", func(t *testing.T) {
-		midRun(t, "Battery Power", 70, "source=battery", "on battery (70%)",
-			"POWER: 1 exclusive job(s) queued or running while the machine is on battery (70%)")
+		midRun(t, "Battery Power", 70, "source=battery", "on battery (70%)")
 	})
 	t.Run("probe failure during the run", func(t *testing.T) {
-		midRun(t, "", 0, "probe=failed", "on unknown power: the power probe failed",
-			"POWER: 1 exclusive job(s) queued or running while the machine is on unknown power: the power probe failed")
+		midRun(t, "", 0, "probe=failed", "on unknown power: the power probe failed")
+	})
+	// lead starts a timed job with a lead longer than the test and returns it, its standard error and
+	// the probe, once the job holds the lock in its lead.
+	lead := func(t *testing.T, state string, extra ...string) (*exec.Cmd, *strings.Builder, func(string, int), string) {
+		env, set := powerProbe(t, append(scriptEnv(t, state), extra...))
+		work, run := overlapWork(t)
+		var stderr strings.Builder
+		x := exec.Command("bash", scriptPath(t, "benchlock.sh"), "timed", work, run, "x", "0")
+		x.Env = env
+		x.Stderr = &stderr
+		if err := x.Start(); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = x.Process.Kill() })
+		for begin := time.Now(); ; time.Sleep(20 * time.Millisecond) {
+			if _, err := os.Stat(filepath.Join(state, "benchlock", "owner")); err == nil {
+				break
+			}
+			if time.Since(begin) > 20*time.Second {
+				t.Fatal("the job never took the lock")
+			}
+		}
+		return x, &stderr, set, run
+	}
+	t.Run("battery during the lead", func(t *testing.T) {
+		// The probe reads AC for the checks when the job queues and when it is admitted, and battery
+		// from the first reading of the lead on.
+		state := t.TempDir()
+		dir := t.TempDir()
+		probe := filepath.Join(dir, "probe.sh")
+		write(t, probe, `#!/usr/bin/env bash
+n=$(cat "$0.n" 2>/dev/null || echo 0); n=$((n + 1)); echo "$n" > "$0.n"
+if [ "$n" -le 2 ]; then src='AC Power'; else src='Battery Power'; fi
+printf "Now drawing from '%s'\n -InternalBattery-0 (id=1)\t70%%; charging; 1:00 remaining present: true\n" "$src"
+`, 0o755)
+		env := append(scriptEnv(t, state), "SXIR_POWER_CMD="+probe, "BENCHLOCK_POWER_LEAD=60", "BENCHLOCK_POWER_POLL=1")
+		work, run := overlapWork(t)
+		code, stderr := runBenchlock(t, env, "timed", work, run, "x", "0")
+		if code != 75 || !strings.Contains(stderr, "not started") {
+			t.Errorf("exit %d, stderr %q", code, stderr)
+		}
+		if b, _ := os.ReadFile(filepath.Join(run, "events")); len(b) > 0 {
+			t.Errorf("the command ran: %q", b)
+		}
+		if log := powerLog(state); !strings.Contains(log, "refused (lead): timed.") || !strings.Contains(log, "on battery (70%)") {
+			t.Errorf("benchlock-power.log: %q", log)
+		}
+		queueEmpty(t, "a job refused in its lead", state)
+	})
+	t.Run("queue-status during the lead", func(t *testing.T) {
+		// queue-status.sh flags a timed job that waits on such power; a signal ends the lead and
+		// gives the lock back.
+		state := t.TempDir()
+		x, _, set, run := lead(t, state, "BENCHLOCK_POWER_LEAD=60", "BENCHLOCK_POWER_POLL=60")
+		set("Battery Power", 70)
+		env := x.Env
+		if out, err := runIn(t, ".", env, "bash", scriptPath(t, "queue-status.sh")); err == nil ||
+			!strings.Contains(out, "POWER: 1 exclusive job(s) queued or running while the machine is on battery (70%)") {
+			t.Errorf("queue-status.sh during the lead: %v\n%s", err, out)
+		}
+		if err := x.Process.Signal(syscall.SIGTERM); err != nil {
+			t.Fatal(err)
+		}
+		_ = waitExit(t, x)
+		if b, _ := os.ReadFile(filepath.Join(run, "events")); len(b) > 0 {
+			t.Errorf("the command ran: %q", b)
+		}
+		queueEmpty(t, "a job signalled in its lead", state)
+	})
+	t.Run("the lead holds", func(t *testing.T) {
+		state := t.TempDir()
+		env, _ := powerProbe(t, append(scriptEnv(t, state), "BENCHLOCK_POWER_LEAD=2", "BENCHLOCK_POWER_POLL=1"))
+		work, run := overlapWork(t)
+		begin := time.Now()
+		if code, stderr := runBenchlock(t, env, "timed", work, run, "x", "0"); code != 0 {
+			t.Errorf("exit %d (stderr %q) on power that held", code, stderr)
+		}
+		if d := time.Since(begin); d < 2*time.Second {
+			t.Errorf("the job ended after %v, before its lead of 2s", d)
+		}
+		if ev := events(t, run); !slices.Contains(ev, "end x") {
+			t.Errorf("the command did not run: %q", ev)
+		}
+		queueEmpty(t, "a job after its lead", state)
 	})
 	t.Run("unknown", func(t *testing.T) {
 		state := t.TempDir()

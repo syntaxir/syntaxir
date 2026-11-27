@@ -151,8 +151,9 @@ on the reference machine replaces them.
   cited. Close the window with `benchwindow.sh close`; a window past its end stops counting by itself.
 - **Mains power.** A timed run is valid only on AC power with at least 50% charge for the whole run: on battery the
   system may lower performance, and charging a low battery adds heat. The exclusive lock refuses to start a job
-  otherwise and reads the power every 30 seconds while it runs, and the harness checks it again before and after each
-  part. A part with a failed reading, or measured with `-force`, is marked invalid in its header, and the bench
+  otherwise, holds the machine for five minutes in which the power must hold before the job starts, reads the power
+  every 30 seconds while it runs and stops the job at the first reading on battery or under the floor; the harness
+  checks it again before and after each part. A part with a failed reading, or measured with `-force`, is marked invalid in its header, and the bench
   repository does not release it.
 
 ```bash

@@ -46,10 +46,12 @@ while no slot is held.
 - Timed runs need mains power. An exclusive job refuses to start, with exit 75 and the
   reason, when the machine is on battery or its charge is under `BENCHLOCK_MIN_CHARGE`
   (default 50, on AC too: charging a low battery under load heats the machine). It checks
-  when it queues and again when admitted, reads the power every 30 seconds while it runs
-  (`power/<tag>.<pid>.log`, passed to the command as `SXIR_POWER_LOG`), and exits 75 after
-  the command when any reading failed: its timings are invalid, whatever the command
-  returned. Refusals and invalid runs go to `benchlock-power.log`. Shared jobs are not
+  when it queues and again when admitted, then holds the lock for `BENCHLOCK_POWER_LEAD`
+  seconds (default 300) in which the power must hold, and refuses the job at a bad reading
+  there. While the command runs it reads the power every 30 seconds
+  (`power/<tag>.<pid>.log`, passed to the command as `SXIR_POWER_LOG`), stops the command at
+  the first bad reading, and exits 75 after the command when any reading failed: its timings
+  are invalid, whatever the command returned. Refusals and invalid runs go to `benchlock-power.log`. Shared jobs are not
   checked. On a Mac, a failed `pmset` or a reading naming neither AC nor battery is refused
   like battery. A machine with no probe (not a Mac) runs unchecked: the log notes it and
   keeps the readings. Plug the machine in before a window; never lower the floor to get a
