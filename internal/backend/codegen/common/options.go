@@ -167,7 +167,8 @@ type Debug struct {
 	// (Params.Allow). Each decision is written to Output with its number.
 	// The generator generates once under a limit, so that one sequence numbers every run: the Go
 	// generator keeps the unreachable rules (GenOptions.KeepUnreachable), and the TypeScript generator
-	// does not generate again without the rules that only its unprinted calls reach.
+	// does not generate again without the rules that only its unprinted calls reach. The parser then
+	// also keeps what those rules use: the features of the library, the helpers and literal tables.
 	OptBisectLimit *int
 	// PrintPipeline writes, before the build, the pipeline of the build as text with the options of
 	// the build in its headers, from which the reader of the text (internal/driver/generate: Read)

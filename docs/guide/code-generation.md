@@ -468,7 +468,8 @@ a parser whatever `n` is. Each decision is written as `opt-bisect: <number> run|
 built with `-opt-bisect-limit 0` behaves and the default one does not, the smallest `n` that misbehaves names the
 run that broke it. To keep the numbers the same from one `n` to the next, the generator generates once under a limit:
 the Go generator keeps the rules that the printed code cannot reach, and the TypeScript generator keeps those that
-only its unprinted calls reach. Apart from those rules, `-opt-bisect-limit 0` generates the parser of every setting
+only its unprinted calls reach, with the library features, helpers and literal tables they use. Apart from those
+rules and what they use, `-opt-bisect-limit 0` generates the parser of every setting
 off, and a limit past the last decision the parser of the settings.
 
 ### From Go

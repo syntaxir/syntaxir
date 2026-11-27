@@ -171,11 +171,13 @@ func TestCanonicalizationChangesNoParser(t *testing.T) {
 }
 
 // The bisection mode differs from a build without a limit only in the rules that the code never
-// enters: the Go parser keeps every rule (common.GenOptions.KeepUnreachable), and the TypeScript parser
-// keeps the rules of the plan's reach without asking for the reach of its printed code
+// enters and in what they use (the features of the library, helpers and literal tables): the Go
+// parser keeps every rule (common.GenOptions.KeepUnreachable), and the TypeScript parser keeps the
+// rules of the plan's reach without asking for the reach of its printed code
 // (tsprint.Hooks.KeepPlanReach). So the parser at a limit beyond the last decision is the one built
 // without a limit in that way; and that one differs from the default for these grammars, which have
-// rules that the code does not enter, so the comparison is not empty.
+// rules that the code does not enter, so the comparison is not empty. That the TypeScript parser so
+// built behaves as the default one is checked by running both (tsprint: TestBisectionModeParserBehaves).
 func TestBisectionModeKeepsOnlyUnenteredRules(t *testing.T) {
 	t.Parallel()
 	speed, err := GenSettings(common.GenOptions{})

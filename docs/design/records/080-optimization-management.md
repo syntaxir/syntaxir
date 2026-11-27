@@ -301,9 +301,11 @@ keeps every rule, and the TypeScript parser keeps the rules of the plan's reach 
 reach of its printed code. A second generation would number other sites with the same numbers, and its printed code
 could call a rule that the reach given to it leaves out. So reach pruning sits outside the bisection, like the
 reference controls. The parser of the bisection mode differs from the parser of the same settings without a limit only
-in rules that its code never enters, and the numbering is fixed over a reach that does not depend on the decisions
+in the rules that its code never enters and in what is derived from them: the features of the library, the helpers and
+the literal tables that those rules use. The numbering is fixed over a reach that does not depend on the decisions
 that the numbering counts. (Amended 2026-11-27: the invariants first compared with the default parser and the parser of
-every optimization off built without a limit, which keep fewer rules.)
+every optimization off built without a limit, which keep fewer rules. Amended 2026-11-28: the difference includes the
+features, helpers and tables of the kept rules, which the reach decides, not their code alone.)
 
 Tests check the invariants that make the bisection usable, within the bisection mode: a limit of 0 generates the same
 parser as every setting off, a limit beyond the last decision generates the parser of the settings, and the same limit
@@ -311,7 +313,8 @@ twice gives the same parser and the same decision log. Limit 0 skips every appli
 every setting off still runs, so the first invariant also checks that canonicalization changes no parser (record 142).
 A further test checks that the parser at a limit beyond the last decision is the parser of the same settings built
 without a limit that keeps the unentered rules (the Go parser's unreachable rules, the TypeScript parser's plan reach),
-and that keeping them changes the parser only where a grammar has such rules.
+that keeping them changes the parser only where a grammar has such rules, and that a TypeScript parser that keeps a
+rule needing library features of its own gives the default parser's results on a corpus of inputs.
 
 ### Runtime Mechanisms
 
