@@ -10,6 +10,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/grammar"
@@ -120,19 +121,22 @@ func (r TypedRows) RowsOf(t testing.TB, c Case) []string {
 	return rows
 }
 
-// Uncovered returns the rows of the table that no case of cases maps by, and for each row the
-// first case that does.
-func (r TypedRows) Uncovered(t testing.TB, cases []Case) (missing []string, first map[string]int) {
+// Uncovered returns the rows of the table that no case of cases witnesses (Witnesses), and for each
+// row the first case that does.
+func (r TypedRows) Uncovered(t *testing.T, cases []Case) (missing []string, first map[string]int) {
 	t.Helper()
 	first = map[string]int{}
 	for i, c := range cases {
-		for _, row := range r.RowsOf(t, c) {
+		if len(first) == len(r.Rows) {
+			break
+		}
+		if !slices.ContainsFunc(r.RowsOf(t, c), func(row string) bool { _, ok := first[row]; return !ok }) {
+			continue
+		}
+		for _, row := range r.Witnesses(t, c) {
 			if _, ok := first[row]; !ok {
 				first[row] = i
 			}
-		}
-		if len(first) == len(r.Rows) {
-			break
 		}
 	}
 	for _, row := range r.Rows {
@@ -143,25 +147,95 @@ func (r TypedRows) Uncovered(t testing.TB, cases []Case) (missing []string, firs
 	return missing, first
 }
 
-// RequireCovered fails t for each row of the table that no case of cases maps by.
-func (r TypedRows) RequireCovered(t testing.TB, cases []Case) {
+// Witnesses returns the rows of RowsOf(c) that the inputs of c witness: a row is witnessed when the
+// engine returns a value on an input of c, at the limits of missing tokens that the comparisons of
+// typed values run (none, and one that inserts when the grammar uses #missing), and for the rows of
+// recovered errors and missing values when such a value holds one. A grammar whose inputs all fail
+// converts no value, whatever its types.
+func (r TypedRows) Witnesses(t *testing.T, c Case) []string {
+	t.Helper()
+	limits := []int{0}
+	if InsertsMissing(t, c) {
+		limits = append(limits, 8)
+	}
+	prog := refProgram(t, c.Src, check.Options{})
+	accepted, holds := false, map[string]bool{}
+	for _, in := range c.Inputs {
+		for _, limit := range limits {
+			n, _ := prog(in, false, false, limit, nil)
+			if n == nil {
+				continue
+			}
+			v, err := canonicalEngineValue(n)
+			if err != nil {
+				t.Fatalf("%s: input %q: %v", c.Name, in, err)
+			}
+			accepted = true
+			canonicalStructsOf(v, holds)
+		}
+	}
+	if !accepted {
+		return nil
+	}
+	var rows []string
+	for _, sh := range typedShapesOf(t, c) {
+		row, ok := r.row[sh]
+		if !ok || slices.Contains(rows, row) {
+			continue
+		}
+		switch sh {
+		case shapeError:
+			ok = holds["Error"]
+		case shapeMissing:
+			ok = holds["Missing"]
+		case shapeErrorValue:
+			ok = holds["Error"] || holds["Missing"]
+		}
+		if ok {
+			rows = append(rows, row)
+		}
+	}
+	slices.Sort(rows)
+	return rows
+}
+
+// canonicalStructsOf adds to holds the type of each struct of the canonical value v.
+func canonicalStructsOf(v any, holds map[string]bool) {
+	switch v := v.(type) {
+	case []any:
+		for _, x := range v {
+			canonicalStructsOf(x, holds)
+		}
+	case map[string]any:
+		if typ, ok := v["type"].(string); ok {
+			holds[typ] = true
+		}
+		for _, x := range v {
+			canonicalStructsOf(x, holds)
+		}
+	}
+}
+
+// RequireCovered fails t for each row of the table that no case of cases witnesses.
+func (r TypedRows) RequireCovered(t *testing.T, cases []Case) {
 	t.Helper()
 	r.covered(t, cases)
 }
 
-// covered is Uncovered that fails t for each row that no case maps by.
-func (r TypedRows) covered(t testing.TB, cases []Case) (first map[string]int) {
+// covered is Uncovered that fails t for each row that no case witnesses.
+func (r TypedRows) covered(t *testing.T, cases []Case) (first map[string]int) {
 	t.Helper()
 	missing, first := r.Uncovered(t, cases)
 	for _, row := range missing {
-		t.Errorf("no case converts a type of the %s row %s of the table of typed values", r.Name, row)
+		t.Errorf("no case witnesses the %s row %s of the table of typed values: none has an input whose value the row maps", r.Name, row)
 	}
 	return first
 }
 
-// Cover returns the first case of cases for each row of the table, in the order of cases, after
-// failing t for the rows that no case maps by: a run of few cases that witnesses every row.
-func (r TypedRows) Cover(t testing.TB, cases []Case) []Case {
+// Cover returns the first case of cases that witnesses each row of the table, in the order of
+// cases, after failing t for the rows that no case witnesses: a run of few cases that converts
+// values of every row.
+func (r TypedRows) Cover(t *testing.T, cases []Case) []Case {
 	t.Helper()
 	first := r.covered(t, cases)
 	var idx []int
@@ -180,8 +254,8 @@ func (r TypedRows) Cover(t testing.TB, cases []Case) []Case {
 
 // Cases returns the cases of cases that a test of the table runs: in the default tier the cases
 // of Cover, which witness every row, in the long tier (go test -tags sxir_long) all of them. It fails t
-// for the rows that no case maps by.
-func (r TypedRows) Cases(t testing.TB, cases []Case) []Case {
+// for the rows that no case witnesses.
+func (r TypedRows) Cases(t *testing.T, cases []Case) []Case {
 	t.Helper()
 	if allCases {
 		r.RequireCovered(t, cases)

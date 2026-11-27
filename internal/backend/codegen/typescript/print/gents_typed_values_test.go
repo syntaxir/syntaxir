@@ -32,18 +32,19 @@ func TestTypedValuesMatchEngine(t *testing.T) {
 
 // typedValuesMismatches compares the typed values of cases with the engine's
 // (codegentest.TSTypedValuesMismatches) without a limit of missing tokens, which inserts nothing, and
-// with a limit that inserts on the cases whose grammars use #missing and on the typed insertion
-// grammars (codegentest.TypedInsertionCases). These hold missing values in the typed values of
-// accepted inputs, which a grammar that only names the type need not: the first grammar of the corpus
-// with the missing type accepts no input.
+// the cases whose grammars use #missing also with a limit that inserts, at which the cases that
+// witness the rows of missing values hold them (codegentest.TypedRows.Witnesses).
 func typedValuesMismatches(t *testing.T, node string, cases []codegentest.Case, mutate func(string) string) []string {
 	t.Helper()
 	got := codegentest.TSTypedValuesMismatches(t, node, cases, common.GenOptions{}, 0, mutate)
 	var inserting []codegentest.Case
-	for _, c := range append(slices.Clone(cases), codegentest.TypedInsertionCases()...) {
-		if codegentest.InsertsMissing(t, c) && !slices.ContainsFunc(inserting, func(d codegentest.Case) bool { return d.Name == c.Name }) {
+	for _, c := range cases {
+		if codegentest.InsertsMissing(t, c) {
 			inserting = append(inserting, c)
 		}
+	}
+	if len(inserting) == 0 {
+		t.Fatal("no case uses #missing")
 	}
 	for _, m := range codegentest.TSTypedValuesMismatches(t, node, inserting, common.GenOptions{}, 8, mutate) {
 		got = append(got, "missing tokens 8: "+m)

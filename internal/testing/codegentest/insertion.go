@@ -115,15 +115,16 @@ func TypedInsertionCases() []Case {
 	return []Case{
 		{Name: "missing values in fields", Src: `type Pair = { A node[string]; Semi node[string] | missing; B *(node[string] | missing); E *(node[string] | error); L [](node[string] | missing); M node[string] | missing; R *(node[string] | error); H missing; G error }
 @start
-rule main Pair = a:"x" s:semi b:item e:bad l:list m:only r:rec h:hole g:hole $$ => Pair{A: $a, Semi: $s, B: $b, E: $e, L: $l.Value, M: $m, R: $r, H: $h, G: $g}
+rule main Pair = a:"x" s:semi b:item e:bad l:list m:only r:rec h:hole g:gap $$ => Pair{A: $a, Semi: $s, B: $b, E: $e, L: $l.Value, M: $m, R: $r, H: $h, G: $g}
 rule semi = ";" #missing
 rule item = m:"z" #missing => $m
 rule bad = "q" #recover(skip=[^!]*) / x:"!" #missing => $x
 rule list = ("," #missing)*
 rule only = k:"k" #missing => $k
 rule rec = "w" #recover(skip=[^v]*)
-rule hole missing = m:"]" #missing => $m.(missing)`,
-			Inputs: []string{"x;z!,,kw", "x", "xz", "x;zq!", "xq", "x;z!,k", "xwv", "x]", "x]]", "y"}},
+rule hole missing = m:"]" #missing => $m.(missing)
+rule gap missing = m:")" #missing => $m.(missing)`,
+			Inputs: []string{"x;z!,,kw", "x", "xz", "x;zq!", "xq", "x;z!,k", "xwv", "x]", "x]]", "y", "x;z!,kw", "x!w", "x;z!,,kwv"}},
 		{Name: "missing values in joins", Src: `type Num = { V node[string] }
 type Tok ~ node[string] | missing
 type Val ~ Num | missing
