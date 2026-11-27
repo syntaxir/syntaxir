@@ -776,3 +776,116 @@ func TestDocumentCountsTheTrueSizes(t *testing.T) {
 		t.Fatal(strings.Join(during, "\n"))
 	}
 }
+
+// TestDocumentMoveNodesHoldTheGenerationOfTheirPositions checks what the generation of a node
+// (Data.Mark) says, which the moves read: that its positions account for the edits before it, so
+// that no later edit would move them. Groups of items are reused across edits in other groups and
+// moved by edits before them, and hold items built, reused and moved in other generations than
+// their own: after each parse, every non-empty node of the tree stays where it is when the edits
+// after its generation are replayed, and the tree is that of a fresh Document.
+func TestDocumentMoveNodesHoldTheGenerationOfTheirPositions(t *testing.T) {
+	lit := func(p *Parser, s string) bool {
+		_, ok := p.MatchLiteral([]rune(s), s, IdAny, true)
+		return ok
+	}
+	rules := func() *Rule {
+		item := &Rule{Id: 2, Name: "item", Memo: true, DocMemo: true, Seen: -1}
+		item.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) { return p.MatchLiteral([]rune("a"), "a", IdAny, true) }
+		group := &Rule{Id: 1, Name: "group", Memo: true, DocMemo: true, Seen: -1}
+		group.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
+			start := p.Pos
+			if !lit(p, "(") {
+				return nil, false
+			}
+			var items []*sxirvalue.Node
+			for {
+				v, ok := p.Call(item, 0)
+				if !ok {
+					break
+				}
+				items = append(items, v)
+			}
+			if !lit(p, ")") {
+				return nil, false
+			}
+			return p.buildNode(Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos), Children: items}), true
+		}
+		main := &Rule{Id: 0, Name: "main", Memo: true, DocMemo: true, Seen: -1}
+		main.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
+			var groups []*sxirvalue.Node
+			for {
+				v, ok := p.Call(group, 0)
+				if !ok {
+					break
+				}
+				groups = append(groups, v)
+			}
+			if !p.AtEnd() {
+				return nil, false
+			}
+			return p.buildNode(Data{Kind: valueimpl.ListKind, Start: 0, End: int32(p.Pos), Children: groups}), true
+		}
+		return main
+	}
+	o := parseOptions{unit: sxirinput.CodePoints, maxDepth: defaultMaxDepth}
+	text := "(aa)(aa)(aa)"
+	d := testDocumentState(rules(), text, sxirinput.CodePoints)
+	edits := []struct {
+		start, end int
+		text       string
+	}{
+		{2, 2, "a"}, {0, 0, "(a)"}, {10, 10, "a"}, {4, 5, ""}, {0, 3, ""}, {13, 13, "(a)"}, {1, 1, "aa"}, {6, 6, ""},
+	}
+	reused := 0
+	for i := -1; i < len(edits); i++ {
+		if i >= 0 {
+			e := edits[i]
+			text = text[:e.start] + e.text + text[e.end:]
+			if err := d.edit(e.start, e.end, e.text); err != nil {
+				t.Fatal(err)
+			}
+		}
+		root, err := d.parse(o)
+		if err != nil {
+			t.Fatalf("parse of %q: %v", text, err)
+		}
+		reused += d.stats.Reused
+		fresh, err := testDocumentState(rules(), text, sxirinput.CodePoints).parse(o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := documentNodeString(root), documentNodeString(fresh); got != want {
+			t.Fatalf("parse of %q: %s, a fresh Document %s", text, got, want)
+		}
+		gen := uint32(len(d.edits))
+		seen := map[*sxirvalue.Node]bool{}
+		var check func(n *sxirvalue.Node)
+		check = func(n *sxirvalue.Node) {
+			if n == nil || seen[n] {
+				return
+			}
+			seen[n] = true
+			if m := D(n).Mark; D(n).Start != D(n).End {
+				if m > gen {
+					t.Fatalf("parse of %q: node at [%d,%d) of generation %d after %d edits", text, D(n).Start, D(n).End, m, gen)
+				}
+				s := int(D(n).Start)
+				for _, ed := range d.edits[m:gen] {
+					if s >= ed.end {
+						s += ed.delta
+					}
+				}
+				if s != int(D(n).Start) {
+					t.Fatalf("parse of %q: node at [%d,%d) of generation %d moves to %d with the edits after it", text, D(n).Start, D(n).End, m, s)
+				}
+			}
+			for _, c := range D(n).Children {
+				check(c)
+			}
+		}
+		check(root)
+	}
+	if reused == 0 {
+		t.Fatal("no parse reused a result")
+	}
+}

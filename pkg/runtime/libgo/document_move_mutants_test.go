@@ -10,10 +10,11 @@ import (
 // moveMutant is a goMutant of a function of the head (its receiver).
 type moveMutant struct{ name, file, head, fn, old, new string }
 
-// moveMutants change the moves of reused values of a Document (document.go) in one way each: the
-// generation stamps that tell which edits the positions of a node account for, and the copies and
+// moveMutants change the moves of reused values of a Document (document.go and the nodes of lib.go)
+// in one way each: the generation stamps that tell which edits the positions of a node account for, and the copies and
 // replayed shifts that a move keeps only while it lasts.
 var moveMutants = []moveMutant{
+	{"a built node holds generation 0", "lib.go", "func (p *Parser) ", "buildNode", "v.Mark = p.gen\n", "v.Mark = 0\n"},
 	{"a moved node keeps its old generation", "document.go", "func (p *Parser) ", "moveTree", "D(n).Mark = p.gen\n", ""},
 	{"a moved entry keeps the generation of its nodes", "document.go", "func (p *Parser) ", "documentMove", "e.ngen, e.shift, e.shifted = p.gen, 0, false", "e.shift, e.shifted = 0, false"},
 	{"a node moved through another value moves by the value's shift", "document.go", "func (p *Parser) ", "shiftOf", "if D(n).Mark <= p.moveBase {", "if true {"},
