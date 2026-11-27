@@ -56,8 +56,8 @@ Head against its parent; A/A geomean 0.9960, accepted:
 | Minilang, same length | 0.92 ms | 0.938 | 0.957 | 0.931 |
 | Minilang, length-changing | 6.33 ms | no difference | 1.026 | 0.951 |
 
-No mean and no p99 is worse; two medians are slower, by 0.3% (CSV, same length) and 2.6% (Minilang,
-length-changing).
+No resolved mean or p99 is worse; the p99 of both CSV workloads is too noisy to resolve. Two medians are slower, by
+0.3% (CSV, same length) and 2.6% (Minilang, length-changing).
 
 The retained memory of a Document over its tree (`document-memory-permille`) falls from 2.49 to 2.28 on CSV and from
 4.76 to 4.05 on Minilang: the Documents retain 25.6 MB and 130 MB less. A batch parse allocates 4 to 18% fewer bytes
@@ -73,8 +73,11 @@ memo store and hit paths of the batch and typed calls now going through those ac
 not per parse.
 
 The retained bytes of a tree alone, without a Document, and of Document clones and snapshots grow by a constant 24 to
-48 KB, the same at 1,000 and at 100,000 lines. This offset is unexplained: heap profiles of the two commits show the
-same objects in use, so it is not in what the parse keeps.
+48 KB, the same at 1, 1,000 and 100,000 lines, with the same number of objects. The difference is in the heap before
+the parse, not after it: heap profiles at both points show the heaps after the parse equal to within 0.4 KB, while the
+heap before it holds 48 KB less with the compact entries. That heap still holds the typed memo arenas of the
+generated grammar parser that compiled the benchmark grammars, whose entries are smaller now, and the collection
+after the parse frees them. The measurement subtracts a smaller baseline; what a parse keeps does not grow.
 
 ## Correctness and Tradeoffs
 
