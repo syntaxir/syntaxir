@@ -435,12 +435,14 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 		fmt.Fprintf(&file, "// Package %s is a parser generated from a SyntaxIR grammar.\n", opts.Package)
 	}
 	fmt.Fprintf(&file, "package %s\n\n%s", opts.Package, body)
-	src, err := format.Source([]byte(file.String()))
-	if err != nil {
-		return nil, nil, fmt.Errorf("generated code does not compile: %w", err)
-	}
-	if !opts.KeepComments {
-		if src, err = trimComments(src); err != nil {
+	var src []byte
+	if opts.KeepComments {
+		if src, err = format.Source([]byte(file.String())); err != nil {
+			return nil, nil, fmt.Errorf("generated code does not compile: %w", err)
+		}
+	} else {
+		// trimComments formats the source it returns, so the unformatted text is cut directly.
+		if src, err = trimComments([]byte(file.String())); err != nil {
 			return nil, nil, fmt.Errorf("generated code does not compile: %w", err)
 		}
 	}
