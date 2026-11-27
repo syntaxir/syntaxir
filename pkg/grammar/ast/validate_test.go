@@ -239,6 +239,10 @@ func TestValidateASCIIIdentifiers(t *testing.T) {
 
 func TestValidateInvalidUTF8(t *testing.T) {
 	const bad = "a\xc3"
+	// line is a layout line break whose trailing comment is not valid UTF-8; at is its field.
+	line := func() *LineBreak { return &LineBreak{Trailing: &Comment{Text: "//" + bad}} }
+	const at = ".trailing.text"
+	lit := func() *Literal { return &Literal{Value: "a"} }
 	rule := func(r *RuleDef) *Grammar {
 		if r.Name == "" {
 			r.Name = "p"
@@ -279,6 +283,37 @@ func TestValidateInvalidUTF8(t *testing.T) {
 		{"sequence break", expressionGrammar(&Seq{Items: []Expr{&Top{}, &Top{}}, Breaks: []*LineBreak{nil, {Comments: []*Comment{{Text: "//" + bad}}}}}), "$.file.decls[0].expr.breaks[1].comments[0].text"},
 		{"layout gap", expressionGrammar(&Literal{Value: "a", SourceInfo: SourceInfo{Layout: &SourceLayout{Close: &Gap{Comments: []*Comment{{Text: "/*" + bad + "*/"}}}}}}), "$.file.decls[0].expr.source.layout.close.comments[0].text"},
 		{"repeat gap", expressionGrammar(&Repeat{Expr: &Top{}, Min: 1, Max: 2, Spelling: &RepeatSpelling{HasMin: true, Gaps: []RepeatGap{{}, {Comments: []*Comment{{Text: "/*" + bad + "*/"}}}}}}), "$.file.decls[0].expr.spelling.gaps[1].comments[0].text"},
+		// Each node kind that holds layout of its own, built by hand. The parser fills each of
+		// these layouts, but the insertion property of the parser reaches only those its corpus
+		// has, so these cases pin the check of every kind.
+		{"variable break", &Grammar{File: File{Decls: []Decl{&VarDef{Name: "v", Value: &IntLit{Value: 1}, Break: line()}}}}, "$.file.decls[0].break" + at},
+		{"action group", actionGrammar(&ActionGroup{Action: &IntLit{Value: 1}, OpenBreak: line()}), "$.file.decls[0].action.openBreak" + at},
+		{"tuple", actionGrammar(&TupleLit{Elems: []ActionExpr{&IntLit{Value: 1}, &IntLit{Value: 2}}, BodyBreak: line()}), "$.file.decls[0].action.bodyBreak" + at},
+		{"list constructor", actionGrammar(&ListConstructor{Elem: &TypeRef{Name: "int"}, CloseBreak: line()}), "$.file.decls[0].action.closeBreak" + at},
+		{"call", actionGrammar(&Call{Func: "f", CloseBreak: line()}), "$.file.decls[0].action.closeBreak" + at},
+		{"binary", actionGrammar(&Binary{Op: "+", L: &IntLit{Value: 1}, R: &IntLit{Value: 2}, BodyBreak: line()}), "$.file.decls[0].action.bodyBreak" + at},
+		{"block", expressionGrammar(&Predicate{Action: &Block{Statements: []ActionExpr{&BoolLit{Value: true}}, Breaks: []*LineBreak{line()}}}), "$.file.decls[0].expr.action.breaks[0]" + at},
+		{"predicate", expressionGrammar(&Predicate{Action: &BoolLit{Value: true}, OpenBreak: line()}), "$.file.decls[0].expr.openBreak" + at},
+		{"type group", typeGrammar(&TypeGroup{Type: &TypeRef{Name: "int"}, CloseBreak: line()}), "$.file.decls[0].type.closeBreak" + at},
+		{"tuple type", typeGrammar(&TupleType{Types: []TypeExpr{&TypeRef{Name: "int"}, &TypeRef{Name: "bool"}}, OpenBreak: line()}), "$.file.decls[0].type.openBreak" + at},
+		{"type application", typeGrammar(&TypeApp{Name: "node", Args: []TypeExpr{&TypeRef{Name: "int"}}, BodyBreak: line()}), "$.file.decls[0].type.bodyBreak" + at},
+		{"attribute arguments", expressionGrammar(&Attributed{Expr: lit(), Attrs: []*Attribute{{Name: "error", Args: []any{"m"}, ArgsLayout: &ListLayout{Elems: []*SourceLayout{{Trail: []*Comment{{Text: "//" + bad}}}}}}}}), "$.file.decls[0].expr.attrs[0].argsLayout.elems[0].trail[0].text"},
+		{"attributed", expressionGrammar(&Attributed{Expr: lit(), Attrs: []*Attribute{{Name: "foo"}}, Breaks: []*LineBreak{line()}}), "$.file.decls[0].expr.breaks[0]" + at},
+		{"level call", expressionGrammar(&Ref{Name: "p", Level: "l", LevelGaps: &LevelGaps{After: &Gap{Comments: []*Comment{{Text: "/*" + bad + "*/"}}}}}), "$.file.decls[0].expr.levelGaps.after.comments[0].text"},
+		{"stream", expressionGrammar(&Stream{Expr: lit(), Break: line()}), "$.file.decls[0].expr.break" + at},
+		{"recovery", expressionGrammar(&Recovery{Expr: lit(), Skip: lit(), Break: line()}), "$.file.decls[0].expr.break" + at},
+		{"atomic", expressionGrammar(&Atomic{Expr: lit(), Break: line()}), "$.file.decls[0].expr.break" + at},
+		{"type break", &Grammar{File: File{Decls: []Decl{&TypeDef{Name: "T", Type: &TypeRef{Name: "int"}, Break: line()}}}}, "$.file.decls[0].break" + at},
+		{"type alias break", &Grammar{File: File{Decls: []Decl{&TypeAlias{Name: "T", Type: &TypeRef{Name: "int"}, Break: line()}}}}, "$.file.decls[0].break" + at},
+		{"constructor", actionGrammar(&Constructor{Type: "T", OpenBreak: line()}), "$.file.decls[0].action.openBreak" + at},
+		{"lambda", actionGrammar(&Lambda{Params: []string{"x"}, Body: &NilLit{}, ParamsLayout: &ListLayout{CloseBreak: line()}}), "$.file.decls[0].action.paramsLayout.closeBreak" + at},
+		{"struct", &Grammar{File: File{Decls: []Decl{&TypeDef{Name: "T", Type: &StructType{CloseBreak: line()}}}}}, "$.file.decls[0].type.closeBreak" + at},
+		{"struct field", &Grammar{File: File{Decls: []Decl{&TypeDef{Name: "T", Type: &StructType{Fields: []*Field{{Name: "f", Type: &TypeRef{Name: "int"}, Break: line()}}}}}}}, "$.file.decls[0].type.fields[0].break" + at},
+		{"struct field header", &Grammar{File: File{Decls: []Decl{&TypeDef{Name: "T", Type: &StructType{Fields: []*Field{{Name: "f", Type: &TypeRef{Name: "int"}, HeaderTokens: []*Comment{{Text: "/*" + bad + "*/"}}}}}}}}}, "$.file.decls[0].type.fields[0].headerTokens[0].text"},
+		{"choice", expressionGrammar(&Choice{Alts: []Expr{lit(), lit()}, Breaks: []*LineBreak{nil, line()}}), "$.file.decls[0].expr.breaks[1]" + at},
+		{"operand", rule(&RuleDef{Expr: &OperatorsRule{Operands: []*OperatorsRuleOperand{{Expr: lit(), Break: line()}}}}), "$.file.decls[0].expr.operands[0].break" + at},
+		{"level", rule(&RuleDef{Expr: &OperatorsRule{Operands: []*OperatorsRuleOperand{{Expr: lit()}}, Levels: []*OperatorsRuleLevel{{Operators: []*OperatorsRuleOperator{{Kind: "prefix", Expr: lit()}}, CloseBreak: line()}}}}), "$.file.decls[0].expr.levels[0].closeBreak" + at},
+		{"operator", rule(&RuleDef{Expr: &OperatorsRule{Operands: []*OperatorsRuleOperand{{Expr: lit()}}, Levels: []*OperatorsRuleLevel{{Operators: []*OperatorsRuleOperator{{Kind: "prefix", Expr: lit(), Break: line()}}}}}}), "$.file.decls[0].expr.levels[0].operators[0].break" + at},
 		{"operators open comment", rule(&RuleDef{Expr: &OperatorsRule{Operands: []*OperatorsRuleOperand{{Expr: &Literal{Value: "a"}}}, OpenComments: []*Comment{{Text: "//" + bad}}}}), "$.file.decls[0].expr.openComments[0].text"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
