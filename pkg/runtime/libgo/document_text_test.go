@@ -21,7 +21,7 @@ func TestDocumentEditSplicesText(t *testing.T) {
 		d := testDocumentState(&Rule{Name: "main"}, initial, sxirinput.CodePoints)
 		want := []rune(initial)
 		checkDocumentText(t, d, want)
-		for step := range 300 {
+		for step := range documentEditSteps {
 			// Edits that grow the text alternate with edits that shrink it.
 			start := r.IntN(len(want) + 1)
 			end, text := start+r.IntN(min(2, len(want)-start)+1), pieces[r.IntN(len(pieces))]
