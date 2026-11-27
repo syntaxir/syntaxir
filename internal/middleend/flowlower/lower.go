@@ -236,6 +236,87 @@ type lowerer struct {
 	stream bool
 	// streaming is the repetition of the Stream node being lowered in a stream parse (lowerdata.Func.Stream).
 	streaming *core.Repeat
+	// carried holds the captured sequences being lowered whose values carry the captures made in
+	// them (carry), innermost last.
+	carried []*carry
+}
+
+// carry is a captured expression being lowered whose value is the tuple of its elements, which
+// carries the captures made inside it (spec/language/actions.md: a captured sequence carries the
+// captures inside it). A capture inside it sets its slot of the scope s and also the variable of the
+// slot in vars, which starts empty and which a backtracking point inside it saves and restores with
+// the slot, so that the value takes exactly the captures that its match made, and not the earlier
+// value of a slot that a capture outside it of the same name set.
+type carry struct {
+	s     *scope
+	slots []int
+	vars  map[int]string
+}
+
+// carryVars returns the variables of the slot of the scope s in the captured sequences being lowered.
+func (l *lowerer) carryVars(s *scope, slot int) []string {
+	var vars []string
+	for _, c := range l.carried {
+		if v, ok := c.vars[slot]; ok && c.s == s {
+			vars = append(vars, v)
+		}
+	}
+	return vars
+}
+
+// setCarried sets the variables of the slot of the scope s in the captured sequences being lowered
+// to the captured value v.
+func (l *lowerer) setCarried(s *scope, slot int, v code.Expr) {
+	for _, cv := range l.carryVars(s, slot) {
+		l.set(cv, v)
+	}
+}
+
+// carries reports whether the capture n gives its value the captures made inside it: its body's value
+// where it is captured is the tuple of the body's elements, and the body may set slots of the scope.
+func carries(n *core.Capture) bool {
+	return n.Project == "" && n.Body.Attrs().Shape.Mode == core.SingleTuple && len(n.Body.Attrs().Eff.Slots) > 0
+}
+
+// carryBegin begins the captured sequence n of the scope s, whose captures its value carries.
+func (l *lowerer) carryBegin(n *core.Capture, s *scope) *carry {
+	c := &carry{s: s, slots: n.Body.Attrs().Eff.Slots, vars: map[int]string{}}
+	for _, slot := range c.slots {
+		v := l.decl("k", prim.TypeValue)
+		l.set(v, null())
+		c.vars[slot] = v
+	}
+	l.carried = append(l.carried, c)
+	return c
+}
+
+// carryEnd ends the captured sequence c, whose value v matched from start, and returns v with the
+// captures made in it attached.
+func (l *lowerer) carryEnd(c *carry, v, start code.Expr) code.Expr {
+	l.carried = l.carried[:len(l.carried)-1]
+	names := make([]string, len(c.slots))
+	vals := make([]string, len(c.slots))
+	for i, slot := range c.slots {
+		names[i], vals[i] = c.s.slots[slot].Name, c.vars[slot]
+	}
+	attached := l.decl("v", prim.TypeValue)
+	if !l.opts.Node {
+		l.set(attached, attach(v, start, &prim.Names{List: names}, vals))
+		return use(attached)
+	}
+	// The Node runtime attaches the captures of a frame: a frame of their own takes the values.
+	declared := &prim.Names{List: names, Declared: true}
+	frame, prev := l.decl("x", prim.TypeFrame), l.decl("x", prim.TypeFrame)
+	l.set(prev, call(flow.OpFrame, nil))
+	l.set(frame, call(flow.OpNewFrame, declared))
+	l.setFrame(use(frame))
+	for i, k := range vals {
+		l.emit(do(flow.OpSetCapture, prim.Slot(i), use(k)))
+	}
+	l.setFrame(use(prev))
+	l.set(attached, call(flow.OpAttachFrame, prim.Attach{Names: declared, Frame: true}, v, start, use(frame)))
+	l.emit(do(flow.OpDeclareNames, declared))
+	return use(attached)
 }
 
 // newLowerer returns a lowerer of the function name with the attributes at, whose body is the block
@@ -466,6 +547,9 @@ func (l *lowerer) mark(s *scope, n core.Node, saves bool) mark {
 			}
 		})
 		l.set(m.state, call(flow.OpMarkState, st))
+		if saves {
+			l.saveCarried(&m, s, eff.Slots)
+		}
 		return m
 	}
 	m := mark{pos: l.decl("x", prim.TypeInt)}
@@ -488,14 +572,30 @@ func (l *lowerer) mark(s *scope, n core.Node, saves bool) mark {
 			l.set(sv, use(k))
 			m.saves = append(m.saves, [2]string{k, sv})
 		}
+		l.saveCarried(&m, s, eff.Slots)
 	}
 	return m
+}
+
+// saveCarried adds to m the variables of the slots of the scope s in the captured sequences being
+// lowered.
+func (l *lowerer) saveCarried(m *mark, s *scope, slots []int) {
+	for _, slot := range slots {
+		for _, k := range l.carryVars(s, slot) {
+			sv := l.decl("x", prim.TypeValue)
+			l.set(sv, use(k))
+			m.saves = append(m.saves, [2]string{k, sv})
+		}
+	}
 }
 
 // reset restores the state saved by m.
 func (l *lowerer) reset(m mark) {
 	if m.state != "" {
 		l.emit(do(flow.OpReset, nil, use(m.state)))
+		for _, kv := range m.saves {
+			l.set(kv[0], use(kv[1]))
+		}
 		return
 	}
 	if m.rec == "" {
@@ -727,9 +827,17 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 		} else {
 			start := l.decl("x", prim.TypeInt)
 			l.set(start, pos())
+			var c *carry
+			if carries(n) {
+				c = l.carryBegin(n, s)
+			}
 			v = l.shapeOne(n.Body, l.node(n.Body, s, true, fail), use(start), true)
+			if c != nil {
+				v = l.carryEnd(c, v, use(start))
+			}
 		}
 		l.set(k, v)
+		l.setCarried(s, n.Slot, v)
 		if !build {
 			return null()
 		}
@@ -1753,9 +1861,17 @@ func (l *lowerer) frameCapture(n *core.Capture, s *scope, build bool, fail strin
 	} else {
 		start := l.decl("x", prim.TypeInt)
 		l.set(start, pos())
+		var c *carry
+		if carries(n) {
+			c = l.carryBegin(n, s)
+		}
 		v = l.shapeOne(n.Body, l.node(n.Body, s, true, fail), use(start), true)
+		if c != nil {
+			v = l.carryEnd(c, v, use(start))
+		}
 	}
 	l.emit(do(flow.OpSetCapture, prim.Slot(n.Slot), v))
+	l.setCarried(s, n.Slot, v)
 	if !build {
 		return null()
 	}
@@ -2047,7 +2163,7 @@ func (l *lowerer) observedSkip(a core.Node) (prim.ObservedSkip, bool) {
 // outlines reports whether the node n runs as a function of its own.
 func (l *lowerer) outlines(n core.Node) bool {
 	return l.opts.Outlined[n] && n != l.top && !l.opts.Observe && l.streaming == nil &&
-		(l.frame || noCaptures(n))
+		(l.frame && len(l.carried) == 0 || noCaptures(n))
 }
 
 // noCaptures reports whether the node n neither sets nor reads captures, so that a function of its own

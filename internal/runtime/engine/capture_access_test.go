@@ -13,15 +13,26 @@ import (
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
+// TestCaptureAccessAcrossBackends checks that every backend returns the values that the specification
+// gives to the capture access cases (codegentest.CaptureAccessResults), so that a reading of captures
+// that every backend shares is caught too, and that recognition agrees across the backends.
 func TestCaptureAccessAcrossBackends(t *testing.T) {
 	t.Parallel()
+	results := codegentest.CaptureAccessResults()
 	for _, fixture := range codegentest.CaptureAccessCases() {
 		t.Run(fixture.Name, func(t *testing.T) {
+			want, ok := results[fixture.Name]
+			if !ok || len(want) != len(fixture.Inputs) {
+				t.Fatalf("no result for each of the %d inputs: %d", len(fixture.Inputs), len(want))
+			}
 			program := mustCompile(t, fixture.Src)
 			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				for _, recognize := range []bool{false, true} {
-					for _, input := range fixture.Inputs {
+					for i, input := range fixture.Inputs {
 						baseline := codegentest.ResultJSON(program.ParseWith("main", input, ParseOptions{Backend: Closure, Unit: unit, Recognize: recognize}))
+						if !recognize && baseline != want[i] {
+							t.Fatalf("closure/%s input=%q: %s, want %s", unit, input, baseline, want[i])
+						}
 						for _, backend := range []Backend{Bytecode, BytecodeIterative} {
 							actual := codegentest.ResultJSON(program.ParseWith("main", input, ParseOptions{Backend: backend, Unit: unit, Recognize: recognize}))
 							if actual != baseline {

@@ -151,7 +151,7 @@ body, sets no flag: the body of a lookahead starts with none, and a negative loo
 | `OperatorsRule` | Not lowered as a node: the runtime runs the Operators Rule with the functions of its skip and its lines |
 | `Text` | Matches its body without a value; its value is a terminal node of the text that the body matched (`flow.text`) |
 | `Drop` | Matches its body without a value; it has none |
-| `Capture` | Matches its body, building its value, and stores the value shaped as a capture (`flow.shapeCapture`): in the variable of the slot in a local function, and in the slot of the current frame (`flow.setCapture`) in a framed one. A capture of a projected repetition stores the list of the values that the capture it projects takes in each element |
+| `Capture` | Matches its body, building its value, and stores the value shaped as a capture (`flow.shapeCapture`): in the variable of the slot in a local function, and in the slot of the current frame (`flow.setCapture`) in a framed one. A capture of a projected repetition stores the list of the values that the capture it projects takes in each element. A capture whose body's value, where it is captured, is the tuple of the body's elements, and whose body may set capture slots, gives that value the captures that its match made: each capture inside the body also sets a variable of its slot for the body, which starts null and which the backtracking points inside the body save and restore with the slot, and the value has these variables attached (`flow.attachCaptures`; in the Node runtime, `flow.attachFrame` of a frame that takes them), so that a slot that a capture outside the body set is not attached |
 | `Pred` | Evaluates the predicate's action site (`flow.pred`) with the captures it reads, as arguments in a local function and from the current frame in a framed one, and fails when it is false |
 | `BindNode` | Evaluates the binding's action site and binds the variable (`flow.bind`), failing when the binding fails |
 | `Label` | Isolates the expectations recorded inside its body (`flow.isolate`). When the body matches it merges them into the enclosing scope (`flow.mergeExpected`); when it fails, `@diagnostic` merges them renamed to its expectation (`flow.mergeRenamed`) and `@error` records its expectation as the message at the furthest position they reached, and the label fails. Under Inserts a label that is the message of the insertions inside it opens a scope of insertions for its body (`flow.missingScope`) |
@@ -224,7 +224,8 @@ node's value and whether it matched. The function belongs to the rule of its cal
 rule, so it counts only what its node counts.
 
 - An outlined node MUST be a node that a framed function can lower, with no `Cut` and no `Stream` inside it; in a
-  local function it MUST also set and read no capture, and hold no predicate, binding or recovery.
+  local function, and inside the body of a capture whose value carries the captures its match made (`Capture` in
+  [Nodes](#nodes)), it MUST also set and read no capture, and hold no predicate, binding or recovery.
 - The root of a function and the nodes of a function lowered with Observe are never outlined, and neither are the
   nodes of a stream body from its `#stream` repetition on: the repetition, its element and the nodes after it. A node
   before the repetition may be outlined; its function is lowered as for any framed function of the table, and under

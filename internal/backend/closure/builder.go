@@ -1,6 +1,8 @@
 package closure
 
 import (
+	"slices"
+
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
 	ir "syntaxir.dev/sxir/internal/ir/core"
@@ -384,8 +386,25 @@ func (b *Builder) capture(n *ir.Capture, m state.Matcher, build bool) state.Matc
 	if n.Project == "" {
 		m = captureMatcher(n.Body.Attrs().Shape, m)
 	}
+	// A captured sequence carries the captures made inside it (spec/language/actions.md): those whose
+	// writes to the frame since the body began the trail still holds, which backtracking inside the
+	// body has not undone.
+	var slots []int
+	var carried *program.Scope
+	if n.Project == "" && check.SingleMode(n.Body.Attrs().Shape.Mode) == check.SingleTuple {
+		slots = n.Body.Attrs().Eff.Slots
+		names := make([]string, len(slots))
+		for i, s := range slots {
+			names[i] = b.scope.Names[s]
+		}
+		carried = program.ScopeOf(names)
+	}
 	return func(p *state.Parser) (*value.Node, bool) {
+		f, trail, start := p.Frame, len(p.Trail), p.Pos
 		v, ok := m(p)
+		if ok && len(slots) > 0 {
+			v = attachMade(p, v, f, trail, slots, carried, start)
+		}
 		if ok {
 			p.SetCapture(slot, v)
 		}
@@ -394,6 +413,21 @@ func (b *Builder) capture(n *ir.Capture, m state.Matcher, build bool) state.Matc
 		}
 		return v, ok
 	}
+}
+
+// attachMade returns v, matched from start, with the captures of the slots of the frame f that the
+// writes on the trail from trail made attached, by the names of the scope s.
+func attachMade(p *state.Parser, v *value.Node, f *state.Frame, trail int, slots []int, s *program.Scope, start int) *value.Node {
+	made := &state.Frame{Vals: make([]*value.Node, len(slots))}
+	for _, u := range p.Trail[trail:] {
+		if u.F != f {
+			continue
+		}
+		if i := slices.Index(slots, u.Slot); i >= 0 {
+			made.Vals[i] = f.Vals[u.Slot]
+		}
+	}
+	return p.AttachCaptures(v, s, made, start, p.Pos)
 }
 
 func (b *Builder) cut() state.Matcher {
