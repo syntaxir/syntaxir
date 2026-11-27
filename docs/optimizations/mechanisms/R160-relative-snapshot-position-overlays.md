@@ -1,7 +1,7 @@
 <!-- generated:facts -->
 # R160: Relative Snapshot Position Overlays
 
-- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
+- **Classification**: optimization (experiment) ([design record 080](../../design/records/080-optimization-management.md))
 - **Path scope**: Document snapshots, when the tag is on
 - **State**: experiment (off by default); the build tag `sxir_snapshot_position_overlays` turns it on
 - **With the tag, an eligible subset, named under Scope, of**: closure, recursive VM, iterative VM

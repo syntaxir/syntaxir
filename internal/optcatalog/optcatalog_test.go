@@ -1,6 +1,9 @@
 package optcatalog
 
 import (
+	"fmt"
+	"go/build/constraint"
+	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -213,5 +216,74 @@ func TestFormerMarkersAndRejectedRecords(t *testing.T) {
 		} else if got := records[900].Mechanisms; !slices.Equal(got, want) {
 			t.Errorf("%q: mechanisms %v, want %v", line, got, want)
 		}
+	}
+}
+
+// Each build tag that the registry names, the tag of a reference control or the switch of an
+// experiment, constrains a Go file of the tree, so the catalog names no switch that turns nothing on.
+func TestRegistryTagsExist(t *testing.T) {
+	tags := map[string]bool{}
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if path != root && (strings.HasPrefix(d.Name(), ".") || d.Name() == "node_modules") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		for line := range strings.Lines(string(data)) {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "package ") {
+				break
+			}
+			if !constraint.IsGoBuild(line) {
+				continue
+			}
+			expr, err := constraint.Parse(line)
+			if err != nil {
+				return fmt.Errorf("%s: %w", path, err)
+			}
+			constraintTags(expr, tags)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range pass.ReferenceControls() {
+		if !tags[r.Tag] {
+			t.Errorf("reference control %s constrains no Go file of the tree", r.Tag)
+		}
+	}
+	for _, m := range pass.Mechanisms() {
+		if m.Experiment != "" && !tags[m.Experiment] {
+			t.Errorf("mechanism %s is an experiment behind %s, which constrains no Go file of the tree", m.ID, m.Experiment)
+		}
+	}
+}
+
+// constraintTags adds the tags of every operand of e to tags; Eval would stop at the first true
+// operand of an or.
+func constraintTags(e constraint.Expr, tags map[string]bool) {
+	switch e := e.(type) {
+	case *constraint.TagExpr:
+		tags[e.Tag] = true
+	case *constraint.NotExpr:
+		constraintTags(e.X, tags)
+	case *constraint.AndExpr:
+		constraintTags(e.X, tags)
+		constraintTags(e.Y, tags)
+	case *constraint.OrExpr:
+		constraintTags(e.X, tags)
+		constraintTags(e.Y, tags)
 	}
 }

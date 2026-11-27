@@ -206,9 +206,9 @@ The state named OptIn in the diagram is Opt-in below and in the records.
   parity tests run from main instead of a branch. It is listed with its status in the milestone plan. An experiment is
   usually a flag (an experiment setting). A mechanism whose only switch is a build tag that turns an unadopted
   candidate on, because no setting can select it at no cost, is an **experiment mechanism**: the registry names the
-  tag, and the mechanism acts on no parser of the default build. Its reach is `partial` on the backends the tag
+  tag, which, like the tag of a reference control, must constrain a Go file of the tree, and the mechanism acts on no parser of the default build. Its reach is `partial` on the backends the tag
   reaches, never `full`, and it has no reference control, which selects the reference form of an adopted mechanism. The
-  index and its page show it as an experiment, off by default, not as acting; the counts list experiment mechanisms
+  index and its page (its classification and its state) show it as an experiment, off by default, not as acting; the counts list experiment mechanisms
   apart, and the release criterion fails on any, naming the reason: it is adopted with a control or removed.
 - **Adopted**: `speed` or a profile turns it on. The record names the axes measured, the objective it serves, and why
   each profile has the value it has.

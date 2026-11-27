@@ -78,7 +78,11 @@ func factsRegion(m pass.Mechanism, records map[int]Record) (string, error) {
 	flags := pass.Flags()
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s: %s\n\n", m.ID, m.Title)
-	b.WriteString("- **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))\n")
+	class := "optimization"
+	if m.Experiment != "" {
+		class = "optimization (experiment)"
+	}
+	fmt.Fprintf(&b, "- **Classification**: %s ([design record 080](../../design/records/080-optimization-management.md))\n", class)
 	fmt.Fprintf(&b, "- **Path scope**: %s\n", m.Scope)
 	if m.Experiment != "" {
 		fmt.Fprintf(&b, "- **State**: experiment (off by default); the build tag `%s` turns it on\n", m.Experiment)
