@@ -1,6 +1,6 @@
 # Type Soundness
 
-Arata Furukawa · Last revised 2026-11-26
+Arata Furukawa · Last revised 2026-11-27
 
 This proof shows that the types of the [Type System](../language/types.md) and
 the rules of [Type Checking](../language/type-checking.md) are sound: in a
@@ -688,7 +688,7 @@ other than `_` (T8).
   types of their rules. That the types of the generated Go and TypeScript
   typed APIs represent those types, so that building the typed form never
   fails, is a property of the [generated parsers](../runtime/generated-parsers.md)
-  that this proof does not cover.
+  that the [Typed APIs](typed-apis.md) proof shows from this corollary.
 - **Grammars that are not checked.** [Default values](../language/actions.md#default-values)
   drop the actions and the declared types, and a compiled grammar that is
   loaded is not checked again; the proof covers a compiled grammar as the
