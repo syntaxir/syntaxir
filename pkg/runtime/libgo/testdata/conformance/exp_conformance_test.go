@@ -290,7 +290,7 @@ func TestExecConformanceExpDetectsBrokenLib(t *testing.T) {
 			return []any{m.keptHandle(m.p.lastKept)}
 		},
 		"memo.setExpected keeps the far position": func(m *expMachine, args []any) []any {
-			args[0].(*memoEntry).expected = m.kept[args[2].(keptID)]
+			args[0].(*memoEntry).setExps(m.kept[args[2].(keptID)])
 			return nil
 		},
 	}
@@ -319,7 +319,7 @@ func TestExecConformanceTypedExpDetectsBrokenLib(t *testing.T) {
 			return []any{m.kept.handle(m.p.lastKept)}
 		},
 		"memo.setExpected keeps the far position": func(m *texpMachine, args []any) []any {
-			args[0].(*tmemoEntry).expected = m.kept[args[2].(keptID)]
+			args[0].(*tmemoEntry).setExps(m.kept[args[2].(keptID)])
 			return nil
 		},
 	}

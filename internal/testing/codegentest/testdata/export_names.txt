@@ -6,7 +6,7 @@ maxDepth nseen newBudgetControl memoryControl vals envDepth newEnv envDepthOf va
 slots slotOff slotCI frames frameN bitPages offs memoEntry tmemoEntry
 expBits expBase farthest exp
 rule ok node envValues bind trace
-memoPut memoGet memoSlots longest undo toperatorsRuleAttempt operatorsRuleAttempt
+memoPut memoGet memoSlots memoSide longest undo toperatorsRuleAttempt operatorsRuleAttempt
 seen calls stride op listNode seenCalls
 seenRulePages repeats pages last at sparse deferMemo
 frame end

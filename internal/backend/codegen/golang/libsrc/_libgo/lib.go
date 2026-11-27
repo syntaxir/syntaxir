@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"unicode/utf8"
+	"unsafe"
 
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -1177,13 +1178,81 @@ type memoTable struct {
 // without it.
 const sparseMemo = true
 
+// memoSide holds what a memo entry keeps beside its value, in 32 bytes instead of the 64 of a
+// recEntry and two slices: the errors recovered in the call, recorded again on reuse (recs); the
+// expectations at far, recorded again on reuse (exps); and the values of the rule's variables at the
+// call, the memo key (key). The slices are kept as the pointer to their first element and their
+// length, which share the arrays the slices had (Keep's arena, the key of the call), so that they
+// keep the same memory alive and count the same bytes; their capacity is their length. The errors are
+// one pointer to an error or to a list, which the top bit of expN tells apart.
+type memoSide struct {
+	errp unsafe.Pointer // *sxirvalue.SyntaxError, or *errList if expN&sideErrList != 0
+	expp *ExpID
+	envp *any
+	expN uint32
+	envN uint32
+}
+
+// sideErrList is the bit of memoSide.expN that says errp points to an errList. An expectation set
+// holds distinct expectations, numbered by int32 (ExpID), so its length never reaches it.
+const sideErrList = 1 << 31
+
+// recs returns the errors recovered in the call.
+func (s *memoSide) recs() recEntry {
+	if s.expN&sideErrList != 0 {
+		return recEntry{list: (*errList)(s.errp)}
+	}
+	return recEntry{err: (*sxirvalue.SyntaxError)(s.errp)}
+}
+
+// setRecs sets the errors recovered in the call to r.
+func (s *memoSide) setRecs(r recEntry) {
+	s.expN &^= sideErrList
+	if r.list != nil {
+		s.errp = unsafe.Pointer(r.list)
+		s.expN |= sideErrList
+	} else {
+		s.errp = unsafe.Pointer(r.err)
+	}
+}
+
+// exps returns the expectations at far.
+func (s *memoSide) exps() []ExpID {
+	if n := s.expN &^ sideErrList; n != 0 {
+		return unsafe.Slice(s.expp, n)
+	}
+	return nil
+}
+
+// setExps sets the expectations at far to x.
+func (s *memoSide) setExps(x []ExpID) {
+	s.expN, s.expp = s.expN&sideErrList|uint32(len(x)), nil
+	if len(x) != 0 {
+		s.expp = unsafe.SliceData(x)
+	}
+}
+
+// key returns the values of the rule's variables at the call.
+func (s *memoSide) key() []any {
+	if s.envN != 0 {
+		return unsafe.Slice(s.envp, s.envN)
+	}
+	return nil
+}
+
+// setKey sets the values of the rule's variables at the call to k.
+func (s *memoSide) setKey(k []any) {
+	s.envp, s.envN = nil, uint32(len(k))
+	if len(k) != 0 {
+		s.envp = unsafe.SliceData(k)
+	}
+}
+
 type memoEntry struct {
-	node     *sxirvalue.Node
-	errs     recEntry   // errors recovered in this call, recorded again on reuse
-	expected []ExpID    // expectations at far, recorded again on reuse
-	next     *memoEntry // next entry at the same position
-	env      []any      // values of the rule's variables at the call (memo key)
-	end      int
+	node *sxirvalue.Node
+	next *memoEntry // next entry at the same position
+	memoSide
+	end int
 	// from and examined are the input [from, examined) that a Document call examined (memo.examine):
 	// from is the entry's position, or the unit before it when the call examined that unit.
 	from     int
@@ -1223,7 +1292,7 @@ func (t *memoTable) get(rule, pos, min int, env []any) *memoEntry {
 	}
 	e, n := t.slots[pos], 0
 	for ; e != nil && n < memoScan; e, n = e.next, n+1 {
-		if e.rule == int32(rule) && e.min == int32(min) && sameValues(e.env, env) {
+		if e.rule == int32(rule) && e.min == int32(min) && sameValues(e.key(), env) {
 			return e
 		}
 	}
@@ -1232,7 +1301,7 @@ func (t *memoTable) get(rule, pos, min int, env []any) *memoEntry {
 	}
 	h, _ := memoKeyHash(int32(rule), int32(min), false, env)
 	_, x := t.indexAt(pos).probe(h, func(x *memoEntry) bool {
-		return x.rule == int32(rule) && x.min == int32(min) && sameValues(x.env, env)
+		return x.rule == int32(rule) && x.min == int32(min) && sameValues(x.key(), env)
 	})
 	return x
 }
@@ -1241,14 +1310,14 @@ func (t *memoTable) get(rule, pos, min int, env []any) *memoEntry {
 // are by slot, which no edit changes without dropping them all (splice).
 func (t *memoTable) indexAt(pos int) memoIndex[memoEntry] {
 	return indexAt(&t.index, &t.indexBytes, pos, t.slots[pos], func(e *memoEntry) *memoEntry { return e.next },
-		func(e *memoEntry) uint64 { h, _ := memoKeyHash(e.rule, e.min, false, e.env); return h })
+		func(e *memoEntry) uint64 { h, _ := memoKeyHash(e.rule, e.min, false, e.key()); return h })
 }
 
 // reindex makes the index of pos, if it has one, hold e where it held x, which has the key of e
 // and is replaced by it in the chain.
 func (t *memoTable) reindex(pos int, x, e *memoEntry) {
 	if ix := t.index[pos]; ix != nil {
-		h, _ := memoKeyHash(x.rule, x.min, false, x.env)
+		h, _ := memoKeyHash(x.rule, x.min, false, x.key())
 		slot, _ := ix.probe(h, func(y *memoEntry) bool { return y == x })
 		ix[slot] = e
 	}
@@ -1268,7 +1337,9 @@ func (t *memoTable) put(rule, pos, min int, env []any, e *memoEntry, join func(x
 			t.slots = grown
 		}
 	}
-	same := func(x *memoEntry) bool { return x.rule == int32(rule) && x.min == int32(min) && sameValues(x.env, env) }
+	same := func(x *memoEntry) bool {
+		return x.rule == int32(rule) && x.min == int32(min) && sameValues(x.key(), env)
+	}
 	kept := func(x *memoEntry) bool { return join != nil && join(x, e) == x }
 	link := &t.slots[pos]
 	for n := 0; *link != nil && n < memoScan; link, n = &(*link).next, n+1 {
@@ -1276,7 +1347,8 @@ func (t *memoTable) put(rule, pos, min int, env []any, e *memoEntry, join func(x
 			if kept(x) {
 				return x
 			}
-			e.rule, e.min, e.env = int32(rule), int32(min), env
+			e.rule, e.min = int32(rule), int32(min)
+			e.setKey(env)
 			t.reindex(pos, x, e)
 			e.next = x.next
 			*link = e
@@ -1291,7 +1363,8 @@ func (t *memoTable) put(rule, pos, min int, env []any, e *memoEntry, join func(x
 		if x != nil && kept(x) {
 			return x
 		}
-		e.rule, e.min, e.env = int32(rule), int32(min), env
+		e.rule, e.min = int32(rule), int32(min)
+		e.setKey(env)
 		ix[slot] = e
 		if x == nil {
 			t.indexBytes += memoIndexEntryBytes
@@ -1306,7 +1379,8 @@ func (t *memoTable) put(rule, pos, min int, env []any, e *memoEntry, join func(x
 			return e
 		}
 	}
-	e.rule, e.min, e.env = int32(rule), int32(min), env
+	e.rule, e.min = int32(rule), int32(min)
+	e.setKey(env)
 	e.next = t.slots[pos]
 	t.slots[pos] = e
 	return e

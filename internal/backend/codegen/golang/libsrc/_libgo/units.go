@@ -277,7 +277,7 @@ func (p *Parser) skipCalls(rules []*Rule, exp ExpID) {
 	start := p.Pos
 	env := p.memoEnv(r)
 	if e := p.memoGet(r.Id, start, 0, env, false); e != nil && (!e.silent || p.Silent > 0) {
-		p.MergeExpected(e.far, e.expected)
+		p.MergeExpected(e.far, e.exps())
 		return
 	}
 	m := p.Isolate(start)
@@ -285,10 +285,12 @@ func (p *Parser) skipCalls(rules []*Rule, exp ExpID) {
 	far, inner := p.Unisolate(m)
 	kept := p.Keep(inner)
 	entry := p.memo.alloc()
-	*entry = memoEntry{end: start, silent: p.Silent > 0, errs: p.recSince(len(p.Recovered))}
+	*entry = memoEntry{end: start, silent: p.Silent > 0}
+	entry.setRecs(p.recSince(len(p.Recovered)))
 	entry = p.memoPut(r.Id, start, 0, env, false, entry)
 	if !(p.Silent > 0) || entry.silent {
-		entry.far, entry.expected = far, kept
+		entry.far = far
+		entry.setExps(kept)
 	}
 	p.MergeExpected(far, inner)
 }
@@ -327,7 +329,7 @@ func (p *TParser) skipCalls(rules []*Rule, exp ExpID) {
 	start := p.Pos
 	env := p.memoEnv(r)
 	if e := p.memoGet(r.Id, start, 0, env, false); e != nil && (!e.silent || p.Silent > 0) {
-		p.MergeExpected(e.far, e.expected)
+		p.MergeExpected(e.far, e.exps())
 		return
 	}
 	m := p.Isolate(start)
@@ -335,10 +337,12 @@ func (p *TParser) skipCalls(rules []*Rule, exp ExpID) {
 	far, inner := p.Unisolate(m)
 	kept := p.Keep(inner)
 	entry := p.memoSlab.one()
-	*entry = tmemoEntry{end: start, silent: p.Silent > 0, errs: p.recSince(len(p.Recovered))}
+	*entry = tmemoEntry{end: start, silent: p.Silent > 0}
+	entry.setRecs(p.recSince(len(p.Recovered)))
 	entry = p.memoPut(r.Id, start, 0, env, false, entry)
 	if !(p.Silent > 0) || entry.silent {
-		entry.far, entry.expected = far, kept
+		entry.far = far
+		entry.setExps(kept)
 	}
 	p.MergeExpected(far, inner)
 }
@@ -680,7 +684,7 @@ func (p *Parser) memoLines() []string {
 		}
 		for ; e != nil; e = e.next {
 			out = append(out, fmt.Sprintf("entry %d: rule %d min %d env %v ok %t end %d silent %t far %d expected %v errs %d vgen %d present %d\n",
-				pos, e.rule, e.min, e.env, e.ok, e.end, e.silent, e.far, e.expected, e.errs.len(), e.vgen, e.present))
+				pos, e.rule, e.min, e.key(), e.ok, e.end, e.silent, e.far, e.exps(), e.recs().len(), e.vgen, e.present))
 		}
 	}
 	return out
@@ -696,7 +700,7 @@ func (p *TParser) memoLines() []string {
 		}
 		for ; e != nil; e = e.next {
 			out = append(out, fmt.Sprintf("entry %d: rule %d min %d env %v ok %t end %d silent %t far %d expected %v errs %d vgen %d present %d\n",
-				pos, e.rule, e.min, e.env, e.ok, e.end, e.silent, e.far, e.expected, e.errs.len(), e.vgen, e.present))
+				pos, e.rule, e.min, e.key(), e.ok, e.end, e.silent, e.far, e.exps(), e.recs().len(), e.vgen, e.present))
 		}
 	}
 	return out

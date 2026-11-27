@@ -79,12 +79,12 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 		found = false
 	}
 	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && !p.insertsRule(r) {
-		p.MergeExpected(e.far, e.expected)
+		p.MergeExpected(e.far, e.exps())
 		if !e.ok {
 			return nil, false
 		}
 		p.Pos = e.end
-		p.recAdd(e.errs)
+		p.recAdd(e.recs())
 		return e.node, true
 	}
 	if c.ctx {
@@ -129,11 +129,13 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 			}
 		}
 		entry := p.memo.alloc()
-		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen, ngen: p.gen}
+		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, vgen: p.gen, ngen: p.gen}
+		entry.setRecs(p.recSince(rec))
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
-			entry.far, entry.expected = far, kept
+			entry.far = far
+			entry.setExps(kept)
 		}
 	} else if store == storeCtx {
 		if (len(p.Recovered) - rec) > 0 {
@@ -444,12 +446,12 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 		if p.track {
 			p.documentTouch(e.examined)
 		}
-		p.MergeExpected(e.far, e.expected)
+		p.MergeExpected(e.far, e.exps())
 		if !e.ok {
 			return nil, false
 		}
 		p.Pos = e.end
-		p.recAdd(e.errs)
+		p.recAdd(e.recs())
 		return e.val, true
 	}
 	if c.ctx {
@@ -498,11 +500,13 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 			}
 		}
 		entry := p.memoSlab.one()
-		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
+		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, vgen: p.gen}
+		entry.setRecs(p.recSince(rec))
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
-			entry.far, entry.expected = far, kept
+			entry.far = far
+			entry.setExps(kept)
 			if p.track {
 				entry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false
 			}
@@ -568,12 +572,12 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 		if p.track {
 			p.documentTouch(e.examined)
 		}
-		p.MergeExpected(e.far, e.expected)
+		p.MergeExpected(e.far, e.exps())
 		if !e.ok {
 			return nil, false
 		}
 		p.Pos = e.end
-		p.recAdd(e.errs)
+		p.recAdd(e.recs())
 		return e.val, true
 	}
 	if c.ctx {
@@ -622,11 +626,13 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 			}
 		}
 		entry := p.memoSlab.one()
-		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
+		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, vgen: p.gen}
+		entry.setRecs(p.recSince(rec))
 		entry = p.memoPut(r.Id, start, 0, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
-			entry.far, entry.expected = far, kept
+			entry.far = far
+			entry.setExps(kept)
 			if p.track {
 				entry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false
 			}
@@ -891,12 +897,12 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 				p.Document.stats.Reused++
 			}
 		}
-		p.MergeExpected(e.far, e.expected)
+		p.MergeExpected(e.far, e.exps())
 		if !e.ok {
 			return nil, false
 		}
 		p.Pos = e.end
-		p.recAdd(e.errs)
+		p.recAdd(e.recs())
 		return e.node, true
 	}
 	if c.ctx {
@@ -953,11 +959,13 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 			}
 		}
 		entry := p.memo.alloc()
-		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen, ngen: p.gen}
+		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, vgen: p.gen, ngen: p.gen}
+		entry.setRecs(p.recSince(rec))
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
-			entry.far, entry.expected = far, kept
+			entry.far = far
+			entry.setExps(kept)
 			if p.track {
 				if p.Document != nil {
 					entry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false
@@ -1112,12 +1120,12 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 			p.documentTouchFrom(start + -1)
 		}
 		p.Document.stats.Reused++
-		p.MergeExpected(e.far, e.expected)
+		p.MergeExpected(e.far, e.exps())
 		if !e.ok {
 			return nil, false
 		}
 		p.Pos = e.end
-		p.recAdd(e.errs)
+		p.recAdd(e.recs())
 		return e.val, true
 	}
 	if c.ctx {
@@ -1175,11 +1183,13 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 			}
 		}
 		entry := p.memoSlab.one()
-		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
+		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, vgen: p.gen}
+		entry.setRecs(p.recSince(rec))
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
-			entry.far, entry.expected = far, kept
+			entry.far = far
+			entry.setExps(kept)
 			entry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false
 			if r.Positional {
 				entry.pinned = true
@@ -1233,7 +1243,7 @@ func (p *Parser) advanceEntry(e *memoEntry, log []documentEdit) bool {
 		if examined <= log[i].start {
 			continue
 		}
-		if !(from >= log[i].end && !e.pinned && e.errs.none()) {
+		if !(from >= log[i].end && !e.pinned && e.recs().none()) {
 			return false
 		}
 		delta := log[i].delta
@@ -1280,7 +1290,7 @@ func advanceEntry(e *memoEntry, log []documentEdit) bool {
 		if examined <= log[i].start {
 			continue
 		}
-		if !(from >= log[i].end && !e.pinned && e.errs.none()) {
+		if !(from >= log[i].end && !e.pinned && e.recs().none()) {
 			return false
 		}
 		delta := log[i].delta
@@ -1327,7 +1337,7 @@ func (p *TParser) advanceEntry(e *tmemoEntry, log []documentEdit) bool {
 		if examined <= log[i].start {
 			continue
 		}
-		if !(from >= log[i].end && !e.pinned && e.errs.none()) {
+		if !(from >= log[i].end && !e.pinned && e.recs().none()) {
 			return false
 		}
 		delta := log[i].delta
@@ -1373,7 +1383,7 @@ func advanceTEntry(e *tmemoEntry, log []documentEdit) bool {
 		if examined <= log[i].start {
 			continue
 		}
-		if !(from >= log[i].end && !e.pinned && e.errs.none()) {
+		if !(from >= log[i].end && !e.pinned && e.recs().none()) {
 			return false
 		}
 		delta := log[i].delta

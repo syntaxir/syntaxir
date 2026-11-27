@@ -192,15 +192,17 @@ func TestGeneratedDocumentLeftRecursionMemberReparseControl(t *testing.T) {
 	keep := func(doc, minExpr, entry, alloc string) string {
 		return "if " + doc + " != nil {\n" +
 			"\t\t\tentry := " + entry + "\n" +
+			"\t\t\tentry.setRecs(p.recSince(rec))\n" +
+			"\t\t\tentry.setExps(kept)\n" +
 			"\t\t\trule := r.Id\n" +
 			"\t\t\tkeptSeedResults = append(keptSeedResults, func() {\n" +
 			"\t\t\t\te := " + alloc + "\n\t\t\t\t*e = entry\n" +
 			"\t\t\t\tp.memoPut(rule, start, " + minExpr + ", env, false, e)\n" +
 			"\t\t\t})\n\t\t}\n\t\t"
 	}
-	nodeKeep := keep("p.Document", "min", "memoEntry{node: v, ok: ok, end: p.Pos, examined: p.docExamined, from: p.docLow, vgen: p.gen, present: ^uint32(0), errs: p.recSince(rec), far: far, expected: kept}", "p.memo.alloc()")
+	nodeKeep := keep("p.Document", "min", "memoEntry{node: v, ok: ok, end: p.Pos, examined: p.docExamined, from: p.docLow, vgen: p.gen, present: ^uint32(0), far: far}", "p.memo.alloc()")
 	typedKeep := func(minExpr string) string {
-		return keep("p.TypedDocument", minExpr, "tmemoEntry{val: v, ok: ok, end: p.Pos, examined: p.docExamined, from: p.docLow, vgen: p.gen, present: ^uint32(0), errs: p.recSince(rec), far: far, expected: kept}", "p.memoSlab.one()")
+		return keep("p.TypedDocument", minExpr, "tmemoEntry{val: v, ok: ok, end: p.Pos, examined: p.docExamined, from: p.docLow, vgen: p.gen, present: ^uint32(0), far: far}", "p.memoSlab.one()")
 	}
 	// Each anchor is the ctxKeep of a call, which the mutation prefixes, and the number of times it
 	// occurs in the file.
