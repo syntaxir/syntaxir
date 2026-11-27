@@ -261,8 +261,8 @@ func TestKindWithoutAPrinterHasNoText(t *testing.T) {
 // decide asks for a fold once per function and changes nothing.
 var decide = New(Def[*mod, *mod]{Decl: Decl{Name: "t-decide", Test: true, Patterns: []string{"t-fold"}}, In: modIR, Out: modIR,
 	Run: func(c *Ctx[*mod], m *mod) (*mod, pass.PreservedSet, error) {
-		for range m.fns {
-			c.Allow("t-fold")
+		for _, f := range m.fns {
+			c.Allow("t-fold", f)
 		}
 		return m, pass.PreserveAll(), nil
 	}})

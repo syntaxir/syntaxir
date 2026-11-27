@@ -2,6 +2,9 @@ package driver
 
 import (
 	"context"
+	"flag"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -119,6 +122,52 @@ func TestBisectionInvariants(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("no decision %s was asked", pattern)
+		}
+	}
+}
+
+var updateBisect = flag.Bool("update-bisect", false, "rewrite the golden decision logs")
+
+// The decision log of the first bisection grammar on each target, with the opt-ins on, is pinned:
+// a change in what is decided, in which order or how often shows as a diff of the golden log
+// (testdata/bisect-<backend>.txt; -update-bisect rewrites it). That each decision is asked once for
+// its site is checked by the manager in every observed run (pipe.Ctx.Allow).
+func TestBisectionDecisionLogs(t *testing.T) {
+	t.Parallel()
+	speed, err := GenSettings(common.GenOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	optIns, err := speed.With("class-tables", 2)
+	if err == nil {
+		optIns, err = optIns.With("ts-literal-sharing", 1)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := checkSource(t, bisectGrammars[0], common.CompileOptions{}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	beyond := 1 << 30
+	for _, tg := range bisectTargets() {
+		_, log := bisectCompile(t, p, optIns, &beyond, tg)
+		path := filepath.Join("testdata", "bisect-"+tg.Backend.String()+".txt")
+		if *updateBisect {
+			if err := os.MkdirAll("testdata", 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte(log), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		want, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if log != string(want) {
+			t.Errorf("%s: the decision log differs from %s (-update-bisect rewrites it):\n%s", tg.Backend, path, firstDiff(log, string(want)))
 		}
 	}
 }

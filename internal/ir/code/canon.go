@@ -20,15 +20,15 @@ type Pattern struct {
 	Name string
 	// Doc says in one line what the pattern rewrites.
 	Doc string
-	// apply rewrites in place each match in f that allow admits, asking allow once for each match,
-	// and returns the number of rewrites.
-	apply func(f *Func, allow func() bool) int
+	// apply rewrites in place each match in f that allow admits, asking allow once for each match
+	// with its site (the node that the rewrite changes), and returns the number of rewrites.
+	apply func(f *Func, allow func(site any) bool) int
 }
 
 // newPattern returns the pattern name, which rewrites in place each match in a function that allow
 // admits, asks allow once for each match before it rewrites it, and returns the number of rewrites.
 // Only package code makes patterns, so Patterns lists them all.
-func newPattern(name, doc string, apply func(f *Func, allow func() bool) int) Pattern {
+func newPattern(name, doc string, apply func(f *Func, allow func(site any) bool) int) Pattern {
 	if name == "" || doc == "" || apply == nil {
 		panic(fmt.Sprintf("code: pattern %q has no name, description or rewrite", name))
 	}
@@ -72,17 +72,34 @@ func PatternsAt[S Stage]() []Pattern {
 
 // ApplyPatterns applies the patterns ps to f in place, in the order given, sweep after sweep, until a
 // sweep rewrites nothing; the patterns try their matches in a fixed order, so the result is the same
-// on every run. allow decides each application by the name of its pattern; a refused application
-// leaves its match as it is. It returns the number of rewrites of each pattern, in the order of ps.
-func ApplyPatterns(f *Func, ps []Pattern, allow func(pattern string) bool) []int {
+// on every run. allow decides each application by the name of its pattern and its site, the node
+// that the rewrite changes; a refused application leaves its match as it is, and is not asked about
+// again on a later sweep, so allow is asked once for each site of a pattern. It returns the number of
+// rewrites of each pattern, in the order of ps.
+func ApplyPatterns(f *Func, ps []Pattern, allow func(pattern string, site any) bool) []int {
 	counts := make([]int, len(ps))
 	if f.Body == nil {
 		return counts
 	}
+	type match struct {
+		pattern string
+		site    any
+	}
+	refused := map[match]bool{}
 	for {
 		n := 0
 		for i, p := range ps {
-			k := p.apply(f, func() bool { return allow(p.Name) })
+			k := p.apply(f, func(site any) bool {
+				m := match{p.Name, site}
+				if refused[m] {
+					return false
+				}
+				if !allow(p.Name, site) {
+					refused[m] = true
+					return false
+				}
+				return true
+			})
 			counts[i] += k
 			n += k
 		}
@@ -238,11 +255,11 @@ func callFree(x Expr) bool {
 
 func boolConst(v bool) Expr { return &Const{Type: TBool, Value: v} }
 
-func foldConstants(f *Func, allow func() bool) int {
+func foldConstants(f *Func, allow func(site any) bool) int {
 	n := 0
 	rewriteExprs(f.Body, func(x Expr) Expr {
 		y := foldOne(x)
-		if y == x || !allow() {
+		if y == x || !allow(x) {
 			return x
 		}
 		n++
@@ -302,7 +319,7 @@ func foldOne(x Expr) Expr {
 	return x
 }
 
-func foldBranches(f *Func, allow func() bool) int {
+func foldBranches(f *Func, allow func(site any) bool) int {
 	n := 0
 	eachList(f.Body, func(ss []Stmt) []Stmt {
 		var out []Stmt
@@ -310,7 +327,7 @@ func foldBranches(f *Func, allow func() bool) int {
 			switch s := st.(type) {
 			case *Loop:
 				v, ok := constant(s.Cond)
-				if !ok || !allow() {
+				if !ok || !allow(s) {
 					break
 				}
 				n++
@@ -324,7 +341,7 @@ func foldBranches(f *Func, allow func() bool) int {
 				continue
 			case *If:
 				v, ok := constant(s.Cond)
-				if !ok || !allow() {
+				if !ok || !allow(s) {
 					break
 				}
 				n++
@@ -360,11 +377,11 @@ func ends(st Stmt) bool {
 	return false
 }
 
-func dropAfterExit(f *Func, allow func() bool) int {
+func dropAfterExit(f *Func, allow func(site any) bool) int {
 	n := 0
 	eachList(f.Body, func(ss []Stmt) []Stmt {
 		for i, st := range ss {
-			if ends(st) && i+1 < len(ss) && allow() {
+			if ends(st) && i+1 < len(ss) && allow(st) {
 				n++
 				return ss[:i+1]
 			}
@@ -374,7 +391,7 @@ func dropAfterExit(f *Func, allow func() bool) int {
 	return n
 }
 
-func dropUnusedLabels(f *Func, allow func() bool) int {
+func dropUnusedLabels(f *Func, allow func(site any) bool) int {
 	used := map[string]bool{}
 	Walk(f.Body, func(s Stmt) {
 		if e, ok := s.(*Exit); ok {
@@ -383,7 +400,7 @@ func dropUnusedLabels(f *Func, allow func() bool) int {
 	}, nil)
 	n := 0
 	Walk(f.Body, func(s Stmt) {
-		if b, ok := s.(*Block); ok && b.Label != "" && !used[b.Label] && allow() {
+		if b, ok := s.(*Block); ok && b.Label != "" && !used[b.Label] && allow(b) {
 			b.Label = ""
 			n++
 		}
@@ -391,20 +408,20 @@ func dropUnusedLabels(f *Func, allow func() bool) int {
 	return n
 }
 
-func spliceBlocks(f *Func, allow func() bool) int {
+func spliceBlocks(f *Func, allow func(site any) bool) int {
 	n := 0
 	eachList(f.Body, func(ss []Stmt) []Stmt {
 		var out []Stmt
 		for _, st := range ss {
 			switch s := st.(type) {
 			case *Block:
-				if s.Label == "" && !declares(s) && allow() {
+				if s.Label == "" && !declares(s) && allow(s) {
 					n++
 					out = append(out, s.Stmts...)
 					continue
 				}
 			case *If:
-				if s.Else != nil && len(s.Else.Stmts) == 0 && allow() {
+				if s.Else != nil && len(s.Else.Stmts) == 0 && allow(s) {
 					n++
 					s.Else = nil
 				}

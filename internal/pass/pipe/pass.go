@@ -303,8 +303,16 @@ type ctxState struct {
 	counts   map[string]int
 	// decisions counts the answers of Allow per pattern, only in an observed run.
 	decisions map[string]Decisions
-	unit      any
-	typed     any // the *Ctx[I] of the step, shared by Applies and Run
+	// asked holds the sites that Allow was asked about, per pattern, only in an observed run.
+	asked map[askedSite]bool
+	unit  any
+	typed any // the *Ctx[I] of the step, shared by Applies and Run
+}
+
+// askedSite is a site of a pattern that a step asked about (Ctx.Allow).
+type askedSite struct {
+	pattern string
+	site    any
 }
 
 // ctxOf returns the typed context of a step, made once for Applies and Run.
@@ -361,15 +369,18 @@ func (c *Ctx[M]) Count(counter string, n int) {
 	c.s.counts[counter] += n
 }
 
-// Allow reports whether one application of a declared pattern may run. The manager numbers each
-// decision as a run of its own, which an observer may veto (bisection). A pattern has no flag of its
-// own: the flag of its pass, if the pass is optional, turns off the pass and all its decisions, and a
-// pattern named like a parameter of the pass is asked only at a site where the parameter is on.
-func (c *Ctx[M]) Allow(pattern string) bool {
+// Allow reports whether one application of a declared pattern at the site site may run. The manager
+// numbers each decision as a run of its own, which an observer may veto (bisection). A pattern has no
+// flag of its own: the flag of its pass, if the pass is optional, turns off the pass and all its
+// decisions, and a pattern named like a parameter of the pass is asked only at a site where the
+// parameter is on. The site identifies what the decision is about within the run of the step, such
+// as the node that a rewrite would replace; it is a comparable value. A step asks about each site of
+// a pattern once: an observed run panics on a second question, which would number one site twice.
+func (c *Ctx[M]) Allow(pattern string, site any) bool {
 	if !contains(c.s.pass.Patterns, pattern) {
 		panic(fmt.Sprintf("pipe: pass %s asks about the undeclared pattern %s", c.s.pass.Name, pattern))
 	}
-	return c.s.rs.allow(c.s, pattern)
+	return c.s.rs.allow(c.s, pattern, site)
 }
 
 // Feature returns a declared feature that an enclosing scope provides.

@@ -288,6 +288,28 @@ func TestAllowNumbersPatterns(t *testing.T) {
 	}
 }
 
+// TestAllowAsksEachSiteOnce checks that an observed run stops a step that asks about one site of a
+// pattern twice, which would number one site with two decisions, and lets a step ask about two sites.
+func TestAllowAsksEachSiteOnce(t *testing.T) {
+	asker := func(name string, sites ...any) *Pass[*mod, *mod] {
+		return New(Def[*mod, *mod]{Decl: Decl{Name: name, Test: true, Patterns: []string{"t-fold"}}, In: modIR, Out: modIR,
+			Run: func(c *Ctx[*mod], m *mod) (*mod, pass.PreservedSet, error) {
+				for _, s := range sites {
+					c.Allow("t-fold", s)
+				}
+				return m, pass.PreserveAll(), nil
+			}})
+	}
+	var panicked any
+	r := &Run{Observers: []Observer{&recorder{}}, Recover: func(x any) error { panicked = x; return context.Canceled }}
+	if _, err := run(t, r, tablePipe(Seq(modIR, asker("t-ask-two", "a", "b"))), &prog{tables: []string{"a"}}); err != nil || panicked != nil {
+		t.Fatalf("two sites: %v %v", err, panicked)
+	}
+	if _, err := run(t, r, tablePipe(Seq(modIR, asker("t-ask-again", "a", "b", "a"))), &prog{tables: []string{"a"}}); err == nil || !strings.Contains(fmt.Sprint(panicked), "asks about the site a of the pattern t-fold twice") {
+		t.Errorf("a site asked twice: %v %v", err, panicked)
+	}
+}
+
 var computed int
 
 var sizeKey = pass.NewAnalysisKey("t-size", func(m *mod, _ *pass.AnalysisManager[*mod]) (int, error) {

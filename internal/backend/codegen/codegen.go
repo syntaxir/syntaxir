@@ -64,7 +64,7 @@ var Params = []string{MethodSharing, LiteralSharing, UsedFeatures}
 // ParamsOf returns the values of Params that value, the parameter reader of a printing step's context
 // (pipe.Ctx.Value), gives, with the decisions of their sites to allow (pipe.Ctx.Allow), the step's
 // decision of the pattern named like each parameter (Params, which the step declares as patterns too).
-func ParamsOf(value func(string) int, allow func(string) bool) common.Params {
+func ParamsOf(value func(string) int, allow func(param string, site any) bool) common.Params {
 	return common.Params{
 		MethodSharing:  value(MethodSharing) != 0,
 		LiteralSharing: value(LiteralSharing) != 0,

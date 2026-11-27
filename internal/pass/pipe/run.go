@@ -1253,14 +1253,22 @@ func setList(l reflect.Value, i int, v any) {
 // allow decides one application of the pattern of a running pass: a run of its own, numbered like
 // an optional pass, which an observer may veto. A decision changes nothing by itself
 // (Result.Changed is false); its pass reports the change.
-func (rs *runner) allow(cs *ctxState, pattern string) bool {
+func (rs *runner) allow(cs *ctxState, pattern string, site any) bool {
 	observed := len(rs.r.Observers) > 0
 	*rs.seq++
 	if !observed {
 		return true
 	}
-	k := cs.pass.in.name
-	ev := Event{Seq: *rs.seq, Step: StepInfo{Name: pattern, Instance: cs.instance + "/" + pattern, In: k, Out: k, Pattern: true}, Label: cs.env.label}
+	k := askedSite{pattern, site}
+	if cs.asked[k] {
+		panic(fmt.Sprintf("pipe: pass %s asks about the site %v of the pattern %s twice", cs.pass.Name, site, pattern))
+	}
+	if cs.asked == nil {
+		cs.asked = map[askedSite]bool{}
+	}
+	cs.asked[k] = true
+	in := cs.pass.in.name
+	ev := Event{Seq: *rs.seq, Step: StepInfo{Name: pattern, Instance: cs.instance + "/" + pattern, In: in, Out: in, Pattern: true}, Label: cs.env.label}
 	ran := true
 	for _, o := range rs.r.Observers {
 		if !o.Before(ev, func(io.Writer) {}) {

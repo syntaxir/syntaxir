@@ -285,7 +285,7 @@ export function recognizeWithOptions(input: string | Uint8Array, options?: %[1]s
 		return nil, fmt.Errorf("internal error: the tables of the TypeScript parser have no library")
 	}
 	features := common.FeatureSet(tsg.tables.Library.Features)
-	shake := tsg.Params.UsedFeatures && opts.Lib != common.LibImport && tsg.Params.Decide(common.UsedFeatures)
+	shake := tsg.Params.UsedFeatures && opts.Lib != common.LibImport && tsg.Params.Decide(common.UsedFeatures, common.LibraryShaking)
 	return tsFiles(opts, features, prog.Run.HasMissing, shake, tsg.tables.Library, out.String(), types)
 }
 

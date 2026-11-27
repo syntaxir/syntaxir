@@ -11,7 +11,7 @@ import (
 // one pass, one flag and one pattern at two kinds.
 var canonFn = New(Def[*fn, *fn]{Decl: canon.Decl(), In: fnIR, Out: fnIR,
 	Run: func(c *Ctx[*fn], f *fn) (*fn, pass.PreservedSet, error) {
-		if c.Allow("t-fold") {
+		if c.Allow("t-fold", nil) {
 			f.body += "g"
 		}
 		return f, pass.PreserveNone(), nil

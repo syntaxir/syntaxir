@@ -314,7 +314,8 @@ every setting off still runs, so the first invariant also checks that canonicali
 A further test checks that the parser at a limit beyond the last decision is the parser of the same settings built
 without a limit that keeps the unentered rules (the Go parser's unreachable rules, the TypeScript parser's plan reach),
 that keeping them changes the parser only where a grammar has such rules, and that a TypeScript parser that keeps a
-rule needing library features of its own gives the default parser's results on a corpus of inputs.
+rule needing library features of its own gives the default parser's results on a corpus of inputs. A golden log pins
+every decision of a small grammar on each target, and each decision of a log is asked once for its site.
 
 ### Runtime Mechanisms
 

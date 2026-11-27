@@ -170,7 +170,7 @@ var (
 	}, func(d *Decl) { d.Features = []FeatureID{targetFeature.ID()} })
 	canon = modPass("t-canon", func(c *Ctx[*mod], m *mod) error {
 		each(m, func(f *fn) {
-			if c.Allow("t-fold") {
+			if c.Allow("t-fold", f) {
 				f.body += "f"
 			}
 		})

@@ -41,8 +41,11 @@ type Generator struct {
 	// wrappers, memo IDs, frame layouts and expectation IDs remain in the code.
 	methodNames  map[generatedMethod]string
 	literalNames map[string]string
-	methodKeys   []generatedMethod
-	literalKeys  []string
+	// shares counts the uses of each shared body and literal table that would share it, so that each
+	// use is a site of its own (sharedUse).
+	shares      map[any]int
+	methodKeys  []generatedMethod
+	literalKeys []string
 	// Params are the values of the parameters of the printing step that runs the generator.
 	Params Params
 	// Exec is the table being printed, at the Exec stage, or nil: its plan, its module and the Core
@@ -99,6 +102,23 @@ func GeneratedMaxDepth(o GenOptions) int {
 	return o.MaxDepth
 }
 
+// sharedUse is the site of a decision to share: the n-th use (from 1) of the body or literal table
+// key, the first one excluded, that would share it, in the generator g.
+type sharedUse struct {
+	g   *Generator
+	key any
+	n   int
+}
+
+// sharedUse returns the site of the next use of key that would share it.
+func (g *Generator) sharedUse(key any) sharedUse {
+	if g.shares == nil {
+		g.shares = map[any]int{}
+	}
+	g.shares[key]++
+	return sharedUse{g, key, g.shares[key]}
+}
+
 type generatedMethod struct {
 	signature string
 	body      string
@@ -114,7 +134,7 @@ func (g *Generator) MethodName(signature, body string) (string, bool) {
 	}
 	key := generatedMethod{signature, body}
 	if name, ok := g.methodNames[key]; ok {
-		if !g.Params.Decide(MethodSharing) {
+		if !g.Params.Decide(MethodSharing, g.sharedUse(key)) {
 			return g.Name("e"), false
 		}
 		return name, true
@@ -137,7 +157,7 @@ func (g *Generator) LiteralName(value string) (string, bool) {
 		return g.Name("lit"), false
 	}
 	if name, ok := g.literalNames[value]; ok {
-		if !g.Params.Decide(LiteralSharing) {
+		if !g.Params.Decide(LiteralSharing, g.sharedUse(value)) {
 			return g.Name("lit"), false
 		}
 		return name, true

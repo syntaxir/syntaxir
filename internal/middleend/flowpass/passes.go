@@ -108,7 +108,7 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 		Run: func(c *pipe.Ctx[Unit], u Unit) (Unit, pass.PreservedSet, error) {
 			t := prim.TablesOf(u.Module())
 			return run(PassClassTables, func(fn *code.Func, a *flow.Attrs, c *pipe.Ctx[Unit]) {
-				classTables(fn, a, t, c.Value(PassClassTables), func() bool { return c.Allow(PassClassTables) }, cancel.New(c.Context()))
+				classTables(fn, a, t, c.Value(PassClassTables), func(site any) bool { return c.Allow(PassClassTables, site) }, cancel.New(c.Context()))
 			})(c, u)
 		},
 	}),
@@ -126,7 +126,7 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 				funcIs(c, func(a *flow.Attrs) bool { return !a.Traced })
 		},
 		Run: run(PassInlineLiterals, func(fn *code.Func, _ *flow.Attrs, c *pipe.Ctx[Unit]) {
-			inlineLiterals(fn, c.Value(PassInlineLiterals), func() bool { return c.Allow(PassInlineLiterals) }, cancel.New(c.Context()))
+			inlineLiterals(fn, c.Value(PassInlineLiterals), func(site any) bool { return c.Allow(PassInlineLiterals, site) }, cancel.New(c.Context()))
 		}),
 	}),
 }
@@ -242,12 +242,12 @@ func classRuns(fn *code.Func, a *flow.Attrs, control *cancel.Control) {
 
 // classTables matches each class of at least the pass's number of ranges through its membership
 // table, in a function of typed rules in the ordinary form; t are the tables of its module. Each such
-// class is one decision (allow, the pattern class-tables); a skipped one keeps its ranges, as with a
+// class is one decision (allow, the pattern class-tables, at the class form); a skipped one keeps its ranges, as with a
 // count of 0.
-func classTables(fn *code.Func, a *flow.Attrs, t *prim.Tables, min int, allow func() bool, control *cancel.Control) {
+func classTables(fn *code.Func, a *flow.Attrs, t *prim.Tables, min int, allow func(site any) bool, control *cancel.Control) {
 	for _, cl := range a.Forms.Classes {
 		control.Poll()
-		if !cl.Live() || len(t.Class(cl.Class).Ranges) < min || !allow() {
+		if !cl.Live() || len(t.Class(cl.Class).Ranges) < min || !allow(cl) {
 			continue
 		}
 		match := failIf(cl, code.Not(&code.Call{Callee: flow.OpMatchClass, Imm: cl.Class}))
@@ -264,9 +264,9 @@ func classTables(fn *code.Func, a *flow.Attrs, t *prim.Tables, min int, allow fu
 
 // inlineLiterals compares each exact literal of at most the pass's number of code points in place
 // first, outside the traced copies, which read every literal through the operation that records it.
-// Each such literal is one decision (allow, the pattern inline-literals); a skipped one is matched as
+// Each such literal is one decision (allow, the pattern inline-literals, at its If); a skipped one is matched as
 // with a count of 0.
-func inlineLiterals(fn *code.Func, max int, allow func() bool, control *cancel.Control) {
+func inlineLiterals(fn *code.Func, max int, allow func(site any) bool, control *cancel.Control) {
 	var stmts func(list []code.Stmt)
 	block := func(b *code.Block) {
 		if b != nil {
@@ -285,7 +285,7 @@ func inlineLiterals(fn *code.Func, max int, allow func() bool, control *cancel.C
 				block(st.Body)
 				block(st.Finally)
 			case *code.If:
-				if lit, k := inlineLiteral(st, max); k > 0 && allow() {
+				if lit, k := inlineLiteral(st, max); k > 0 && allow(st) {
 					list[i] = &code.If{Cond: &code.Call{Callee: flow.OpHasLit, Imm: lit},
 						Then: &code.Block{Stmts: []code.Stmt{&code.Do{Call: &code.Call{Callee: flow.OpAdvance, Args: []code.Expr{code.Int(int64(k))}}}}},
 						Else: &code.Block{Stmts: []code.Stmt{st}}}

@@ -470,7 +470,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 		}
 		// Leaving out the declarations that the parser does not name is one more decision of
 		// used-features.
-		rt, err := embeddedLib(opts, features, genGo.Params.UsedFeatures && genGo.Params.Decide(common.UsedFeatures), roots, users)
+		rt, err := embeddedLib(opts, features, genGo.Params.UsedFeatures && genGo.Params.Decide(common.UsedFeatures, common.LibraryShaking), roots, users)
 		if err != nil {
 			return nil, nil, err
 		}

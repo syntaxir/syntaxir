@@ -39,7 +39,7 @@ func canonicalized(t *testing.T, off ...string) (string, map[string]int) {
 		t.Fatal(err)
 	}
 	ps := PatternsAt[Exec]()
-	counts := ApplyPatterns(f, ps, func(p string) bool { return !slices.Contains(off, p) })
+	counts := ApplyPatterns(f, ps, func(p string, _ any) bool { return !slices.Contains(off, p) })
 	if err := Verify(m); err != nil {
 		t.Fatalf("%v: %v\n%s", off, err, FuncString(f))
 	}
@@ -99,8 +99,8 @@ func TestCanonicalizePatternOff(t *testing.T) {
 			}
 			m := module()
 			f := patternSites(m)
-			ApplyPatterns(f, PatternsAt[Exec](), func(q string) bool { return q != p.Name })
-			ApplyPatterns(f, []Pattern{p}, func(string) bool { return true })
+			ApplyPatterns(f, PatternsAt[Exec](), func(q string, _ any) bool { return q != p.Name })
+			ApplyPatterns(f, []Pattern{p}, func(string, any) bool { return true })
 			if FuncString(f) != all {
 				t.Errorf("%s applied after the others gives\n%s", p.Name, FuncString(f))
 			}
@@ -108,9 +108,9 @@ func TestCanonicalizePatternOff(t *testing.T) {
 	}
 }
 
-// Each application asks on its own: admitting only the first of two applications of a pattern, as a
-// bisection limit of 1 does, rewrites that site and keeps the other, whose application is refused again
-// on the next sweep.
+// Each application asks on its own, once for its site: admitting only the first of two applications
+// of a pattern, as a bisection limit of 1 does, rewrites that site and keeps the other, whose
+// application is not asked about again on the next sweep.
 func TestCanonicalizeAsksEachApplication(t *testing.T) {
 	m := module()
 	f := m.AddFunc("f", nil, nil, nil, func(b *Builder) {
@@ -118,12 +118,12 @@ func TestCanonicalizeAsksEachApplication(t *testing.T) {
 		b.Do("log.note", Add(Int(3), Int(4)))
 	})
 	asked := 0
-	ApplyPatterns(f, []Pattern{FoldConstants}, func(string) bool { asked++; return asked == 1 })
+	ApplyPatterns(f, []Pattern{FoldConstants}, func(string, any) bool { asked++; return asked == 1 })
 	if got, want := FuncString(f), "func f() {\n  log.note(3)\n  log.note((3 + 4))\n}\n"; got != want {
 		t.Errorf("got\n%s\nwant\n%s", got, want)
 	}
-	if asked != 3 {
-		t.Errorf("asked %d times, want 3: two in the first sweep and one in the second", asked)
+	if asked != 2 {
+		t.Errorf("asked %d times, want 2: once for each site, both in the first sweep", asked)
 	}
 }
 

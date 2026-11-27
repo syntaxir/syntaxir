@@ -204,7 +204,7 @@ func ParserFeatures(tables []RuleTable, opts GenOptions, p Params, plan *plandat
 		return 0, err
 	}
 	for f := Feature(1); f&AllFeatures != 0; f <<= 1 {
-		if !fs.Has(f) && !p.Decide(UsedFeatures) {
+		if !fs.Has(f) && !p.Decide(UsedFeatures, f) {
 			fs |= FeatureSet(f)
 		}
 	}

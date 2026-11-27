@@ -408,7 +408,7 @@ var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 			h = *target.hooks
 		}
 		// A storage parameter acts on typed output only, so only a typed parser decides it.
-		storage := func(flag string) bool { return c.Value(flag) != 0 && (!d.Parser.Opts.Types || c.Allow(flag)) }
+		storage := func(flag string) bool { return c.Value(flag) != 0 && (!d.Parser.Opts.Types || c.Allow(flag, nil)) }
 		params := print.Params{Params: codegen.ParamsOf(c.Value, c.Allow), Control: cancel.New(c.Context())}
 		params.TypedObjectSlabs, params.TypedListSlabs = storage(TypedObjectSlabs), storage(TypedListSlabs)
 		params.TypedOutputBootstrap, params.TypedChunkGrowth = storage(TypedOutputBootstrap), storage(TypedChunkGrowth)

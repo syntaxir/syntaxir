@@ -252,7 +252,7 @@ var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}
-		params := print.Params{Params: codegen.ParamsOf(c.Value, c.Allow), SparseMemo: c.Value(SparseMemo) != 0 && c.Allow(SparseMemo), Control: cancel.New(c.Context())}
+		params := print.Params{Params: codegen.ParamsOf(c.Value, c.Allow), SparseMemo: c.Value(SparseMemo) != 0 && c.Allow(SparseMemo, nil), Control: cancel.New(c.Context())}
 		// A TypeScript parser shares its literal tables only with ts-literal-sharing too.
 		params.LiteralSharing = params.LiteralSharing && c.Value(TSLiteralSharing) != 0
 		out, err := print.Print(p, params, t, pipe.Feature(c, plandata.ReachFeature) != nil, target.hooks)

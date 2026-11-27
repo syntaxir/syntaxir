@@ -13,6 +13,11 @@ const (
 	UsedFeatures = "used-features"
 )
 
+// LibraryShaking is the site of UsedFeatures (Params.Decide) that leaves out the declarations of an
+// embedded library that the parser does not name; the other sites of UsedFeatures are the features
+// that ParserFeatures leaves out.
+const LibraryShaking = "library shaking"
+
 // Params are the values of the parameters that the printing step of a backend declares and gives its
 // printer as data: the printer reads no settings of the compilation. Each backend's printer extends
 // them with its own (the Go and TypeScript printers' Params).
@@ -27,8 +32,10 @@ type Params struct {
 	// Allow, if not nil, decides one site of a parameter that is on: the printing step's decision of
 	// the pattern named like the parameter (pipe.Ctx.Allow), which a bisection limit can skip. A
 	// skipped site is printed as with the parameter off. Nil allows every site.
-	Allow func(param string) bool
+	Allow func(param string, site any) bool
 }
 
-// Decide reports whether one site of the parameter param, which is on, gets it (Allow).
-func (p Params) Decide(param string) bool { return p.Allow == nil || p.Allow(param) }
+// Decide reports whether the site site of the parameter param, which is on, gets it (Allow). The
+// site is a comparable value that identifies the site within the printing step, which asks about it
+// once (pipe.Ctx.Allow).
+func (p Params) Decide(param string, site any) bool { return p.Allow == nil || p.Allow(param, site) }

@@ -63,5 +63,5 @@ var (
 // Canonicalize applies every pattern of the Exec stage to f until none applies, outside a pipeline:
 // a composition is printed the same whatever optimizations a build turns off.
 func Canonicalize(f *code.Func) {
-	code.ApplyPatterns(f, code.PatternsAt[code.Exec](), func(string) bool { return true })
+	code.ApplyPatterns(f, code.PatternsAt[code.Exec](), func(string, any) bool { return true })
 }
