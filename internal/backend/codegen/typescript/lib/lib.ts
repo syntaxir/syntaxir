@@ -1239,7 +1239,7 @@ export interface Limits {
   compute?: number;
   /** Bytes of storage the parse takes into use, estimated from the sizes of the runtime's objects. Zero and Unlimited, the default, set no bound; a parse whose count passes it fails at the next poll with a ParseInterruptionError of kind "memory-limit". */
   memory?: number;
-  /** Longest input accepted, in the position unit. Zero and Unlimited, the default, set no bound; a longer input fails before any work with a ParseInterruptionError of kind "input-limit". */
+  /** Longest input accepted, in the position unit. Zero, Unlimited and any value above 2^31−1 select 2^31−1, the default and the longest input of any parse; a longer input fails before any work with a ParseInterruptionError of kind "input-limit". */
   input?: number;
   /** Nesting of recursive rule calls. Zero selects the default of the grammar; a deeper parse fails with a ParseInterruptionError of kind "depth-limit". Unlimited is an error, because rule calls nest on the JavaScript stack. */
   depth?: number;
@@ -1304,6 +1304,15 @@ export interface StreamOptions extends ParseOptions {
 
 /** The value of a limit that disables it. */
 export const Unlimited = Number.MAX_SAFE_INTEGER;
+
+// maxInputUnits is the length of the longest input of any parse, in its position unit: 2^31−1, as on
+// every backend. It is the default of the input limit, and a larger limit counts as it.
+const maxInputUnits = 0x7fffffff;
+
+// resolveInput returns the input limit that a parse runs under for an input limit option of n.
+function resolveInput(n: number): number {
+  return n === 0 || n > maxInputUnits ? maxInputUnits : n;
+}
 
 const defaultBudgetFloor = 1 << 20;
 const defaultBudgetPerUnit = 1024;
@@ -1426,14 +1435,13 @@ export function resolveOptions(g: Grammar, options: StreamOptions | undefined, i
   if (!Number.isSafeInteger(memory) || memory < 0) {
     return new Error(`memory limit must be a non-negative safe integer: ${memory}`);
   }
-  const maxInput = limits?.input ?? 0;
-  if (!Number.isSafeInteger(maxInput) || maxInput < 0) {
-    return new Error(`input limit must be a non-negative safe integer: ${maxInput}`);
+  const inputOption = limits?.input ?? 0;
+  if (!Number.isSafeInteger(inputOption) || inputOption < 0) {
+    return new Error(`input limit must be a non-negative safe integer: ${inputOption}`);
   }
-  if (maxInput !== 0 && maxInput !== Unlimited) {
-    const over = inputOverMax(input, unit, maxInput);
-    if (over !== null) return new ParseInterruptionError("input-limit", maxInput, 0, over);
-  }
+  const maxInput = resolveInput(inputOption);
+  const over = inputOverMax(input, unit, maxInput);
+  if (over !== null) return new ParseInterruptionError("input-limit", maxInput, 0, over);
   const missingTokens = options?.missingTokens ?? 0;
   if (!Number.isSafeInteger(missingTokens) || missingTokens < 0) {
     return new Error("missing token limit must be nonnegative");
@@ -2035,13 +2043,14 @@ export class DocumentBase {
 
 // createDocumentBase validates the options of a Document of input, which is copied, and makes the
 // Document with make. Like a parse, it makes the check at the start under the limit controls of the
-// options. It is for generated parsers.
+// options. It is for generated parsers. The options are resolved for input before the copy, so an input
+// over the input limit is rejected without copying it; the units of input and of its copy agree.
 export function createDocumentBase<D>(g: Grammar, input: string | Uint8Array, options: ParseOptions | undefined,
   make: (input: Uint8Array, defaults: ParseOptions | undefined, o: ResolvedParseOptions) => D): { document: D | null; error: Error | null } {
   const defaults = optionsSnapshot(options);
-  const bytes = typeof input === "string" ? encodeUTF8(input) : input.slice();
-  const o = resolveOptions(g, defaults, bytes);
+  const o = resolveOptions(g, defaults, input);
   if (o instanceof Error) return { document: null, error: o };
+  const bytes = typeof input === "string" ? encodeUTF8(input) : input.slice();
   // Preparing the input is free: withBudgetControl makes only the check at the start.
   const error = withBudgetControl<Error | null>(o, () => null, e => e);
   if (error !== null) return { document: null, error };
@@ -6662,7 +6671,7 @@ export class StreamParser extends Parser {
   // convert converts each delivered element to the value that the feed returns, under the control of
   // the parse (createStreamValue), and is null for a stream of Nodes.
   convert: ((n: Node | null, control: BudgetControl | null) => unknown) | null = null;
-  // maxInput is the input limit, 0 for none; adaptive says that the compute limit is the default of a
+  // maxInput is the resolved input limit (resolveInput); adaptive says that the compute limit is the default of a
   // stream, which rises with the furthest position that the parse demands (demanded).
   maxInput = 0;
   adaptive = false;
@@ -7573,8 +7582,7 @@ export function createStreamBase<E = Node | null>(g: Grammar, start: Rule, seen:
   p.expectations = o.expectations;
   p.bodyGens = bodyGens;
   if (ins !== null) p.startMissing(o.missingTokens);
-  const maxInput = snapshot?.limits?.input ?? 0;
-  p.maxInput = maxInput === Unlimited ? 0 : maxInput;
+  p.maxInput = resolveInput(snapshot?.limits?.input ?? 0);
   // A stream under the default compute limit starts at its floor, which rises with the input that the
   // parse demands (StreamParser.demanded).
   p.adaptive = control !== null && g.controlled && requested === 0;

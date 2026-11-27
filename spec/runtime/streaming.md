@@ -131,7 +131,7 @@ at the start of the next element. No construct of the language looks further bac
 | Option | Effect in a stream parse |
 |:--|:--|
 | `WithUnit`, `Limits.Depth` | Apply |
-| `WithContext`, `WithLimits` | Apply to the whole stream invocation, including diagnostic callbacks and the retained tail of a [diagnostic limit](#recovered-errors), which the memory count holds ([Memory](#memory)) and which spends no compute units. A zero `Compute` selects the [default budget of a stream](parsing.md#default-limits): `max(2^20, 1024 * d)` for the furthest demanded position `d`, which does not depend on how the reader chunks the input; `Unlimited` disables it. A finite `Input` fails the stream with `LimitInput` when the parser asks for a unit beyond it and the stream has one. A finite `Memory` bounds the window of the stream, as [Memory](#memory) describes |
+| `WithContext`, `WithLimits` | Apply to the whole stream invocation, including diagnostic callbacks and the retained tail of a [diagnostic limit](#recovered-errors), which the memory count holds ([Memory](#memory)) and which spends no compute units. A zero `Compute` selects the [default budget of a stream](parsing.md#default-limits): `max(2^20, 1024 * d)` for the furthest demanded position `d`, which does not depend on how the reader chunks the input; `Unlimited` disables it. The resolved `Input`, at most the [longest input](parsing.md#default-limits) of 2^31−1 units, fails the stream with `LimitInput` when the parser asks for a unit beyond it and the stream has one. A finite `Memory` bounds the window of the stream, as [Memory](#memory) describes |
 | `Recognize` | An error |
 | `WithDiagnosticCallback`, `WithDiagnosticLimit` | Stream-only; see [Recovered errors](#recovered-errors) |
 
