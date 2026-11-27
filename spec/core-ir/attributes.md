@@ -99,8 +99,9 @@ nullable; of a choice's alternatives up to the first that always succeeds; of a 
 the body always succeeds; of a repetition's body unless its maximum is 0; of the bodies of `Opt`, `Look`, `Text`, `Drop`,
 `Capture`, `Label`, `Stream` and `Terminal`; and, for an `OperatorsRule`, of its skip line, its operand lines up to the
 first that always succeeds, its prefix operator lines, and, when some operand line is nullable, its infix and postfix
-operator lines: an operand that matched nothing leaves them to be tried where the rule started, so a call that they make
-there is a left call and grows as other left recursion does. Left calls depend on which rules always succeed, which depends
+operator lines: an operand that matched nothing leaves them to be tried before the rule consumes input, so a call that they
+make there is a left call and grows as other left recursion does. With a consuming skip line, they run after it; the
+analysis counts them as left calls in that case too. Left calls depend on which rules always succeed, which depends
 on the cycles, which depend on the left calls: the analysis starts with no rule proven to succeed and repeats until the
 left calls no longer change. Each round only removes left calls, so it ends.
 

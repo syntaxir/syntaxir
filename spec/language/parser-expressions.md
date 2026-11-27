@@ -499,13 +499,18 @@ proven by this analysis can still change how an indirect cycle is entered.
 
 In an [Operators Rule](operators-rule.md), the infix and postfix operator parts
 are tried after an operand. When an `operand` item can match the empty string,
-they may run where the rule started, so their calls count as calls before
-consuming input. If the Operators Rule of `e` has the operand `""` and the
-postfix part `x`, and `rule x = e "+"`, then `e` and `x` form a left-recursion
-cycle. On `++`, `e` applies `x` once: the `e` that `x` calls at the start of the
-input grows over the first `+` as an application of `x` of its own, and `x` then
-matches the second `+`. The applications nest through `x` rather than chain at
-one level of `e`.
+they may run before the rule has consumed input, so their calls count as calls
+before consuming input. The analysis counts them whenever some operand is
+nullable, even when a consuming `skip` line runs first and the parts then run
+after it, so it is conservative in that case. If the Operators Rule of `e` has
+the operand `""` and the postfix part `x`, and `rule x = e "+"`, then `e` and
+`x` form a left-recursion cycle. Here `e` is declared first, so it is the
+[leader](#left-recursion) of the cycle. On `++`, `e` applies `x` once: the `e`
+that `x` calls at the start of the input grows over the first `+` as an
+application of `x` of its own, and `x` then matches the second `+`. The
+applications nest through `x` because `e` is the leader. If `x` is declared
+before `e`, then `x` is the leader and the applications nest through `e`
+instead.
 
 A [`#missing`](pragmas.md#missing) literal consumes no input when it is
 inserted, so with token insertion enabled the calls after it may also run
