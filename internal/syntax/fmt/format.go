@@ -1024,18 +1024,15 @@ func formatOperator(op *ast.OperatorsRuleOperator, control *formatControl) strin
 	return s
 }
 
-// String aligns the lines and joins them.
 // text returns the lines of p as the text of a node within a line: without the line terminator
-// after the last line, unless that line ends in a line comment. Such a comment, a trailing comment
-// after the closing delimiter of the node, ends its line, so the text after the node goes on the
-// next line, as after a line comment of a gap (gapString).
+// after the last line, unless the comment of that line ends in a line comment. Such a comment, a
+// trailing comment after the closing delimiter of the node, ends its line, so the text after the
+// node goes on the next line, as after a line comment of a gap (gapString). The text of the last
+// line holds the closing delimiter, which no line comment can precede on its line.
 func (p *printer) text() string {
 	s := p.String()
-	if n := len(p.lines); n > 0 {
-		l := p.lines[n-1]
-		if comment := l.comment; endsInLineComment(comment) || comment == "" && endsInLineComment(l.text) && strings.HasPrefix(l.text, "/") {
-			return s
-		}
+	if n := len(p.lines); n > 0 && endsInLineComment(p.lines[n-1].comment) {
+		return s
 	}
 	return strings.TrimSuffix(s, "\n")
 }
@@ -1064,6 +1061,7 @@ func endsInLineComment(text string) bool {
 	return false
 }
 
+// String aligns the lines and joins them.
 func (p *printer) String() string {
 	ls := p.lines
 	// Align the types of consecutive struct fields.

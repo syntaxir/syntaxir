@@ -330,21 +330,59 @@ func TestFormatTrailingCommentAfterClosingDelimiter(t *testing.T) {
 
 // TestFormatTrailingCommentStrings formats a declaration whose trailing comment strings end in a
 // line terminator before the last: only the last can be a line comment, which ends the line, so
-// the ones before it are written as block comments.
+// the ones before it are written as block comments. An empty string writes nothing, so the last
+// is the last that is not empty.
 func TestFormatTrailingCommentStrings(t *testing.T) {
-	for _, comments := range [][]string{
-		{"t\n", "u"}, {"t\n\n", "u\n"}, {"t", "u\n"}, {"t\nv\n", "u"}, {"t\n", "", "u\n"}, {"t\n", "u\n", ""},
+	for _, tc := range []struct {
+		comments []string
+		want     string
+	}{
+		{[]string{"t\n", "u"}, `/*t */ /*u */`},
+		{[]string{"t\n\n", "u\n"}, `/*t */ //u`},
+		{[]string{"t", "u\n"}, `/*t */ //u`},
+		{[]string{"t\nv\n", "u"}, "/*t\n *v */ /*u */"},
+		{[]string{"t\n", "", "u\n"}, `/*t */ //u`},
+		{[]string{"t\n", "u\n", ""}, `/*t */ //u`},
+		{[]string{"t\n", ""}, `//t`},
 	} {
 		r := &ast.RuleDef{Name: "r", Expr: &ast.Literal{Value: "a"}}
-		r.TrailingComments = comments
+		r.TrailingComments = tc.comments
 		text := grammar.Format(&ast.Grammar{File: ast.File{Decls: []ast.Decl{r, &ast.RuleDef{Name: "b", Expr: &ast.Literal{Value: "b"}}}}})
+		if want := "rule r = \"a\" " + tc.want + "\n\nrule b = \"b\"\n"; text != want {
+			t.Errorf("%q: formatted as %q; want %q", tc.comments, text, want)
+		}
 		back, err := grammar.Load(grammar.FromString("g.sxir", text))
 		if err != nil {
-			t.Errorf("%q: the formatted grammar does not parse: %v\n%s", comments, err, text)
+			t.Errorf("%q: the formatted grammar does not parse: %v\n%s", tc.comments, err, text)
 			continue
 		}
-		if rules := back.Rules(); len(rules) != 2 || !strings.Contains(strings.Join(rules[0].TrailingComments, ""), "t") || !strings.Contains(strings.Join(rules[0].TrailingComments, ""), "u") {
-			t.Errorf("%q: formatted as %q, which reads back the rules %v", comments, text, rules)
+		if rules := back.Rules(); len(rules) != 2 || !strings.Contains(strings.Join(rules[0].TrailingComments, ""), "t") || !strings.Contains(strings.Join(rules[0].TrailingComments, ""), "u") && strings.Contains(strings.Join(tc.comments, ""), "u") {
+			t.Errorf("%q: formatted as %q, which reads back the rules %v", tc.comments, text, rules)
 		}
+	}
+}
+
+// TestFormatCommentAfterClosingDelimiterText pins the text of comments after a closing delimiter
+// written through the string path. A block comment that holds "//" does not end its line, so the
+// text after it stays on the line. A line comment ends it, and the next item of a sequence starts
+// the next line at its indentation, without a space before it; the parser keeps such a comment
+// before the next item rather than after the ")", so the AST is built by hand.
+func TestFormatCommentAfterClosingDelimiterText(t *testing.T) {
+	g, err := grammar.Load(grammar.FromString("g.sxir", "rule main = \"a\" #recover(skip=(\"x\")) /* a // b */\nrule b = \"b\"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := grammar.Format(g), "rule main = \"a\" #recover(skip=(\"x\") /* a // b */)\nrule b = \"b\"\n"; got != want {
+		t.Errorf("formatted as %q; want %q", got, want)
+	}
+	skip := &ast.Seq{Items: []ast.Expr{
+		&ast.Group{Expr: &ast.Literal{Value: "x"}, CloseBreak: &ast.LineBreak{Trailing: &ast.Comment{Text: "//t"}}},
+		&ast.Literal{Value: "z"},
+		&ast.Literal{Value: "w", SourceInfo: ast.SourceInfo{Layout: &ast.SourceLayout{Lead: &ast.Gap{Comments: []*ast.Comment{{Text: "/* c */"}}}}}},
+	}}
+	g = &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "r", Expr: &ast.Recovery{Expr: &ast.Literal{Value: "a"}, Skip: skip}}}}}
+	want := "rule r = \"a\" #recover(skip=(\n        \"x\"\n    ) //t\n    \"z\" /* c */ \"w\")\n"
+	if got := grammar.Format(g); got != want {
+		t.Errorf("formatted as %q; want %q", got, want)
 	}
 }
