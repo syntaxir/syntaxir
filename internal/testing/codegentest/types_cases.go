@@ -58,6 +58,7 @@ rule main R = t:n #atomic => R{T: $t}
 rule n = "(" n ")" / "x"`, Inputs: []string{strings.Repeat("(", limits.DefaultMaxDepth-2) + "x" + strings.Repeat(")", limits.DefaultMaxDepth-2),
 		strings.Repeat("(", limits.DefaultMaxDepth-1) + "x" + strings.Repeat(")", limits.DefaultMaxDepth-1)}})
 	cases = append(cases, TypedLeaderValueCases...)
+	cases = append(cases, RuleOptionCases...)
 	cases = append(cases, Case{Name: "typed", Src: TypedGrammar, Inputs: []string{"f(1,x)!?;[3];zz", "f(1,(;g();", "f(a);"}})
 	// The grammars written for direct rules also get mutated inputs, which reach other partial
 	// matches and failures than the written ones.
@@ -67,6 +68,17 @@ rule n = "(" n ")" / "x"`, Inputs: []string{strings.Repeat("(", limits.DefaultMa
 		}
 	}
 	return cases
+}
+
+// RuleOptionCases convert options whose elements are written as rules or joins of rules whose
+// values are scalars or tuples, as tuple elements, list elements and parts of tuples: such an option
+// is a pointer (nullable) like an option of the scalar or tuple written in place, and its absent
+// value is nil (null), not the zero value of the element.
+var RuleOptionCases = []Case{
+	{Name: "options of rule values in a tuple", Src: "rule n = \"1\" => 1\nrule s = \"s\" => \"s\"\nrule b = \"t\" => true\nrule main = x:n? y:s? z:b? $$ => ($x, $y, $z)", Inputs: []string{"", "1", "1st", "s"}},
+	{Name: "options of rule values in a list", Src: "rule n = \"1\" => 1\nrule e = (x:n? \",\" => $x)\nrule main = xs:e* $$ => $xs", Inputs: []string{",1,", "1,", ","}},
+	{Name: "option of a rule of a tuple", Src: "rule p = \"p\" => (1, \"a\")\nrule main = x:p? \";\" $$ => ($x, 0)", Inputs: []string{";", "p;"}},
+	{Name: "option of a join of rules", Src: "rule n = \"1\" => 1\nrule m = \"2\" => 2\nrule main = x:(n / m)? \";\" $$ => ($x, 0)", Inputs: []string{"1;", "2;", ";"}},
 }
 
 // TypedLeaderValueCases are left-recursion leaders without an action of their own, whose values

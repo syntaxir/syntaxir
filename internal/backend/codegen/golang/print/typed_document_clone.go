@@ -56,11 +56,12 @@ func (t *TypedGen) documentClone(b *strings.Builder, result types.Ty) string {
 			}
 			return "c.toOpen(" + value + ")"
 		case types.OptTy:
-			if scalar, ok := x.Elem.(types.BasicTy); ok && (scalar == types.TyInt || scalar == types.TyString || scalar == types.TyBool) {
-				return "typedDocumentClonePointer(c, " + value + ")"
-			}
-			if _, ok := x.Elem.(types.TupleTy); ok {
+			switch optKind(t.goType(x.Elem)) {
+			case "":
+			case "tuple":
 				return "c." + t.chelpers.get("cv", t.goType(x), x) + "(" + value + ")"
+			default:
+				return "typedDocumentClonePointer(c, " + value + ")"
 			}
 			return clone(x.Elem, value)
 		case types.ListTy:

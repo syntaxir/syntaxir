@@ -626,6 +626,28 @@ func (t *TypedGen) joinOf(name string) types.JoinTy {
 	return t.Info.Aliases[name].(types.JoinTy)
 }
 
+// optKind returns how an option of a type whose Go type is g is represented: "int", "string" or
+// "bool" for a pointer to the scalar, "tuple" for a pointer to the tuple, and "" where g has nil and
+// the option takes g itself. It decides by the Go type, not by the form the element is written in,
+// so that a rule or a join that stands for a scalar or a tuple decides as that type, and an absent
+// value is nil.
+func optKind(g string) string {
+	switch {
+	case g == "int" || g == "string" || g == "bool":
+		return g
+	case g == "Unit" || tupleGoType.MatchString(g):
+		return "tuple"
+	}
+	return ""
+}
+
+// tupleGoType matches the Go type of a tuple of elements; the names Unit and TupleN are reserved, so
+// no grammar type has such a Go type.
+var tupleGoType = regexp.MustCompile(`^Tuple[0-9]+\[`)
+
+// ptrHelper returns the name of the library function converting a value to a pointer to the scalar k.
+func ptrHelper(k string) string { return "astPtr" + strings.ToUpper(k[:1]) + k[1:] }
+
 // goType returns the Go type of values of type x.
 func (t *TypedGen) goType(x types.Ty) string {
 	switch x := x.(type) {
@@ -660,13 +682,11 @@ func (t *TypedGen) goType(x types.Ty) string {
 	case types.ListTy:
 		return "[]" + t.goType(x.Elem)
 	case types.OptTy:
-		if b, ok := x.Elem.(types.BasicTy); ok && (b == types.TyInt || b == types.TyString || b == types.TyBool) {
-			return "*" + string(b)
+		g := t.goType(x.Elem)
+		if optKind(g) != "" {
+			return "*" + g
 		}
-		if _, ok := x.Elem.(types.TupleTy); ok {
-			return "*" + t.goType(x.Elem)
-		}
-		return t.goType(x.Elem)
+		return g
 	case types.JoinTy:
 		if name, ok := t.Joins[x.String()]; ok {
 			return t.ref(name)
@@ -733,11 +753,12 @@ func (t *TypedGen) conv(x types.Ty, v string) string {
 		}
 		return "a." + name + "(astNode(" + v + "))"
 	case types.OptTy:
-		if b, ok := x.Elem.(types.BasicTy); ok && (b == types.TyInt || b == types.TyString || b == types.TyBool) {
-			return "astPtr" + strings.ToUpper(string(b)[:1]) + string(b)[1:] + "(" + v + ")"
-		}
-		if _, ok := x.Elem.(types.TupleTy); ok {
+		switch k := optKind(t.goType(x.Elem)); k {
+		case "":
+		case "tuple":
 			return "a." + t.vconvHelper(x) + "(" + v + ")"
+		default:
+			return ptrHelper(k) + "(" + v + ")"
 		}
 		return t.conv(x.Elem, v)
 	case types.JoinTy:
@@ -1098,8 +1119,8 @@ func (t *TypedGen) plainField(x types.Ty) bool {
 	case types.NamedTy:
 		return x.Kind == 's'
 	case types.OptTy:
-		b, ok := x.Elem.(types.BasicTy)
-		return ok && t.plainField(b)
+		k := optKind(t.goType(x.Elem))
+		return k != "" && k != "tuple"
 	case types.TupleTy:
 		for _, e := range x.Elems {
 			if !t.plainField(e) {
@@ -1521,11 +1542,12 @@ func (t *TypedGen) back(x types.Ty, v string) string {
 	case types.TupleTy, common.Vrule:
 		return t.backHelper(x) + "(" + v + ")"
 	case types.OptTy:
-		if b, ok := x.Elem.(types.BasicTy); ok && (b == types.TyInt || b == types.TyString || b == types.TyBool) {
-			return libAlias + ".TDeref(" + v + ")"
-		}
-		if _, ok := x.Elem.(types.TupleTy); ok {
+		switch optKind(t.goType(x.Elem)) {
+		case "":
+		case "tuple":
 			return t.backHelper(x) + "(" + v + ")"
+		default:
+			return libAlias + ".TDeref(" + v + ")"
 		}
 		return t.back(x.Elem, v)
 	case types.ListTy:
@@ -1590,11 +1612,12 @@ func (t *TypedGen) dconv(x types.Ty, v, a string) string {
 		}
 		return "TAs[" + t.goType(x) + "](" + t.tpub(v, a) + ")"
 	case types.OptTy:
-		if b, ok := x.Elem.(types.BasicTy); ok && (b == types.TyInt || b == types.TyString || b == types.TyBool) {
-			return "astPtr" + strings.ToUpper(string(b)[:1]) + string(b)[1:] + "(" + v + ")"
-		}
-		if _, ok := x.Elem.(types.TupleTy); ok {
+		switch k := optKind(t.goType(x.Elem)); k {
+		case "":
+		case "tuple":
 			return t.vdconvHelper(x) + "(" + a + ", " + v + ")"
+		default:
+			return ptrHelper(k) + "(" + v + ")"
 		}
 		return t.dconv(x.Elem, v, a)
 	case types.ListTy:

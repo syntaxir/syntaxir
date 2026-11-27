@@ -34,8 +34,8 @@ and its theorem and corollary.
   `Unit` for a tuple; `*Error`, `*Missing` and `ErrorValue` for `error` and
   `missing`; an interface for a join of node types that an alias declares or
   that is written in place with a struct or named node type member; a slice
-  for `[]T`; `*int`, `*string`, `*bool`, a pointer to a tuple or the type of `T`
-  for `*T`; for a rule whose type is not declared the Go type of its value; `any`
+  for `[]T`; `*int`, `*string`, `*bool` or a pointer to a tuple for `*T` where
+  the Go type of `T` is a scalar or a tuple, and else the type of `T`; for a rule whose type is not declared the Go type of its value; `any`
   for `_`, for the joins that the table gives no interface, and for a value that
   closes a cycle of rules; and for an alias `A ~ T` the Go type of `T`. A join
   without an interface whose members all have one Go type has that type and

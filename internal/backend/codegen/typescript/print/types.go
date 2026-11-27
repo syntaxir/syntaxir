@@ -254,7 +254,7 @@ func (t *tsTypedGen) tsType(x types.Ty) string {
 		}
 		return t.names[x.Name] + " | null"
 	case types.OptTy:
-		if _, ok := x.Elem.(types.TupleTy); ok || x.Elem == types.TyInt || x.Elem == types.TyString || x.Elem == types.TyBool {
+		if optKind(t.conversionKey(x.Elem)) != "" {
 			return t.tsType(x.Elem) + " | null"
 		}
 		return t.tsType(x.Elem)
@@ -282,6 +282,21 @@ func (t *tsTypedGen) tsType(x types.Ty) string {
 		}
 	}
 	return "TypedValue"
+}
+
+// optKind returns how an option of a type whose recipe key is key converts: "int", "string" or
+// "bool" for a nullable scalar, "tuple" for a nullable tuple, and "" where the recipe of the type
+// itself converts an absent value to null. It decides by the recipe, not by the form the element is
+// written in, so that a rule or a join that stands for a scalar or a tuple decides as that type, and
+// an absent value is null.
+func optKind(key string) string {
+	switch {
+	case key == "int" || key == "string" || key == "bool":
+		return key
+	case strings.HasPrefix(key, "tuple("):
+		return "tuple"
+	}
+	return ""
 }
 
 // commonRecipe reports whether the arguments of a union share a recipe (and with it a TypeScript
@@ -331,13 +346,15 @@ func (t *tsTypedGen) conversionKey(x types.Ty) string {
 	case types.RecordTy:
 		return t.conversionKey(openNode)
 	case types.OptTy:
-		if x.Elem == types.TyInt || x.Elem == types.TyString || x.Elem == types.TyBool {
-			return "opt" + x.Elem.String()
+		key := t.conversionKey(x.Elem)
+		switch k := optKind(key); k {
+		case "":
+			return key
+		case "tuple":
+			return "opt:" + key
+		default:
+			return "opt" + k
 		}
-		if _, ok := x.Elem.(types.TupleTy); ok {
-			return "opt:" + t.conversionKey(x.Elem)
-		}
-		return t.conversionKey(x.Elem)
 	case types.ListTy:
 		return "list:" + t.conversionKey(x.Elem)
 	case types.JoinTy:
@@ -410,9 +427,9 @@ func (t *tsTypedGen) recipe(x types.Ty) int {
 		}
 		kind, key = "struct", "named:"+a.Name
 	case types.OptTy:
-		if a.Elem == types.TyInt || a.Elem == types.TyString || a.Elem == types.TyBool {
-			kind, key = "opt"+a.Elem.String(), "opt"+a.Elem.String()
-		} else if _, ok := a.Elem.(types.TupleTy); ok {
+		if k := optKind(t.conversionKey(a.Elem)); k != "" && k != "tuple" {
+			kind, key = "opt"+k, "opt"+k
+		} else if k == "tuple" {
 			kind, key = "opt", t.conversionKey(a)
 		} else {
 			return t.recipe(a.Elem)
