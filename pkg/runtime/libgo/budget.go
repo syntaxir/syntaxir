@@ -390,7 +390,7 @@ func (p *Parser) memoGetControlled(rule, pos, min int, key []any, ident bool) *m
 	}
 	link := p.unlinkLagged(i, &t.slots[i], scan)
 	for e := t.slots[i]; e != nil && e != *link; e = e.next {
-		if e.rule == int32(rule) && e.min == int32(min) && p.keyMatches(e.env, key, ident) {
+		if e.rule == int32(rule) && e.min == int32(min) && p.keyMatches(e.key(), key, ident) {
 			return e
 		}
 	}
@@ -403,7 +403,7 @@ func (p *Parser) memoGetControlled(rule, pos, min int, key []any, ident bool) *m
 	}
 	ix := indexAt(&t.index, &t.indexBytes, i, t.slots[i], func(e *memoEntry) *memoEntry { return e.next }, entryHash)
 	_, x := ix.probe(keyHash(int32(rule), int32(min), key), func(x *memoEntry) bool {
-		return x.rule == int32(rule) && x.min == int32(min) && keysEqual(x.env, key)
+		return x.rule == int32(rule) && x.min == int32(min) && keysEqual(x.key(), key)
 	})
 	return x
 }
@@ -447,7 +447,7 @@ func keyHash(rule, min int32, env []any) uint64 {
 }
 
 // entryHash is keyHash for the key of e.
-func entryHash(e *memoEntry) uint64 { return keyHash(e.rule, e.min, e.env) }
+func entryHash(e *memoEntry) uint64 { return keyHash(e.rule, e.min, e.key()) }
 
 // keySize returns the units of the memo key of a call of r (keySize).
 func (p *Parser) keySize(r *Rule) uint64 {
@@ -529,7 +529,7 @@ func (p *Parser) memoPutControlled(rule, pos, min int, key []any, ident bool, e 
 	link := &slots[i]
 	var replaced *memoEntry
 	same := func(x *memoEntry) bool {
-		return x == e || x.rule == int32(rule) && x.min == int32(min) && p.keyMatches(x.env, key, ident)
+		return x == e || x.rule == int32(rule) && x.min == int32(min) && p.keyMatches(x.key(), key, ident)
 	}
 	scan := memoScan
 	if ident {
@@ -560,7 +560,7 @@ func (p *Parser) memoPutControlled(rule, pos, min int, key []any, ident bool, e 
 	} else if replaced != nil {
 		// The entry replaced among the first of a long chain is indexed too.
 		if ix = t.index[i]; ix != nil {
-			ixSlot, _ = ix.probe(keyHash(replaced.rule, replaced.min, replaced.env), func(y *memoEntry) bool { return y == replaced })
+			ixSlot, _ = ix.probe(keyHash(replaced.rule, replaced.min, replaced.key()), func(y *memoEntry) bool { return y == replaced })
 		}
 	}
 	if replaced != nil && p.joinStored(replaced, e) == replaced {
@@ -569,7 +569,8 @@ func (p *Parser) memoPutControlled(rule, pos, min int, key []any, ident bool, e 
 	// Commit the completed key/slot array and link together, with no further
 	// checkpoint between mutations. A resident self-entry retains its successor.
 	t.slots = slots
-	e.rule, e.min, e.env = int32(rule), int32(min), key
+	e.rule, e.min = int32(rule), int32(min)
+	e.setKey(key)
 	if ix != nil {
 		n := len(ix)
 		ix[ixSlot] = e

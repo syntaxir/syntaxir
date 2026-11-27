@@ -278,7 +278,8 @@ func (m *rtMachine) Call(o *code.Op, args []any) (res []any) {
 		// Every entry the call protocol stores has a record of the input it examined. An entry here
 		// stands for one without a record until memo.examine: it examined everything (unrecorded), so
 		// every edit drops it.
-		*e = memoEntry{ok: args[4].(bool), end: i(5), silent: args[6].(bool), errs: recoveredErrors(args[8]), vgen: p.gen}
+		*e = memoEntry{ok: args[4].(bool), end: i(5), silent: args[6].(bool), vgen: p.gen}
+		e.setRecs(recoveredErrors(args[8]))
 		e.from, e.examined = unrecorded()
 		return []any{p.memoPut(rule, pos, level, env, false, e)}
 	case "memo.ok":
@@ -546,7 +547,8 @@ func (m *typedMachine) Call(o *code.Op, args []any) (res []any) {
 	case "memo.store":
 		e := p.memoSlab.one()
 		// As in the node binding, an entry stands for one without a record until memo.examine.
-		*e = tmemoEntry{ok: args[4].(bool), end: i(5), silent: args[6].(bool), errs: recoveredErrors(args[8]), vgen: p.gen}
+		*e = tmemoEntry{ok: args[4].(bool), end: i(5), silent: args[6].(bool), vgen: p.gen}
+		e.setRecs(recoveredErrors(args[8]))
 		e.from, e.examined = unrecorded()
 		return []any{p.memoPut(i(0), i(1), i(2), m.vals[args[3].(int64)], false, e)}
 	case "memo.ok":
@@ -810,7 +812,8 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 			t := &m.p.memo
 			pos := int(args[1].(int64))
 			e := t.alloc()
-			*e = memoEntry{ok: args[4].(bool), end: int(args[5].(int64)), rule: int32(args[0].(int64)), min: int32(args[2].(int64)), env: m.vals[args[3].(int64)]}
+			*e = memoEntry{ok: args[4].(bool), end: int(args[5].(int64)), rule: int32(args[0].(int64)), min: int32(args[2].(int64))}
+			e.setKey(m.vals[args[3].(int64)])
 			for pos >= len(t.slots) {
 				t.slots = append(t.slots, nil)
 			}
@@ -895,7 +898,7 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 		"splice moves an entry with recovered errors": {op: "memo.splice", call: func(m *rtMachine, args []any) []any {
 			for _, head := range m.p.memo.slots {
 				for e := head; e != nil; e = e.next {
-					e.errs = recEntry{}
+					e.setRecs(recEntry{})
 				}
 			}
 			confEdit(m.p, documentEdit{int(args[0].(int64)), int(args[1].(int64)), int(args[2].(int64))})
@@ -1004,7 +1007,7 @@ func TestExecConformanceDetectsBrokenTypedLib(t *testing.T) {
 		"splice moves an entry with recovered errors": func(m *typedMachine) {
 			for _, head := range m.p.memoSlots {
 				for e := head; e != nil; e = e.next {
-					e.errs = recEntry{}
+					e.setRecs(recEntry{})
 				}
 			}
 		},

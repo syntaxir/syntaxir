@@ -538,12 +538,17 @@ func goTarget(s goSpec) *print.Target {
 			return "len(" + a[0] + ")"
 		case "exp.keptAt":
 			return a[0] + "[" + a[1] + "]"
-		case "memo.far", "memo.expected", "memo.ok", "memo.end", "memo.silent", "memo.errs":
+		case "memo.far", "memo.ok", "memo.end", "memo.silent":
 			return a[0] + "." + strings.TrimPrefix(c.Callee, "memo.")
+		case "memo.expected":
+			// An entry keeps its slices as pointers and lengths (memoSide).
+			return a[0] + ".exps()"
+		case "memo.errs":
+			return a[0] + ".recs()"
 		case "memo.value":
 			return a[0] + "." + valueField
 		case "memo.setExpected":
-			return fmt.Sprintf("%s.far, %s.expected = %s, %s", a[0], a[0], a[1], a[2])
+			return fmt.Sprintf("%s.far = %s\n%s.setExps(%s)", a[0], a[1], a[0], a[2])
 		case "obs.memoHit":
 			return "p.Observation.memoHit()"
 		case "obs.enter":
@@ -763,13 +768,13 @@ p.lastKept = p.arena[off:len(p.arena):len(p.arena)]
 			return fmt.Sprintf("%s, %s%sp.docExamined, p.docLow\np.docExamined, p.docLow = %s, %s", dst[0], dst[1], op, a[0], a[0]), true
 		case "memo.store":
 			e := dst[0]
-			fields := fmt.Sprintf("%s: %s, ok: %s, end: %s, silent: %s, errs: %s", valueField, a[7], a[4], a[5], a[6], a[8])
+			fields := fmt.Sprintf("%s: %s, ok: %s, end: %s, silent: %s", valueField, a[7], a[4], a[5], a[6])
 			fields += ", vgen: p.gen"
 			if !typed {
 				// The nodes of the value hold positions of the current text (documentMove).
 				fields += ", ngen: p.gen"
 			}
-			return fmt.Sprintf("%s%s%s\n*%s = %s{%s}\n%[4]s = p.memoPut(%[7]s, %[8]s, %[4]s)", e, op, alloc, e, entryType, fields, key(), a[9]), true
+			return fmt.Sprintf("%s%s%s\n*%s = %s{%s}\n%[4]s.setRecs(%[9]s)\n%[4]s = p.memoPut(%[7]s, %[8]s, %[4]s)", e, op, alloc, e, entryType, fields, key(), a[9], a[8]), true
 		}
 		return "", false
 	}

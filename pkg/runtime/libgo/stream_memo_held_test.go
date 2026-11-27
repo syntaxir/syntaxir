@@ -34,7 +34,10 @@ func TestStreamMemoHeldAcrossCommit(t *testing.T) {
 				p.memo.slots = append(p.memo.slots, nil)
 			}
 			p.chargeMemoHeld(uint64(n) * anyBytes)
-			p.memo.slots[pos] = &memoEntry{errs: e, env: make([]any, n)}
+			x := &memoEntry{}
+			x.setRecs(e)
+			x.setKey(make([]any, n))
+			p.memo.slots[pos] = x
 		}
 		listBytes := func(l recEntry) uint64 { return errListBytes + uint64(cap(l.list.entries))*recEntryBytes }
 		commit := func(pos int, prune bool) {

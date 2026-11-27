@@ -227,7 +227,7 @@ func (p *Parser) diagnosticLimited() bool { return p.Stream != nil && p.Stream.t
 func (p *Parser) eachMemoHolder(f func(errs recEntry, env []any)) {
 	for _, head := range p.memo.slots {
 		for e := head; e != nil; e = e.next {
-			f(e.errs, e.env)
+			f(e.recs(), e.key())
 		}
 	}
 }

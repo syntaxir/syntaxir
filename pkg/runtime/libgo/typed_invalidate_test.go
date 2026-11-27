@@ -81,9 +81,9 @@ func TestTypedSpliceMatchesEagerReference(t *testing.T) {
 				}
 				e := &tmemoEntry{rule: int32(id), from: r.from, examined: r.examined, end: r.end, pinned: rng.Intn(6) == 0}
 				if rng.Intn(8) == 0 {
-					e.errs = recEntry{err: &sxirvalue.SyntaxError{}}
+					e.setRecs(recEntry{err: &sxirvalue.SyntaxError{}})
 				}
-				pinned[id], errs[id] = e.pinned, !e.errs.none()
+				pinned[id], errs[id] = e.pinned, !e.recs().none()
 				e.next, d.slots[pos] = d.slots[pos], e
 				want = append(want, r)
 				id++

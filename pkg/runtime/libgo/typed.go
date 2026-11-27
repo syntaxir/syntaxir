@@ -1112,24 +1112,22 @@ func (p *TParser) NewFrame(n int) *TCaptureFrame {
 // The memo of typed results (TParser.memoSlots, chains of entries by position) is keyed like
 // memoTable, whose FirstCall bookkeeping the typed library shares.
 type tmemoEntry struct {
-	val      any
-	errs     recEntry
-	expected []ExpID
-	next     *tmemoEntry
-	env      []any
-	end      int
-	far      int
-	rule     int32
-	min      int32
-	ok       bool
-	silent   bool
+	val  any
+	next *tmemoEntry
+	memoSide
+	end int
+	far int
 	// from, examined, pinned, vgen and shift are the record of memoEntry.
 	from     int
 	examined int
-	pinned   bool
+	rule     int32
+	min      int32
 	present  uint32 // as in memoEntry
 	vgen     uint32
 	shift    int32
+	ok       bool
+	silent   bool
+	pinned   bool
 }
 
 func (p *TParser) memoGet(rule, pos, min int, env []any, docOnly bool) *tmemoEntry {
@@ -1143,7 +1141,7 @@ func (p *TParser) memoGet(rule, pos, min int, env []any, docOnly bool) *tmemoEnt
 	}
 	e, n := p.memoSlots[pos], 0
 	for ; e != nil && n < memoScan; e, n = e.next, n+1 {
-		if e.rule == int32(rule) && e.min == int32(min) && sameValues(e.env, env) {
+		if e.rule == int32(rule) && e.min == int32(min) && sameValues(e.key(), env) {
 			return e
 		}
 	}
@@ -1152,7 +1150,7 @@ func (p *TParser) memoGet(rule, pos, min int, env []any, docOnly bool) *tmemoEnt
 	}
 	h, _ := memoKeyHash(int32(rule), int32(min), false, env)
 	_, x := p.memoIndexAt(pos).probe(h, func(x *tmemoEntry) bool {
-		return x.rule == int32(rule) && x.min == int32(min) && sameValues(x.env, env)
+		return x.rule == int32(rule) && x.min == int32(min) && sameValues(x.key(), env)
 	})
 	return x
 }
@@ -1163,7 +1161,7 @@ func (p *TParser) memoIndexAt(i int) memoIndex[tmemoEntry] {
 }
 
 // tentryHash is keyHash for the key of e.
-func tentryHash(e *tmemoEntry) uint64 { return keyHash(e.rule, e.min, e.env) }
+func tentryHash(e *tmemoEntry) uint64 { return keyHash(e.rule, e.min, e.key()) }
 
 // memoGetControlled is memoGet under a memory limit. As in Parser.memoGetControlled, the lookup
 // charges nothing: the call paid for the lookup of its key (keySize).
@@ -1181,7 +1179,7 @@ func (p *TParser) memoGetControlled(rule, pos, min int, key []any, ident bool) *
 	}
 	link := p.unlinkLagged(i, &p.memoSlots[i], scan)
 	for e := p.memoSlots[i]; e != nil && e != *link; e = e.next {
-		if e.rule == int32(rule) && e.min == int32(min) && p.keyMatches(e.env, key, ident) {
+		if e.rule == int32(rule) && e.min == int32(min) && p.keyMatches(e.key(), key, ident) {
 			return e
 		}
 	}
@@ -1193,7 +1191,7 @@ func (p *TParser) memoGetControlled(rule, pos, min int, key []any, ident bool) *
 		return nil
 	}
 	_, x := p.memoIndexAt(i).probe(keyHash(int32(rule), int32(min), key), func(x *tmemoEntry) bool {
-		return x.rule == int32(rule) && x.min == int32(min) && keysEqual(x.env, key)
+		return x.rule == int32(rule) && x.min == int32(min) && keysEqual(x.key(), key)
 	})
 	return x
 }
@@ -1238,7 +1236,7 @@ func (p *TParser) memoPut(rule, pos, min int, env []any, docOnly bool, e *tmemoE
 		}
 	}
 	same := func(x *tmemoEntry) bool {
-		return x.rule == int32(rule) && x.min == int32(min) && sameValues(x.env, env)
+		return x.rule == int32(rule) && x.min == int32(min) && sameValues(x.key(), env)
 	}
 	link := &p.memoSlots[i]
 	for n := 0; *link != nil && n < memoScan; link, n = &(*link).next, n+1 {
@@ -1246,9 +1244,10 @@ func (p *TParser) memoPut(rule, pos, min int, env []any, docOnly bool, e *tmemoE
 			if p.joinStored(x, e) == x {
 				return x
 			}
-			e.rule, e.min, e.env = int32(rule), int32(min), env
+			e.rule, e.min = int32(rule), int32(min)
+			e.setKey(env)
 			if ix := p.memoIndexes[i]; ix != nil {
-				h, _ := memoKeyHash(x.rule, x.min, false, x.env)
+				h, _ := memoKeyHash(x.rule, x.min, false, x.key())
 				slot, _ := ix.probe(h, func(y *tmemoEntry) bool { return y == x })
 				ix[slot] = e
 			}
@@ -1265,7 +1264,8 @@ func (p *TParser) memoPut(rule, pos, min int, env []any, docOnly bool, e *tmemoE
 		if x != nil && p.joinStored(x, e) == x {
 			return x
 		}
-		e.rule, e.min, e.env = int32(rule), int32(min), env
+		e.rule, e.min = int32(rule), int32(min)
+		e.setKey(env)
 		ix[slot] = e
 		if x == nil {
 			p.memoIndexBytes += memoIndexEntryBytes
@@ -1280,7 +1280,8 @@ func (p *TParser) memoPut(rule, pos, min int, env []any, docOnly bool, e *tmemoE
 			return e
 		}
 	}
-	e.rule, e.min, e.env = int32(rule), int32(min), env
+	e.rule, e.min = int32(rule), int32(min)
+	e.setKey(env)
 	e.next = p.memoSlots[i]
 	p.memoSlots[i] = e
 	return e
@@ -1319,7 +1320,7 @@ func (p *TParser) memoPutControlled(rule, pos, min int, key []any, ident bool, e
 	link := &slots[i]
 	var replaced *tmemoEntry
 	same := func(x *tmemoEntry) bool {
-		return x == e || x.rule == int32(rule) && x.min == int32(min) && p.keyMatches(x.env, key, ident)
+		return x == e || x.rule == int32(rule) && x.min == int32(min) && p.keyMatches(x.key(), key, ident)
 	}
 	scan := memoScan
 	if ident {
@@ -1350,14 +1351,15 @@ func (p *TParser) memoPutControlled(rule, pos, min int, key []any, ident bool, e
 	} else if replaced != nil {
 		// The entry replaced among the first of a long chain is indexed too.
 		if ix = p.memoIndexes[i]; ix != nil {
-			ixSlot, _ = ix.probe(keyHash(replaced.rule, replaced.min, replaced.env), func(y *tmemoEntry) bool { return y == replaced })
+			ixSlot, _ = ix.probe(keyHash(replaced.rule, replaced.min, replaced.key()), func(y *tmemoEntry) bool { return y == replaced })
 		}
 	}
 	if replaced != nil && p.joinStored(replaced, e) == replaced {
 		return replaced
 	}
 	p.memoSlots = slots
-	e.rule, e.min, e.env = int32(rule), int32(min), key
+	e.rule, e.min = int32(rule), int32(min)
+	e.setKey(key)
 	if ix != nil {
 		n := len(ix)
 		ix[ixSlot] = e
