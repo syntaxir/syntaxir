@@ -109,14 +109,17 @@ func bundleTS(files []common.GeneratedFile) []byte {
 // UTF-8) to out.jsonl. Given a third argument "units", each line also has the compute units of the
 // node parse and of the typed parse of the input, "N/M", with "-" for M when g<i>.ts has no typed
 // parse. A fourth argument is the limit of missing tokens (ParseOptions.missingTokens) of every
-// parse and recognition, 0 when absent. It parses in a worker thread with a large stack, so that
-// nesting reaches the limit of 100,000 rule calls (Node's default stack holds far fewer).
+// parse and recognition, 0 when absent. Given a fifth argument "values", each line of a g<i>.ts with
+// a typed parse also has the typed value of the input (parseValue, with the same limit of missing
+// tokens), as TSTypedValueJSON writes it, and the message of its error, "<nil>" for none. It parses
+// in a worker thread with a large stack, so that nesting reaches the limit of 100,000 rule calls
+// (Node's default stack holds far fewer).
 const TSHarness = `import { Worker, isMainThread, workerData } from "node:worker_threads";
 import { closeSync, openSync, readFileSync, writeSync } from "node:fs";
 
 if (isMainThread) {
   const w = new Worker(new URL(import.meta.url), {
-    workerData: { inputs: process.argv[2], out: process.argv[3], units: process.argv[4] === "units", missing: Number(process.argv[5] ?? 0) },
+    workerData: { inputs: process.argv[2], out: process.argv[3], units: process.argv[4] === "units", missing: Number(process.argv[5] ?? 0), values: process.argv[6] === "values" },
     resourceLimits: { stackSizeMb: 1024 },
   });
   w.on("error", (e) => {
@@ -139,6 +142,7 @@ if (isMainThread) {
     }
     return Buffer.from(out).toString("base64");
   };
+  const typedJSON = ` + TSTypedValueJSON + `;
   const inputs = JSON.parse(readFileSync(workerData.inputs, "utf8"));
   // The limit of missing tokens, an option only when there is one: a grammar without #missing takes none.
   const missing = workerData.missing > 0 ? { missingTokens: workerData.missing } : {};
@@ -163,12 +167,21 @@ if (isMainThread) {
             m.parseValueWithOptions(x, { unit, computeReport: usedValue, ...missing });
           }
           const rec = workerData.missing > 0 ? m.recognizeWithOptions(x, { unit, ...missing }) : m.recognize(x, unit);
+          // With values, the typed value and its error; "" for a parser generated without types.
+          let val = "", verr = "";
+          if (workerData.values && typeof m.parseValue === "function") {
+            const v = workerData.missing > 0 ? m.parseValueWithOptions(x, { unit, ...missing }) : m.parseValue(x, unit);
+            val = typedJSON(m, v.value);
+            verr = v.error === null ? "<nil>" : v.error.message;
+          }
           writeSync(out, JSON.stringify({
             node: m.marshal(r.node),
             err: r.error === null ? null : r.error.message,
             str: r.node === null ? "" : bytesOf(r.node.toString()),
             rec: rec === null ? "<nil>" : rec.message,
             units: workerData.units ? used.units + "/" + (typed ? usedValue.units : "-") : "",
+            val,
+            verr,
           }) + "\n");
         }
       }
@@ -285,7 +298,7 @@ func TSParsersCorpus(t *testing.T, node string, cases []Case, opts common.GenOpt
 // negative control passes a mutation and requires some.
 func TSParsersMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string) []string {
 	t.Helper()
-	return tsParsersMismatches(t, node, cases, opts, mutate, false, 0)
+	return tsParsersMismatches(t, node, cases, opts, mutate, tsCompare{})
 }
 
 // TSParsersUnitsMismatches is TSParsersMismatches that also compares the compute units of each parse
@@ -299,7 +312,7 @@ func TSParsersUnitsMismatches(t *testing.T, node string, cases []Case, opts comm
 		t.Fatal("the units of generated parsers are compared on parses from scratch with limit controls")
 	}
 	opts.Types = true
-	return tsParsersMismatches(t, node, cases, opts, mutate, true, 0)
+	return tsParsersMismatches(t, node, cases, opts, mutate, tsCompare{units: true})
 }
 
 // TSParsersInsertionMismatches is TSParsersMismatches for parses and recognitions with the limit of
@@ -315,14 +328,34 @@ func TSParsersInsertionMismatches(t *testing.T, node string, cases []Case, opts 
 	if units {
 		opts.Types = true
 	}
-	return tsParsersMismatches(t, node, cases, opts, mutate, units, missing)
+	return tsParsersMismatches(t, node, cases, opts, mutate, tsCompare{units: units, missing: missing})
+}
+
+// TSTypedValuesMismatches is TSParsersMismatches for parsers generated with types (opts.Types) that
+// also compares the typed value of each parse (parseValue), in each unit and form of the input, with
+// the engine's value, as the TypeScript table of typed values maps it (CanonicalTSMatches), and its
+// error with the error of the parse, with the limit of missing tokens missing (0 for none) in every
+// parse. A grammar that declares a type TypeScript reserves (print.TsReservedTypes) has no typed
+// TypeScript parser and is compared as by TSParsersMismatches.
+func TSTypedValuesMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, missing int, mutate func(string) string) []string {
+	t.Helper()
+	opts.Types = true
+	return tsParsersMismatches(t, node, cases, opts, mutate, tsCompare{values: true, missing: missing})
+}
+
+// tsCompare selects what tsParsersShard compares besides the results, the strings and the
+// recognitions: the compute units (units), the typed values (values), and the limit of missing
+// tokens of every parse (missing, 0 for none).
+type tsCompare struct {
+	units, values bool
+	missing       int
 }
 
 // tsParsersMismatches runs the cases in shards (Shards), each in a directory of its own, and then
 // type-checks the generated files of all shards together: RunTSC batches them, so the check starts
 // one tsc run per batch of TSCBatchFiles files, not one per shard. A mutated parser is compared, not
 // type-checked.
-func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool, missing int) []string {
+func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string, cmp tsCompare) []string {
 	t.Helper()
 	// The shard directories live under root, which outlasts the shards: the one tsc run after
 	// them reads the generated files of every shard.
@@ -330,7 +363,7 @@ func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 	var mu sync.Mutex
 	labels := map[string]string{}
 	mismatches := Shards(t, cases, func(t *testing.T, part []Case) []string {
-		shardLabels, mism := tsParsersShard(t, root, node, part, opts, mutate, units, missing)
+		shardLabels, mism := tsParsersShard(t, root, node, part, opts, mutate, cmp)
 		mu.Lock()
 		maps.Copy(labels, shardLabels)
 		mu.Unlock()
@@ -359,8 +392,9 @@ func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 // against the engine, and returns the absolute paths of the generated files, each with the name of
 // its case, and the mismatches. The directory is made under root, not t.TempDir, so that it outlives
 // this shard.
-func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool, missing int) (map[string]string, []string) {
+func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.GenOptions, mutate func(string) string, cmp tsCompare) (map[string]string, []string) {
 	t.Helper()
+	units, missing := cmp.units, cmp.missing
 	dir, err := os.MkdirTemp(root, "shard")
 	if err != nil {
 		t.Fatal(err)
@@ -376,7 +410,15 @@ func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.G
 		B64   string `json:"b64"`
 		Valid bool   `json:"valid"`
 	}
-	type want struct{ out, str, rec, units string }
+	// A want holds, with values, the canonical form of the engine's value (value), whether the engine
+	// returned one (accepted), the struct types of the grammar (structs) and whether the parser is
+	// typed (typed).
+	type want struct {
+		out, str, rec, units string
+		value                any
+		accepted, typed      bool
+		structs              map[string]bool
+	}
 	var inputs [][]input
 	var wants []want
 	labels := map[string]string{}
@@ -426,6 +468,18 @@ func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.G
 		var in []input
 		// The generated code projects (internal/frontend/check/project.go), and records source information as asked.
 		prog := refProgram(t, c.Src, check.Options{NoProjections: true, SourceInfo: opts.SourceInfo})
+		// The typed values are those of the program with projections, as for the typed Go parsers
+		// (generatedTypesMismatches): a projection drops only what no value holds.
+		var valueProg ReferenceParse
+		structs := map[string]bool{}
+		if cmp.values && typed {
+			valueProg = refProgram(t, c.Src, check.Options{SourceInfo: opts.SourceInfo})
+			for _, d := range g.Types() {
+				if td, ok := d.(*ast.TypeDef); ok && td.Struct() != nil {
+					structs[td.Name] = true
+				}
+			}
+		}
 		for _, s := range c.Inputs {
 			in = append(in, input{base64.StdEncoding.EncodeToString([]byte(s)), utf8.ValidString(s)})
 			for _, bytes := range []bool{false, true} {
@@ -447,6 +501,15 @@ func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.G
 				}
 				_, err = prog(s, bytes, true, missing, nil)
 				w.rec = fmt.Sprint(err)
+				if valueProg != nil {
+					w.typed, w.structs = true, structs
+					n, _ := valueProg(s, bytes, false, missing, nil)
+					if w.accepted = n != nil; w.accepted {
+						if w.value, err = canonicalEngineValue(n); err != nil {
+							t.Fatalf("%s: input %q: %v", c.Name, s, err)
+						}
+					}
+				}
 				wants = append(wants, w)
 			}
 		}
@@ -461,6 +524,9 @@ func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.G
 		unitsArg = "units"
 	}
 	args = append(args, unitsArg, fmt.Sprint(missing))
+	if cmp.values {
+		args = append(args, "values")
+	}
 	cmd := exec.Command(node, args...)
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -492,6 +558,8 @@ func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.G
 						Str   string
 						Rec   string
 						Units string
+						Val   string
+						Verr  string
 					}
 					if err := json.Unmarshal([]byte(line), &got); err != nil {
 						t.Fatalf("%v: %s", err, line)
@@ -521,6 +589,22 @@ func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.G
 					}
 					if got.Rec != wants[w].rec {
 						mismatches = append(mismatches, fmt.Sprintf("%s (%v, %s): input %q: recognize\n generated %s\n engine    %s", c.Name, unit, form, in, got.Rec, wants[w].rec))
+					}
+					if wants[w].typed {
+						verr := "<nil>"
+						if got.Err != nil {
+							verr = *got.Err
+						}
+						switch {
+						case got.Verr != verr:
+							mismatches = append(mismatches, fmt.Sprintf("%s (%v, %s): input %q: typed value error\n generated %s\n parse     %s", c.Name, unit, form, in, got.Verr, verr))
+						case !wants[w].accepted && got.Val != "null":
+							mismatches = append(mismatches, fmt.Sprintf("%s (%v, %s): input %q: typed value %s, want null: the engine returns no value", c.Name, unit, form, in, Clip(got.Val, 0)))
+						case wants[w].accepted:
+							if err := CanonicalTSMatches(got.Val, wants[w].value, wants[w].structs); err != nil {
+								mismatches = append(mismatches, fmt.Sprintf("%s (%v, %s): input %q: typed value %s: %v", c.Name, unit, form, in, Clip(got.Val, 0), err))
+							}
+						}
 					}
 					if got.Units != wants[w].units {
 						mismatches = append(mismatches, fmt.Sprintf("%s (%v, %s): input %q: units (node/typed)\n generated %s\n engine    %s", c.Name, unit, form, in, got.Units, wants[w].units))

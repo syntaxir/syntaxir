@@ -554,16 +554,9 @@ func generatedTypesMismatches(t *testing.T, goBin, lib string, cases []Case, ref
 			accepted = append(accepted, n != nil)
 			var val any
 			if n != nil {
-				b, merr := json.Marshal(n)
-				if merr != nil {
-					t.Fatalf("%s: input %q: %v", c.Name, in, merr)
-				}
-				var engineJSON any
-				if merr := json.Unmarshal(b, &engineJSON); merr != nil {
-					t.Fatalf("%s: input %q: %v", c.Name, in, merr)
-				}
-				if val, merr = CanonicalEngine(engineJSON); merr != nil {
-					t.Fatalf("%s: input %q: engine value: %v", c.Name, in, merr)
+				var err error
+				if val, err = canonicalEngineValue(n); err != nil {
+					t.Fatalf("%s: input %q: %v", c.Name, in, err)
 				}
 			}
 			wantValue = append(wantValue, val)
@@ -745,6 +738,24 @@ func main() {
 		}
 	}
 	return mismatches
+}
+
+// canonicalEngineValue returns the canonical form of the engine's value n (CanonicalEngine), from
+// its JSON.
+func canonicalEngineValue(n *value.Node) (any, error) {
+	b, err := json.Marshal(n)
+	if err != nil {
+		return nil, err
+	}
+	var engineJSON any
+	if err := json.Unmarshal(b, &engineJSON); err != nil {
+		return nil, err
+	}
+	val, err := CanonicalEngine(engineJSON)
+	if err != nil {
+		return nil, fmt.Errorf("engine value: %v", err)
+	}
+	return val, nil
 }
 
 // mutatePackage changes every Go file under dir with mutate.
