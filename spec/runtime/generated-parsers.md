@@ -221,6 +221,7 @@ The mapping of types is:
 | `int`, `string`, `bool` | The same |
 | Struct type `T` | `*T` with the same fields and an embedded `Span`, which is `input.Span{Start, End int}` of package `runtime/input`: the range [Start, End) of the input in the parse's position unit |
 | `node[T]` | `*TNode[T']`, with `Span` and `Value` of the Go type `T'` of `T`: `*TNode[string]` for a string node, whose `Value` is the text, and `*TNode[any]` for `node[_]` |
+| Named node type `N = node[T]` | `*N`, a struct type `N` that embeds `TNode[T']`, with `T'` the Go type of `T`, so that its `Span` and `Value` are those of the node; `TNode[any]` for `node[_]` |
 | Tuple `(A, B, ...)` | `TupleN[A', B', ...]` with the fields `E0`, `E1`, ...; `Unit` for `()` |
 | `error` (from `#recover`) | `*Error`, a type of the types package with `Span` and `Message`; in a grammar with `#missing`, `ErrorValue` |
 | `missing` (from `#missing`) | `*Missing`, a type of the types package with `Span`, `Expected` and `Message` |
@@ -235,6 +236,11 @@ The mapping of types is:
 
 - `TNode[T]` is `struct { Span; Value T }`; `TupleN` is `struct { E0 E0; ...; En En }`
   and `Unit` is `struct{}`. A missing element of a tuple is `nil`. A list node's `Value` is a slice.
+- A struct field that the constructor did not set holds the zero value of its Go type: `nil` for a
+  pointer, a slice or an interface, `0`, `""` or `false` for a scalar, and for a tuple the tuple of
+  such values.
+- A join that has no interface and whose members all have one Go type, as members that differ only in
+  the captures that an inferred node type records, has that Go type and converts as its first member.
 - A grammar type keeps its name. The types package declares, besides the grammar's
   types, `TNode`, `Error`, `SXIRHooks` and, when used, `Unit`, `TupleN` and
   `SXIRNodeTypes`, in a grammar with `#missing` also `Missing` and `ErrorValue`, and a constant
@@ -271,6 +277,7 @@ mapping is:
 |:--|:--|
 | Struct | An interface with `type` (the grammar name), `start`, `end` and the fields; nullable where an absent or incompatible recovered value becomes nil |
 | `node[T]` | `TNode<T'>`, with `start`, `end` and `value` of the TypeScript type `T'` of `T`; for a node of one kind, the interface of that kind, which extends it with that kind as its `type`: `StringNode` for a string node, `TupleNode<T'>` for a tuple node and `ListNode<T'>` for a list node, also when the node is one of a named node type; `TNode<unknown>` for `node[_]` |
+| Named node type `N = node[T]` | An interface `N` that extends `TNode<T'>` with `"N"` as its `type`, `TNode<unknown>` for `node[_]` |
 | Tuple `(A, B, ...)` | `readonly [A', B', ...]` |
 | `[]T` | A readonly array, or null; null differs from an empty array |
 | `*T` | A nullable target |
@@ -280,7 +287,7 @@ mapping is:
 | `error` (from `#recover`) | `RecoveredError \| null`; in a grammar with `#missing`, `ErrorValue \| null` |
 | `missing` (from `#missing`) | `Missing \| null`; `Missing` extends `Span` with `type` `"missing"`, `expected` and `message` |
 | Join of node types, declared by an alias or written in place | The TypeScript types of the members, `RecoveredError` (and `Missing` in a grammar with `#missing`) and null, which narrow by `type`; a value converts to its member as in Go |
-| Join with a member that is no node type, `_` | `TypedValue`, following the conversion of `any` in Go |
+| Join with a member that is no node type, `_` | `TypedValue`, following the conversion of `any` in Go; a join whose members all convert alike has the type of its members, as in Go |
 
 Names collide the same way as in Go, with trailing underscores. In a grammar with `#missing`,
 `types.ts` also declares `Missing` and `ErrorValue = RecoveredError | Missing`, and generation fails,
@@ -654,3 +661,8 @@ The repository tests every grammar in `examples/` and the grammars of the engine
 tests against the generated Go and TypeScript parsers, in both position units and
 with strings and bytes as input, and require identical trees (as JSON) and errors.
 TypeScript output is type-checked with `tsc --strict` and additional strict flags.
+Typed parsers are compared on grammars that convert types of every row of the tables of
+[Typed Values](#typed-values), which the tests derive from the types of the grammars: the typed values
+of Go and TypeScript parsers must be the engine's values as the tables map them, and a Go parser that
+builds its typed values directly must return what the conversion of its tree returns. Mutants of the
+conversion and of the direct route must make these comparisons fail.

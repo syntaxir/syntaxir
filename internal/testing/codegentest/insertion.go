@@ -145,6 +145,12 @@ rule main []M = xs:(x:("," #missing) => M{E: $x.(missing).expected, M: $x.(missi
 	}
 }
 
+// TypedInsertionCorpus holds the cases of the typed parsers that insert missing tokens: the typed
+// insertion cases, the insertion cases and the shared insertion corpus.
+func TypedInsertionCorpus() []Case {
+	return append(append(TypedInsertionCases(), InsertionCases()...), InsertionCorpus()...)
+}
+
 // MinimalEdit returns the edit, in bytes or code points, that replaces the characters
 // between the common prefix and the common suffix of from and to. Every invalid UTF-8 byte is a
 // character.

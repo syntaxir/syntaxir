@@ -68,7 +68,7 @@ func TestGeneratedTypedParsersInsertMissingTokens(t *testing.T) {
 	if _, err := os.Stat(goBin); err != nil {
 		t.Skip("go command not found")
 	}
-	cases := append(append(codegentest.TypedInsertionCases(), codegentest.InsertionCases()...), codegentest.InsertionCorpus()...)
+	cases := codegentest.TypedInsertionCorpus()
 	for _, limit := range []int{0, 2, 8} {
 		for _, m := range codegentest.GeneratedTypesInsertionMismatches(t, goBin, cases, common.GenOptions{ConvertTypes: true}, limit, len(cases)) {
 			t.Errorf("limit %d: %s", limit, m)
