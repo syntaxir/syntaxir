@@ -169,7 +169,60 @@ and the own type of a value is no `any`; so the rank is finite. Values are
 finite, so the conversion ends. No case raises an error. A value that several
 parts of a parse share converts once per type it is converted by. ∎
 
-## Lemma 3 (Conversion Keeps a Value of Its Type)
+## Lemma 3 (One Go Type, One Conversion)
+
+Let $A$ and $B$ be types of a typed parse with one Go type, and $v$ a
+well-formed value with $v : B$. The conversion of $v$ by $A$ gives the typed
+value that its conversion by $B$ gives. In TypeScript a join takes the type of
+its members only when they convert by one rule (R2), so there the members of
+such a join convert every value alike by definition.
+
+**Proof.** Call a type *transparent* when its row gives it the Go type of
+another type and converts by that type: a rule whose type is not declared (its
+value type), an alias (its target), `*T` for a $T$ whose Go type is no scalar
+and no tuple ($T$, which converts `nil` to `nil` as `*T` does, R4), and a join without
+an interface whose members have one Go type (its first member). Each converts
+by a type of lower rank (Lemma 2). Every other type is a *head*, and its Go
+type is given by its own row (R1). By induction on $v$, and for a given $v$ on
+the sum of the ranks of $A$ and $B$:
+
+- If $A$ is transparent, it converts as a type $A'$ of the same Go type and of
+  lower rank, and the hypothesis for $A'$ and $B$ applies. If $B$ is a
+  transparent join, $v : B_i$ for a member $B_i$; the conversion by $B$ is that
+  by $B_1$, which by the hypothesis for $B_1$ and $B_i$ is that by $B_i$, and
+  the hypothesis for $A$ and $B_i$ applies. If $B$ is another transparent type,
+  $v$ has the type $B'$ it converts by, and the hypothesis for $A$ and $B'$
+  applies.
+- Otherwise both are heads with one Go type, and the rows of (R1) give one Go
+  type to two heads only in these cases:
+  - a named Go type: `*S` for the struct type `S`, `*N` for the named node type
+    `N`, `*Error` or `ErrorValue` for `error`, `*Missing` for `missing`, and the
+    interface of a join of node types. The name belongs to one grammar type,
+    since the names that collide are errors (R5) and a join of the same members
+    in any order is one interface, so $A$ and $B$ are one type;
+  - `int`, `string`, `bool`, and `*int`, `*string`, `*bool`: only the scalar,
+    and only the option of the scalar, have them;
+  - `TupleN[...]` or `Unit`, and a pointer to it: tuples of $n$ elements whose
+    elements have pairwise one Go type, or options of such tuples. A tuple
+    converts element by element, and $v$ is `nil`, which both convert alike,
+    or a tuple whose elements have the types of those of $B$; the hypothesis
+    applies to each element;
+  - `[]G`: lists whose elements have the Go type `G`; a list converts element
+    by element, `nil` to `nil`, and the hypothesis applies to each element;
+  - `*TNode[G]`: unnamed node types whose values have the Go type `G`, which
+    differ at most in the captures that an inferred node type records, and,
+    for `*TNode[any]`, `node[_]` and the node types that record their captures
+    and not their elements. Each converts a node to a typed node of its range
+    whose value is the text of a string node or the conversion of the node's
+    value by its value type, and by the hypothesis the value types convert it
+    alike. A value type whose Go type is `any`, and `node[_]`, convert the
+    value by its own kind (R3);
+  - `any`: the types of the row of `_` and the joins without an interface or
+    one Go type, which all hold the value converted by its own kind (R3).
+
+In each case the conversions by $A$ and by $B$ coincide. ∎
+
+## Lemma 4 (Conversion Keeps a Value of Its Type)
 
 Let $v$ be a well-formed value with $v : T$, for a type $T$ of a typed parse.
 Its conversion by $T$ represents $v$:
@@ -226,13 +279,10 @@ Its conversion by $T$ represents $v$:
   the interface and the union hold. In each case the member has a lower rank
   for $v$, and the hypothesis applies.
 - For a join without an interface whose members have one Go type, the
-  conversion is that of the first member $T_1$, while $v : T_i$. The rows give
-  two types one Go type only where the types differ in what the typed form does
-  not show: the captures that an inferred node type records, a rule or an
-  alias against the type it stands for, and `*T` against `T` for a $T$ whose
-  Go type has `nil`. The conversion of each row reads only what its typed form
-  shows, so converting $v$ by $T_1$ gives what converting it by $T_i$ gives,
-  and the hypothesis applies to $T_i$, of lower rank.
+  conversion is that of the first member $T_1$, while $v : T_i$. By Lemma 3,
+  converting $v$ by $T_1$ gives what converting it by $T_i$ gives, and the
+  hypothesis applies to $T_i$, of lower rank. In TypeScript the members
+  convert alike by definition (R2).
 - For a join without an interface otherwise, `_` and `unknown`, the value is held by
   `any` and `TypedValue`, converted by its own kind (R3): a struct by its type
   and a node by its named node type, whose types are types of the grammar and
@@ -249,13 +299,13 @@ of its start rule $s$ with a value $v$:
 1. the Go type and the TypeScript type of $T_s$ are declared by the generated
    code, and so is the type of every part of the typed value;
 2. converting $v$ ends without an error and gives a value of those types;
-3. the typed value represents $v$ as Lemma 3 says: the same structs, nodes,
+3. the typed value represents $v$ as Lemma 4 says: the same structs, nodes,
    ranges, texts, elements, scalars and recovered values, with absent fields
    and elements as (R4) gives them.
 
 **Proof.** By the [Type Soundness](type-soundness.md) theorem and its corollary,
 $v$ is a well-formed value of type $T_s$. Lemma 1 gives part 1 for $T_s$ and
-every type of the parse, Lemma 2 part 2, and Lemma 3 part 3. A parse without a
+every type of the parse, Lemma 2 part 2, and Lemma 4, with Lemma 3, part 3. A parse without a
 value returns the zero value or null, with the errors of the parse (R3). ∎
 
 ## Correspondence
@@ -264,7 +314,8 @@ value returns the zero value or null, with the errors of the parse (R3). ∎
 |:--|:--|
 | Every type that a typed parse meets has exactly one row of each table, and its typed form is declared | Lemma 1 |
 | Converting any value by any such type ends and does not fail | Lemma 2 |
-| Converting a value of its type keeps its content, up to the absent values of (R4) | Lemma 3 |
+| Two types with one Go type convert a value of either alike | Lemma 3 |
+| Converting a value of its type keeps its content, up to the absent values of (R4) | Lemma 4 |
 | The typed value of a parse is total and faithful | Theorem |
 
 ## What the Proof Does Not Show
@@ -284,5 +335,5 @@ value returns the zero value or null, with the errors of the parse (R3). ∎
 - **Other typed entry points.** `ParseRuleValue`, the typed values of
   [Documents](../runtime/documents.md) and the elements of a
   [stream](../runtime/streaming.md) convert by the type of the rule or of the
-  element as `ParseValue` does, so Lemmas 1 to 3 apply to them; their
+  element as `ParseValue` does, so Lemmas 1 to 4 apply to them; their
   conformance is not part of this proof.
