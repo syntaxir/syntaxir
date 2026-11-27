@@ -16,6 +16,11 @@ const (
 	DefaultMaxDepthIterative = 10_000_000
 )
 
+// MaxInput is the length of the longest input of any parse, in its position unit: the largest
+// int32, so that every position fits an int32. It is the default of the Input limit, and a larger
+// Input counts as it.
+const MaxInput = math.MaxInt32
+
 // The default budget of a parse is DefaultBudgetPerUnit for each unit of input, and at least
 // DefaultBudgetFloor.
 const (

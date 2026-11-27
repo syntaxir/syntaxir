@@ -48,7 +48,7 @@ type limitFlags struct {
 func (l *limitFlags) register(fs *flag.FlagSet) {
 	fs.Var(&l.compute, "max-compute", "limit on the cost of the parse: a number of units, 0 for the default of max(2^20, 1024 times the input length), or unlimited")
 	fs.Var(&l.memory, "max-memory", "limit on the bytes of storage the parser holds for the parse: a number, 0 or unlimited for no bound")
-	fs.Var(&l.maxInput, "max-input", "longest input accepted, in the position unit: a number, 0 or unlimited for no bound")
+	fs.Var(&l.maxInput, "max-input", "longest input accepted, in the position unit: a number, or 0 or unlimited for the longest input of any parse, 2^31−1")
 	fs.Var(&l.depth, "max-depth", "limit on the nesting of recursive rule calls: a number, 0 for the backend's default (100000; 10000000 for bytecode-iterative), or unlimited (bytecode-iterative only)")
 }
 

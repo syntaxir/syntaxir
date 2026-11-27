@@ -50,13 +50,12 @@ type BudgetControl struct {
 
 // ResolveLimits returns the limits a parse runs under for an input of n units of its position
 // unit: a zero Compute selects the default (limits.DefaultBudget), and Unlimited disables the
-// budget, which the result leaves zero. A stream does not know n: its default starts at the floor
+// budget, which the result leaves zero. An Input of zero, Unlimited or above limits.MaxInput is
+// limits.MaxInput. A stream does not know n: its default starts at the floor
 // and grows with the furthest position the parser demands (BudgetControl.Demand), which adaptive reports. The reference
 // build has no controls to charge, so no default applies there.
 func ResolveLimits(l runtime.Limits, n uint64, stream bool) (resolved runtime.Limits, adaptive bool) {
-	if l.Input == runtime.Unlimited {
-		l.Input = 0 // the default of Input is Unlimited
-	}
+	l.Input = ResolveInput(l.Input)
 	if l.Memory == runtime.Unlimited {
 		l.Memory = 0 // the default of Memory is Unlimited
 	}
@@ -73,6 +72,15 @@ func ResolveLimits(l runtime.Limits, n uint64, stream bool) (resolved runtime.Li
 		}
 	}
 	return l, adaptive
+}
+
+// ResolveInput returns the Input limit a parse runs under for an Input option of n: limits.MaxInput,
+// the default and the longest input of any parse, for zero, Unlimited and any n above it.
+func ResolveInput(n uint64) uint64 {
+	if n == 0 || n > limits.MaxInput {
+		return limits.MaxInput
+	}
+	return n
 }
 
 // Demand raises the default budget of a stream to that of n units, where n is the number of
@@ -277,13 +285,6 @@ var ErrNoControls = errors.New("budget controls are unavailable in the reference
 // unit. The check is O(1) unless the byte length passes the limit in CodePoints, where the exact
 // count decides: the byte length bounds the count from above.
 func CheckInput(l runtime.Limits, s string, unit input.PositionUnit) error {
-	if l.Input == 0 {
-		return nil
-	}
-	if !BudgetControlsEnabled {
-		// The reference build exists only for measurement, so it refuses any Input limit too.
-		return ErrNoControls
-	}
 	n := uint64(len(s))
 	if n > l.Input && unit == input.CodePoints {
 		n = uint64(utf8.RuneCountInString(s))
@@ -291,13 +292,12 @@ func CheckInput(l runtime.Limits, s string, unit input.PositionUnit) error {
 	return CheckInputUnits(l, n)
 }
 
-// CheckInputUnits rejects an input of n units that is longer than the resolved Input limit of l.
+// CheckInputUnits rejects an input of n units that is longer than the resolved Input limit of l
+// (ResolveLimits), which is at most limits.MaxInput.
 func CheckInputUnits(l runtime.Limits, n uint64) error {
-	if l.Input == 0 {
-		return nil
-	}
-	if !BudgetControlsEnabled {
-		// The reference build exists only for measurement, so it refuses any Input limit too.
+	if l.Input < limits.MaxInput && !BudgetControlsEnabled {
+		// The reference build exists only for measurement, so it refuses any Input limit below
+		// the longest input, which it still checks.
 		return ErrNoControls
 	}
 	if n > l.Input {

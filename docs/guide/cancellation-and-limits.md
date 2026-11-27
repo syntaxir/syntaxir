@@ -78,7 +78,8 @@ without a profile leaves `Hotspot` empty.
 
 ## Bounding the Input Length
 
-`Limits.Input` bounds the length of the input in the position unit. Its default is `runtime.Unlimited`: the default
+`Limits.Input` bounds the length of the input in the position unit. Its default is 2^31−1 units,
+the longest input any parse accepts, which `runtime.Unlimited` and any larger value also select: the default
 budget already grows with the input, so a long input costs in proportion to its length. Set it when you want to
 refuse input above a size before spending any work on it:
 

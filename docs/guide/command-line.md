@@ -66,7 +66,7 @@ sxir parse -g <grammar> [-s <rule>] [-i <input>] [-f json|sexpr] [-stream] [-rec
 | `-optimize`, `-opt`, `-no-opt` | the `speed` profile | The [optimization settings](../../spec/runtime/optimization-settings.md) that the grammar is compiled under, as in `gen`. None changes what the parse returns. Not accepted with a compiled grammar (`.sxirc`), which holds the bytecode that its own settings built |
 | `-max-compute` | `0` | `Limits.Compute`: the cost a parse may spend, in compute units. `0` selects the default and `unlimited` disables the limit |
 | `-max-memory` | `0` | `Limits.Memory`: the bytes of storage a parse may take into use. `0` and `unlimited` disable the limit |
-| `-max-input` | `0` | `Limits.Input`: the longest input accepted, in the position unit. `0` and `unlimited` accept any length |
+| `-max-input` | `0` | `Limits.Input`: the longest input accepted, in the position unit. `0` and `unlimited` select the longest input of any parse, 2^31−1 units |
 | `-max-depth` | `0` | `Limits.Depth`: the deepest nesting of recursive rule calls. `0` selects the backend's default (100,000; 10,000,000 for `bytecode-iterative`), and `unlimited`, accepted only with `bytecode-iterative`, disables the limit |
 
 `sxir parse`, like `explain`, `trace`, `profile`, `test` and `edit-fuzz`, records [expectations](error-messages.md#recording-expectations), so a syntax error lists what was expected.

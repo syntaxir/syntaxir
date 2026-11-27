@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math"
 	"runtime"
 	"sync"
 
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/runtime/vm"
-	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -451,10 +449,7 @@ func (prog *Program) ParseStreamWith(start string, r io.Reader, emit func(*value
 		p.Missing, p.MissingLen = &state.MissingTokenState{Limit: o.MissingTokens}, 0
 	}
 	control.AttachMemory(p)
-	// A limit beyond math.MaxInt bounds no stream.
-	if lim := o.Limits.Input; lim != 0 && lim != sxirruntime.Unlimited && lim <= math.MaxInt {
-		p.Input.MaxInput = int(lim)
-	}
+	p.Input.MaxInput = int(state.ResolveInput(o.Limits.Input))
 	defer p.ReleaseTraceReferences() // after error recovery, including rethrown panics
 	control.Check()
 	p.MaxDepth, _ = state.DepthLimit(o, o.Backend) // admitParse rejected an invalid limit

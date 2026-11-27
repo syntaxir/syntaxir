@@ -183,7 +183,7 @@ node, err := pairsparser.Parse(input,
 A nil context has no deadline or cancellation signal. A zero limit selects its default: a zero `Compute` is
 `max(2^20, 1024 * n)` for an input of `n` units, so every parse of a controlled parser has a budget. The generated
 package exports `Unlimited`, which disables a limit; `Limits{Compute: Unlimited}` with no context runs without
-a control. `Limits.Input` bounds the input length in the position unit; its default is `Unlimited`, and a longer input fails
+a control. `Limits.Input` bounds the input length in the position unit; its default, and its largest value, is 2^31−1 units, the longest input of any parse, and a longer input fails
 before any parsing with a `*LimitError` of kind `LimitInput` (a generated stream fails when the parser reaches a unit beyond it).
 `Limits.Memory` bounds the bytes of storage the parse takes into use, typed values included, and fails the parse with
 kind `LimitMemory`; its default is `Unlimited`, and it works as in the engine

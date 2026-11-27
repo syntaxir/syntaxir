@@ -70,7 +70,7 @@ console.log("ok");
 }
 
 // maxInput bounds the length of the input in the position unit for every entry point: zero and
-// Unlimited set no bound, an input of exactly maxInput units parses, and a longer one fails before any
+// Unlimited select the longest input (TestGeneratedTSLongestInput), an input of exactly maxInput units parses, and a longer one fails before any
 // parsing with a ParseInterruptionError of kind "input-limit" and its length. A parser generated without
 // budget controls rejects a finite bound.
 func TestGeneratedTSMaxInput(t *testing.T) {
