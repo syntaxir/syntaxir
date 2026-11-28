@@ -5,7 +5,10 @@
 - **Path scope**: Capture frames of generated Go Node parsers and recognizers
 - **Every parser of**: Go Node
 - **An eligible subset, named under Scope, of**: Go recognizer
-- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `sxir_reference_node_frames` | reference build tag | — | — | — | Go Node, Go recognizer | [092](../logs/092-reuse-generated-node-capture-scratch.md) |
 <!-- /generated:facts -->
 
 Generated Node parsing creates temporary capture frames and slot arrays that
@@ -29,8 +32,10 @@ execution and TypeScript retain their separate allocators.
 
 ## Controls and Measurements
 
-None. The shared generated runtime always reuses the scratch; the former
-allocator is reproducible only from the revisions of record 092.
+The build tag `sxir_reference_node_frames` builds the Go library of generated parsers with the former
+allocator: each parse takes its capture frames from a slab of its own, and the parser keeps no frame
+scratch for its next parse. The default and reference builds parse the same generated source, so the
+comparison is same-source; the reference keeps the parser field of the scratch, unused.
 
 ## Evidence and Implementation
 

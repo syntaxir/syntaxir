@@ -129,6 +129,7 @@ var mechanisms = []Mechanism{
 }
 
 var referenceControls = []ReferenceControl{
+	{Mechanism: "A080", Tag: "sxir_reference_node_frames", Backends: On(BackendGoNode, BackendGoRecognizer), Witnesses: []string{"capture frames", "text comparison", "typed text fields"}, Record: 92},
 	{Mechanism: "A100", Tag: "sxir_reference_document_vm_values", Backends: On(BackendRecursiveVM, BackendIterativeVM), Witnesses: []string{"document moves", "document recovered", "document runs"}, Record: 86},
 	{Mechanism: "A200", Tag: "sxir_reference_stream_frames", Backends: Engines, Witnesses: []string{"stream records", "stream records recover", "stream text commit"}, Record: 85},
 	{Mechanism: "A210", Tag: "sxir_reference_stream_text", Backends: Engines, Witnesses: []string{"stream text commit"}, Record: 88},

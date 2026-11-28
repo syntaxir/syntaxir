@@ -18,9 +18,8 @@ unretained allocations rather than growing reusable scratch without bound.
 Arena growth during a parse remains proportional to captures; this is not a
 total per-parse heap bound.
 
-The constant `nodeFrameScratch` in the shared generated runtime
-(`pkg/runtime/libgo/lib.go`) selects the scratch allocator; the per-parse frame slab
-remains in the runtime only as the disabled alternative. No parse option,
+The constant `nodeFrameScratch` in the shared generated runtime selects the scratch allocator; the build tag
+`sxir_reference_node_frames` selects the per-parse frame slab, the reference form. No parse option,
 generation option or runtime selector chooses between them. The mechanism changes the generated
 Go Node frame allocator; typed value capture storage, the core engine, VM paths
 and TypeScript are outside its scope. Recognition can use the shared Node

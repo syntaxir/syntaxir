@@ -25,9 +25,24 @@ func Corpus() []codegentest.Case {
 		codegentest.Case{Name: "equal bodies", Src: "rule main = a \",\" b $$\nrule a = #operators {\n    operand n\n    level { infix left \"+\" }\n}\nrule b = #operators {\n    operand n\n    level { infix left \"*\" }\n}\nrule n = [0-9]+\n"},
 		codegentest.Case{Name: "typed text fields", Src: textcompare.Grammar, Inputs: textcompare.Inputs},
 		codegentest.Case{Name: "many memoized rules", Src: manyMemoizedRules(70), Inputs: []string{"", "k0!", "k0? k69ab! k35?", "k1x!k2!", "k70!", "k3ab?  k3ab!", "k12"}},
+		codegentest.Case{Name: "capture frames", Src: captureFrames, Inputs: []string{"", "a=1;", "a=1+2*3; b=(1+2)*c,d,e;", "x=1;", "a=1+;b=2;", "a=((1);c=d;", "a=b,c", "日=1;", "a=1;\xff"}},
 	)
 	return cases
 }
+
+// captureFrames is a grammar whose rules keep captures where a parse backtracks over them: in
+// repetitions, left recursion, an Operators Rule, a predicate and recovery.
+const captureFrames = `rule main = (s:stmt #recover(skip=(![;] .)* ";") -" "*)* $$
+rule stmt = n:name "=" e:expr ";" {text($n) != "x"}
+rule expr = #operators {
+    operand atom
+    level { infix left "+" }
+    level { infix left "*" }
+}
+rule atom = d:[0-9]+ #atomic / "(" e:expr ")" / l:list
+rule list = l:list "," x:name / x:name
+rule name = [a-z]+ #atomic
+`
 
 // manyMemoizedRules returns a grammar of n rules that the parse memoizes, each called at two places, so
 // that the first-call table of its parser has more entries than a dense table holds.

@@ -493,7 +493,7 @@ row names it as the starting point.
 | A030 | Iterative VM frame reuse | None yet |
 | A040 | Action operand scratch | None yet |
 | A060 | Direct typed output construction | None yet; the compile option that converts Node output to typed values is the plain form, maintained for Documents and streams |
-| A080 | Generated Node capture scratch | None yet |
+| A080 | Generated Node capture scratch | Reference: `sxir_reference_node_frames` (Go Node and recognizer) |
 | A100 | Document VM value stack | Reference: `sxir_reference_document_vm_values` (recursive and iterative VM) |
 | A120 | Source token text | None yet |
 | A140 | Construction tracking release | None yet |

@@ -329,7 +329,6 @@ docs/optimizations/logs/078-local-cuts-in-typed-direct-rules.md	unexport	cutInpu
 docs/optimizations/logs/081-scoped-cuts-in-unfinished-typed-go-bodies.md	unexport	cutFail	1
 docs/optimizations/logs/082-match-typed-direct-frame-layouts.md	unexport	lrInput	1
 docs/optimizations/logs/082-match-typed-direct-frame-layouts.md	unexport	operatorsRuleInput	1
-docs/optimizations/logs/092-reuse-generated-node-capture-scratch.md	gofile	pkg/runtime/libgo/lib.go	1
 docs/optimizations/logs/092-reuse-generated-node-capture-scratch.md	unexport	nodeFrameScratch	2
 docs/optimizations/logs/095-attribute-copy-on-change.md	gofile	compile.go	3
 docs/optimizations/logs/095-attribute-copy-on-change.md	gofile	normalize_attributes.go	3

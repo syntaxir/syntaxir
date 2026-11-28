@@ -9,6 +9,7 @@ import (
 )
 
 func TestNodeFrameScratchBoundaries(t *testing.T) {
+	needsFrameScratch(t)
 	p := &Parser{}
 	if p.NewFrame(0) != EmptyFrame || len(p.captureScratch.frames) != 0 {
 		t.Fatal("empty captures allocated scratch")
@@ -43,6 +44,7 @@ func TestNodeFrameScratchBoundaries(t *testing.T) {
 }
 
 func TestNodeFrameScratchChunkStability(t *testing.T) {
+	needsFrameScratch(t)
 	p := &Parser{}
 	var first *CaptureFrame
 	for i := 0; i < nodeChunk*3+1; i++ {
@@ -62,6 +64,7 @@ func TestNodeFrameScratchChunkStability(t *testing.T) {
 }
 
 func TestNodeFrameScratchReleaseOwnership(t *testing.T) {
+	needsFrameScratch(t)
 	p := &Parser{}
 	f := p.NewFrame(2)
 	captured := p.NewNode(Data{Kind: valueimpl.MatchKind, Text: "é", Start: 1, End: 2, Terminal: true})
@@ -103,6 +106,7 @@ func TestNodeFrameScratchReleaseOwnership(t *testing.T) {
 }
 
 func TestNodeFrameScratchCompleteBackingBound(t *testing.T) {
+	needsFrameScratch(t)
 	for _, extra := range []int{0, 1} {
 		frameChunk, slotChunk := new([nodeChunk]CaptureFrame), new([ptrChunk]*sxirvalue.Node)
 		f := make([]*[nodeChunk]CaptureFrame, 1)
@@ -132,5 +136,13 @@ func TestNodeFrameScratchCompleteBackingBound(t *testing.T) {
 		if a.frames != nil || a.slots != nil {
 			t.Fatal("oversized unused directory retained")
 		}
+	}
+}
+
+// needsFrameScratch skips a test of the frame scratch in the reference build, which has none.
+func needsFrameScratch(t *testing.T) {
+	t.Helper()
+	if !nodeFrameScratch {
+		t.Skip("the reference build (sxir_reference_node_frames) takes capture frames from a slab of each parse")
 	}
 }

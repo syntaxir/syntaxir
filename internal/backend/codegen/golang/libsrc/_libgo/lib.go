@@ -1673,10 +1673,6 @@ func (p *Parser) NewFrame(n int) *CaptureFrame {
 	return f
 }
 
-// nodeFrameScratch selects capture frames from parser scratch; the per-parse
-// frame slab remains only as the disabled alternative.
-const nodeFrameScratch = true
-
 // frameScratch keeps stable capture frames and slots until the parse returns.
 // Neither array can be reached through a returned Node's children or fields.
 // Append-only allocation also preserves retained OperatorsRule attempts and undo marks.
