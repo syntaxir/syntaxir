@@ -15,7 +15,7 @@
 //	settingsprobe -what retained INPUT...  # with GOGC=off and GOMAXPROCS=1
 //
 // With -what allocs it writes, for each API, the objects and bytes that a call allocates on each input
-// (LeastAllocs of package linearity), summed over the inputs, and the number of inputs on which the
+// (Least of package internal/bench/allocs), summed over the inputs, and the number of inputs on which the
 // call returns an error. With -what retained it writes the live heap that the values of ParseValue of
 // the inputs keep after a collection, summed over the inputs. The output is one JSON object.
 package main
@@ -28,7 +28,7 @@ import (
 	"runtime"
 	"slices"
 
-	"syntaxir.dev/sxir/internal/testing/linearity"
+	"syntaxir.dev/sxir/internal/bench/allocs"
 )
 
 // The warm runs and the measurements of a call, as TestMetrics of package bench takes them.
@@ -79,7 +79,7 @@ func run() error {
 				if call(in) != nil {
 					a.Errors++
 				}
-				o, b := linearity.LeastAllocs(warmRuns, allocRounds, func() { _ = call(in) })
+				o, b := allocs.Least(warmRuns, allocRounds, func() { _ = call(in) })
 				a.Objects += o
 				a.Bytes += b
 			}

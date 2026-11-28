@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/bench/allocs"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/frontend/parser/sxirparser"
 	"syntaxir.dev/sxir/internal/testing/linearity"
@@ -136,14 +137,14 @@ func TestRecoveryScalesLinearly(t *testing.T) {
 }
 
 // allocCost returns what building the result of parser.Parse on src takes in allocations: the number of
-// objects and of bytes (linearity.Allocs, with the collector off). It is the load-independent measure of
+// objects and of bytes (allocs.Count, with the collector off). It is the load-independent measure of
 // the whole source API, with the lexer, the error messages and the builder of the grammar, which the
 // compute counter of the generated parser does not cover. The test does not run in parallel, so that the
 // counters hold the work of this goroutine. It does not see a growth that allocates nothing, such as a
 // loop that rescans the tokens; the compute cost covers the generated parser, and the lexer and the
 // builder have no counter of their work.
 func allocCost(src string) (mallocs, bytes uint64) {
-	return linearity.Allocs(func() { parser.Parse(src) })
+	return allocs.Count(func() { parser.Parse(src) })
 }
 
 // scaleAllocSources are the sources of scaleSources and valid grammars, which reach the builder of the

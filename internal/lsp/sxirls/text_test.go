@@ -8,6 +8,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"syntaxir.dev/sxir/internal/bench/allocs"
 	"syntaxir.dev/sxir/internal/lsp/protocol"
 	"syntaxir.dev/sxir/internal/testing/linearity"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -253,7 +254,7 @@ func TestLongLine(t *testing.T) {
 				t.Errorf("%d semantic token integers, want %d", len(data), 5*(2+2*n+3))
 			}
 		}
-		objects, bytes = linearity.Allocs(work)
+		objects, bytes = allocs.Count(work)
 		return
 	}
 	sw, ss, so, sb := measure(small)

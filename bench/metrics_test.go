@@ -17,6 +17,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/libsrc"
+	allocsof "syntaxir.dev/sxir/internal/bench/allocs"
 	"syntaxir.dev/sxir/internal/bench/metrics"
 	"syntaxir.dev/sxir/internal/bench/synth"
 	"syntaxir.dev/sxir/internal/cancel"
@@ -27,7 +28,6 @@ import (
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/complexitytest"
-	"syntaxir.dev/sxir/internal/testing/linearity"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/instrument"
 )
@@ -54,11 +54,11 @@ var (
 )
 
 // leastAllocs returns the objects and bytes that a run of work allocates: the least count of
-// allocRounds measurements after warm runs of work (LeastAllocs of package linearity). GOMAXPROCS is
+// allocRounds measurements after warm runs of work (Least of package internal/bench/allocs). GOMAXPROCS is
 // 1 while TestMetrics runs. A single measurement varied by up to 4 objects between processes; this
 // count did not vary in six A/A runs.
 func leastAllocs(warm int, work func()) (objects, bytes uint64) {
-	return linearity.LeastAllocs(warm, allocRounds, work)
+	return allocsof.Least(warm, allocRounds, work)
 }
 
 // parseWarmRuns is the number of warm runs of a parse before leastAllocs measures it.

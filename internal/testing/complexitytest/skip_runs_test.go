@@ -3,6 +3,7 @@ package complexitytest
 import (
 	"testing"
 
+	"syntaxir.dev/sxir/internal/bench/allocs"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/linearity"
@@ -69,7 +70,7 @@ func TestSkipRunsLinearMemory(t *testing.T) {
 		for _, b := range Backends {
 			measure := func(n int) (objects, bytes uint64) {
 				in := c.Input(n)
-				return linearity.Allocs(func() {
+				return allocs.Count(func() {
 					if _, err := p.Parse(in, engine.WithBackend(b), engine.WithLimits(runtime.Limits{Compute: runtime.Unlimited})); err != nil {
 						t.Fatalf("%s, %s: %v", c.Name, BackendName(b), err)
 					}
