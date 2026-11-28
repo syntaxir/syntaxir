@@ -77,6 +77,9 @@ func streamCommitStates(t *testing.T, prog *Program, r io.Reader, o ParseOptions
 // a record than without, or less where a scan record stands for memo entries of its rule. The
 // generators' tests check the window on generated streams (StreamWindowCases).
 func TestStreamMemoryWindow(t *testing.T) {
+	if !state.BudgetControlsEnabled {
+		t.Skip("the memory count is unavailable in the reference build")
+	}
 	t.Parallel()
 	cases := []struct {
 		name, src, line string

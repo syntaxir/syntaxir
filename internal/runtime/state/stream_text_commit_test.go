@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -44,10 +45,14 @@ func TestStreamTextCutAtCommit(t *testing.T) {
 				for _, size := range codegentest.StreamTextCommitChunks {
 					var units uint64
 					n := 0
+					o := ParseOptions{Backend: b, Unit: unit, Expectations: true}
+					if state.BudgetControlsEnabled { // the reference build counts no units and refuses a report
+						o.ComputeReport = &units
+					}
 					err := prog.ParseStreamWith("main", &streamChunkReader{s: in, size: size}, func(*value.Node) error {
 						n++
 						return nil
-					}, ParseOptions{Backend: b, Unit: unit, Expectations: true, ComputeReport: &units})
+					}, o)
 					got := fmt.Sprintf("%d elements, units %d, error %v", n, units, err)
 					if first == "" {
 						first = got
@@ -87,6 +92,9 @@ rule head = [a-zé]+ ">"
 rule item = [a-zé]+ ";"
 `); !strings.Contains(msg, "text of capture h, made before a #stream repetition, cannot be taken after it") {
 		t.Errorf("a cut head: %s", msg)
+	}
+	if !state.BudgetControlsEnabled {
+		t.Skip("compute units are unavailable in the reference build")
 	}
 	units := func(prog *Program, in string, b Backend, unit input.PositionUnit, size int) uint64 {
 		t.Helper()

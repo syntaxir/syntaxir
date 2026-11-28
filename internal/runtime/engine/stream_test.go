@@ -205,9 +205,15 @@ rule val = [0-9]+ #atomic`,
 func TestParseStreamStartActionNotEvaluated(t *testing.T) {
 	t.Parallel()
 	backends := []Backend{Closure, Bytecode, BytecodeIterative}
+	// The reference build counts no units and refuses a report, so there the units are 0 and the
+	// other checks run alone.
 	units := func(prog *Program, in string, emit func(*value.Node) error, b Backend) (uint64, error) {
 		var u uint64
-		err := prog.ParseStreamWith("main", strings.NewReader(in), emit, ParseOptions{Backend: b, ComputeReport: &u})
+		o := ParseOptions{Backend: b}
+		if state.BudgetControlsEnabled {
+			o.ComputeReport = &u
+		}
+		err := prog.ParseStreamWith("main", strings.NewReader(in), emit, o)
 		return u, err
 	}
 	count := func(n *int) func(*value.Node) error { return func(*value.Node) error { *n++; return nil } }

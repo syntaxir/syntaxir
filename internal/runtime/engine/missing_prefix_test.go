@@ -6,6 +6,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -40,11 +41,20 @@ func TestPrefixInsertionMatchesParse(t *testing.T) {
 						for _, in := range c.Inputs {
 							var parseUnits, prefixUnits uint64
 							o := ParseOptions{Backend: b, Unit: u, Expectations: true, MissingTokens: limit, Recognize: recognize}
-							o.ComputeReport = &parseUnits
+							// The reference build counts no units and refuses a report, so there
+							// both units stay 0 and the results are compared alone.
+							if state.BudgetControlsEnabled {
+								o.ComputeReport = &parseUnits
+							}
 							n, perr := prog.ParseWith("main", in, o)
-							o.ComputeReport = &prefixUnits
+							if state.BudgetControlsEnabled {
+								o.ComputeReport = &prefixUnits
+							}
 							r, err := prog.ParsePrefixWith("main", in, o)
 							where := fmt.Sprintf("%s %s: %s, limit %d, recognize %v, %q", b, unitName(u), c.Name, limit, recognize, in)
+							if errors.Is(perr, state.ErrNoControls) || errors.Is(err, state.ErrNoControls) {
+								t.Fatalf("%s: the parses did not run: %v, %v", where, perr, err)
+							}
 							if got, want := codegentest.ResultJSON(r.Node, err), codegentest.ResultJSON(n, perr); got != want {
 								t.Errorf("%s:\n prefix %s\n parse  %s", where, got, want)
 							}
