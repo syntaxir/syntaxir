@@ -29,6 +29,7 @@ corpus/a cast binding in an Operators Rule operand	=12:4069c973b6:90:36
 corpus/a failed action leaves nothing it gathered	=8:8cf6072fc3:102:24
 corpus/a failed cast in a binding backtracks	=12:c2da01f64c:76:36
 corpus/a postfix part calling its rule after an empty operand	=12:0e722b1d63:316:36
+corpus/a postfix part calling its rule after an empty operand, with the rule declared first	=12:8553f67055:210:36
 corpus/action environments	=36:a36d41ee81:3972:108
 corpus/alias constructors	=6:d47694b485:20:18
 corpus/alias singleton unions	=6:3c15898676:20:18

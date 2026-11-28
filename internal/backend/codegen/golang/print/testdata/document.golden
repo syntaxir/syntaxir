@@ -17,6 +17,7 @@ corpus/0/a cast binding in an Operators Rule operand	ad4956901b53fee1a2aeeabb
 corpus/0/a failed action leaves nothing it gathered	0caba926c288d08700be3629
 corpus/0/a failed cast in a binding backtracks	c9e2343770075abd45b1339b
 corpus/0/a postfix part calling its rule after an empty operand	fcf95c58149e84e9014dfb45
+corpus/0/a postfix part calling its rule after an empty operand, with the rule declared first	a42aee52fdc0142a6f2777b6
 corpus/0/action environments	807b3bca961f2fd1768286bc
 corpus/0/alias constructors	6a24c16ab7e7fa56afe12caa
 corpus/0/alias singleton unions	307f05f95f60a451bf71e74a
@@ -383,6 +384,7 @@ corpus/1/a cast binding in an Operators Rule operand	ad4956901b53fee1a2aeeabb
 corpus/1/a failed action leaves nothing it gathered	0caba926c288d08700be3629
 corpus/1/a failed cast in a binding backtracks	c9e2343770075abd45b1339b
 corpus/1/a postfix part calling its rule after an empty operand	fcf95c58149e84e9014dfb45
+corpus/1/a postfix part calling its rule after an empty operand, with the rule declared first	a42aee52fdc0142a6f2777b6
 corpus/1/action environments	32156264d873b7d99e1731ec
 corpus/1/alias constructors	6a24c16ab7e7fa56afe12caa
 corpus/1/alias singleton unions	307f05f95f60a451bf71e74a

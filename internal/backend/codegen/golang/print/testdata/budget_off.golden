@@ -20,6 +20,7 @@ corpus-off/a cast binding in an Operators Rule operand	=12:cb5b39d5ff:90:36
 corpus-off/a failed action leaves nothing it gathered	=8:d21c67ce77:102:24
 corpus-off/a failed cast in a binding backtracks	=12:f7e9acd0aa:76:36
 corpus-off/a postfix part calling its rule after an empty operand	=12:9da5d4ffc4:316:36
+corpus-off/a postfix part calling its rule after an empty operand, with the rule declared first	=12:ba280f8b58:210:36
 corpus-off/action environments	=36:922d84c92e:3972:108
 corpus-off/alias constructors	=6:9986a114e6:20:18
 corpus-off/alias singleton unions	=6:9a2dac4a58:20:18
