@@ -774,7 +774,7 @@ func (p *Parser) advanceLiteral(rs []rune, bs []byte) bool {
 	if DocumentPieceInput && p.Pieces != nil {
 		return p.matchLiteralPieces(rs, bs)
 	}
-	if p.Eof && p.Pos >= p.Base {
+	if loadedLiterals && p.Eof && p.Pos >= p.Base {
 		// The whole input is loaded: compare in one go. As below, a mismatch leaves pos after the
 		// matching prefix and the examined range includes the first character that differs.
 		var k, n int

@@ -2,9 +2,12 @@
 # M030: Literal Matching
 
 - **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
-- **Path scope**: Literals over loaded input
-- **Every parser of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
-- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+- **Path scope**: Literals over loaded input in the engine
+- **Every parser of**: closure, recursive VM, iterative VM
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `sxir_reference_literals` | reference build tag | — | — | — | closure, recursive VM, iterative VM | [032](../logs/032-matching-literals-against-loaded-input-in-one-loop.md) |
 <!-- /generated:facts -->
 
 Comparing a fully loaded literal in one loop avoids repeated input-loading
@@ -24,13 +27,18 @@ whole-input path: generated runtimes match them rune by rune through `Peek`
 
 ## Scope
 
-Loaded-input matching in closure, both VMs, generated Go Node/typed Go
-and TypeScript, with representation-specific implementations. Stream fallback
-remains necessary.
+Loaded-input matching in the closure and both VMs, which share one parser for loaded and lazily read
+input. The literal matchers of generated Go and TypeScript parsers over loaded input are plain loops
+over their runtime's input representation by construction, with no per-character bookkeeping to
+spare; their stream paths are separate matchers. The one-shot byte comparison of generated Go is a
+short-literal comparison, not this mechanism.
 
 ## Controls and Measurements
 
-No universal same-source per-character-bookkeeping reference control exists.
+The build tag `sxir_reference_literals` builds the engine without the loaded-input loop: every
+literal is matched one character at a time through the path of lazily read input, which records the
+examined range and fills the input for each character, as before record 032. The results are the
+same, so the comparison is same-source and measures the bookkeeping.
 
 ## Evidence and Implementation
 
@@ -41,9 +49,7 @@ TypeScript, stream or all-literal benefits.
 Evidence records:
 [032](../logs/032-matching-literals-against-loaded-input-in-one-loop.md).
 
-Source owners: [`parser.matchLiteral`](../../../internal/runtime/state/input.go),
-[`generated literal matcher`](../../../pkg/runtime/libgo/lib.go),
-[`TypeScript literal matcher`](../../../internal/backend/codegen/typescript/lib/lib.ts).
+Source owners: [`parser.matchLiteral`](../../../internal/runtime/state/input.go).
 
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.

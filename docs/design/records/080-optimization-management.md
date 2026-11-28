@@ -515,7 +515,7 @@ row names it as the starting point.
 | G020 | Lazy backend preparation | None yet |
 | G110 | One-pass code-point preparation | None yet |
 | M020 | Character-class tests | None yet |
-| M030 | Literal matching | None yet |
+| M030 | Literal matching | Reference: `sxir_reference_literals` (engine) |
 | M050 | Plain rule calls | None yet; the memo policy is unchanged and the call wrapper is no unit |
 | M060 | Left-recursion growth state | None yet |
 | M070 | Predecoded VM match data | None yet |

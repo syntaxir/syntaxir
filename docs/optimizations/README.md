@@ -15,7 +15,7 @@ Each stable ID uses a category letter and a three-digit number: `E` (value elisi
 The registry of optimizations in the compiler is the source of this index ([design record 080](../design/records/080-optimization-management.md)). The tables between the generated markers are written by `go generate ./internal/optcatalog` from the registry, the profiles and the records, and a test fails when they differ. Each mechanism is classified either as an optimization, which has a control and is listed under Optimization Mechanisms, or as an [implementation design](../design/implementation/README.md), which has no control and is described in the design pages; [Former Mechanism IDs](#former-mechanism-ids) maps the IDs that left the index.
 
 <!-- generated:counts -->
-Unclassified mechanisms: 0. Experiment mechanisms, off by default: 1. Optimization mechanisms without a control: 29. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
+Unclassified mechanisms: 0. Experiment mechanisms, off by default: 1. Optimization mechanisms without a control: 28. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
 <!-- /generated:counts -->
 
 ### Optimization Mechanisms
@@ -62,7 +62,7 @@ A backend cell is `✓` where the mechanism acts on every parser of the backend,
 | [G250](mechanisms/G250-used-library-features.md) | Library of the Used Features | Generated parsers with an embedded library | — | — | — | Partial | Partial | Partial | Partial | `used-features` |
 | [M010](mechanisms/M010-first-character-dispatch.md) | First-Character Dispatch | Choices whose alternatives have known first characters | Partial | Partial | Partial | Partial | Partial | Partial | Partial | `dispatch`, `guards`, `guarded-classes` |
 | [M020](mechanisms/M020-character-class-tests.md) | Character-Class Tests | Character classes | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | none yet |
-| [M030](mechanisms/M030-literal-matching.md) | Literal Matching | Literals over loaded input | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | none yet |
+| [M030](mechanisms/M030-literal-matching.md) | Literal Matching | Literals over loaded input in the engine | ✓ | ✓ | ✓ | — | — | — | — | `sxir_reference_literals` (reference) |
 | [M040](mechanisms/M040-character-scan-loops.md) | Character Scan Loops | Value-free repetitions of a class or of any character | Partial | Partial | Partial | Partial | Partial | Partial | Partial | `scans` |
 | [M050](mechanisms/M050-plain-rule-calls.md) | Plain Rule Calls | Calls of rules that are neither captured nor memoized | Partial | Partial | Partial | Partial | Partial | Partial | Partial | none yet |
 | [M060](mechanisms/M060-left-recursion-growth.md) | Left-Recursion Growth State | Left-recursion seed growth in Go | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | none yet |
@@ -133,6 +133,7 @@ A reference control is a build tag that builds the parser without the mechanism,
 | `sxir_reference_stream_prefix` | A220 | closure, recursive VM, iterative VM | [089](logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
 | `sxir_reference_stream_undo` | A230 | closure, recursive VM, iterative VM | [089](logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
 | `sxir_reference_stream_stack` | A240 | recursive VM, iterative VM | [089](logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
+| `sxir_reference_literals` | M030 | closure, recursive VM, iterative VM | [032](logs/032-matching-literals-against-loaded-input-in-one-loop.md) |
 | `sxir_reference_expectation_filter` | M100 | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go | [075](logs/075-exclude-absent-expectations-before-scanning.md) |
 | `sxir_reference_sparse_memo` | R030 | closure, recursive VM, iterative VM | [087](logs/087-sparse-deferred-memo-seen-pages.md) |
 | `sxir_reference_document_pieces` | R060 | closure, recursive VM, iterative VM | [093](logs/093-chunked-document-input.md) |

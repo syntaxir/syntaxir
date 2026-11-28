@@ -573,10 +573,7 @@ docs/optimizations/mechanisms/M020-character-class-tests.md	gofile	internal/back
 docs/optimizations/mechanisms/M020-character-class-tests.md	gofile	internal/backend/codegen/typescript/print/generator.go	1
 docs/optimizations/mechanisms/M020-character-class-tests.md	qualified	closure.ClassAccept	1
 docs/optimizations/mechanisms/M030-literal-matching.md	codelink	internal/runtime/state/input.go	1
-docs/optimizations/mechanisms/M030-literal-matching.md	codelink	internal/backend/codegen/typescript/lib/lib.ts	1
-docs/optimizations/mechanisms/M030-literal-matching.md	codelink	pkg/runtime/libgo/lib.go	1
 docs/optimizations/mechanisms/M030-literal-matching.md	gofile	internal/runtime/state/input.go	1
-docs/optimizations/mechanisms/M030-literal-matching.md	gofile	pkg/runtime/libgo/lib.go	1
 docs/optimizations/mechanisms/M040-character-scan-loops.md	codelink	internal/backend/closure/builder.go	1
 docs/optimizations/mechanisms/M040-character-scan-loops.md	codelink	internal/middleend/corepass/passes.go	1
 docs/optimizations/mechanisms/M040-character-scan-loops.md	codelink	internal/middleend/flowlower/lower.go	1
