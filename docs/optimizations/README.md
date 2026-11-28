@@ -339,6 +339,7 @@ An ID that is no longer a mechanism stays reserved and is never reused. An imple
 - [148. Moving reused trees of generated Go Documents](logs/148-moving-reused-trees-of-generated-go-documents.md)
 - [149. Kept child stack of generated Go Documents](logs/149-kept-child-stack-of-generated-go-documents.md)
 - [150. Compact memo entries of generated Go](logs/150-compact-memo-entries-of-generated-go.md)
+- [151. Documents without value-less lexical entries](logs/151-documents-without-value-less-lexical-entries.md)
 
 ## Rejected Attempts
 
@@ -349,6 +350,7 @@ The records with status Rejected, with their result and the condition under whic
 |:--|:--|:--|:--|
 | [094. Generation-Only Typed-Output Liveness Cleanup](logs/094-generated-typed-output-liveness.md) | A090 | Less retained heap on the direct typed path, but material small-input latency and allocation costs, and no reduction of retained heap or peak RSS on the conversion path | A revised design meets the cost limits of the default path while it keeps a meaningful benefit across direct and conversion results, returned matches, both position units, and ordinary and discard-heavy inputs |
 | [140. Compute Units Counted Down as Fuel](logs/140-compute-units-counted-down-as-fuel.md) | none | No measurable change in time, allocations or bytes on any workload, for a library protocol change and two removed `Parser` fields | A later mechanism leaves count sites that are both hot and many, or a workload with heavy counting shows more than 5% overhead of the limits |
+| [151. Documents Without Value-less Lexical Entries](logs/151-documents-without-value-less-lexical-entries.md) | none | A Minilang Document retains 31.7% less, but its edits take 1.1 to 5 times as long on every backend: each reparse matches again the blanks before every statement of the program, where it looked their results up before | A Document reparse no longer visits each element of a long repetition whose elements it reuses, or a narrower class of rules keeps the memory saving with no more units per edit than the memo |
 <!-- /generated:rejected -->
 
 ## Experiments That Did Not Pay Off
