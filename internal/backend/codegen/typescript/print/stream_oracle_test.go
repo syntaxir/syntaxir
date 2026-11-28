@@ -335,18 +335,18 @@ var streamOracleCases = []struct {
 rule main = line* #stream !.
 rule line = ^ w:word ("," word)* "\n"
 rule word = [a-zé€]*
-`, []string{"", "\n", "a\n", "a,b\nc\n", "é,€\n\n", "a\nb", "a,\xff\n", "ab\n,", longLines(400, ""), longLines(400, "x;")}, limitRuns},
+`, []string{"", "\n", "a\n", "a,b\nc\n", "é,€\n\n", "a\nb", "a,\xff\n", "ab\n,", longLines(oracleLongLines, ""), longLines(oracleLongLines, "x;")}, limitRuns},
 	{"items", `@start
 rule main = item* #stream !.
 rule item = pair ";" / word ";" / word "."
 rule pair = k:word "=" v:word
 rule word = [a-z€]+ "é!"?
-`, []string{"", "a;", "a=b;", "a=b;c.d=e;", "ab=cé!;€.", "a=", "a;b", "a=b;;", longItems(600, ""), longItems(600, "=;")}, limitRuns},
+`, []string{"", "a;", "a=b;", "a=b;c.d=e;", "ab=cé!;€.", "a=", "a;b", "a=b;;", longItems(oracleLongItems, ""), longItems(oracleLongItems, "=;")}, limitRuns},
 	{"past the end", `@start
 rule main = item* #stream !.
 rule item = w:word ";" (word "!")?
 rule word = [a-z]+ / "<" word ">"
-`, []string{"", "a;", "a;b;", "a;b!", "a;;", "<a>;b!<c>;<", "a;b", longLookahead(2000)}, limitRuns},
+`, []string{"", "a;", "a;b;", "a;b!", "a;;", "<a>;b!<c>;<", "a;b", longLookahead(oracleLongLookahead)}, limitRuns},
 	{"recover", `@start
 rule main = stmt* #stream !.
 rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;]* ";")
@@ -944,8 +944,12 @@ func TestStreamOracleMutants(t *testing.T) {
 				if only, ok := mutantCases[m.name]; ok && c.name != only {
 					continue
 				}
+				inputs := c.inputs
+				if m.name == "memo prune" && c.name == "past the end" {
+					inputs = append(append([]string(nil), c.inputs[:len(c.inputs)-1]...), longLookahead(oracleMemoPruneLookahead))
+				}
 				for _, d := range runsOf(c.runs) {
-					found += len(streamOracleMismatches(t, c.src, c.inputs, d, mutate))
+					found += len(streamOracleMismatches(t, c.src, inputs, d, mutate))
 				}
 			}
 			if equivalentMutants[m.name] {
