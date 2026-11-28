@@ -408,7 +408,7 @@ func (p *Parser) Expect(pos int, id ExpID) {
 		}
 		return
 	}
-	if p.ExpBits&expBit(id) != 0 {
+	if !ExpectationFilter || p.ExpBits&expBit(id) != 0 {
 		for i = 0; i < (len(p.Exp) - p.ExpBase); i++ {
 			if p.Exp[p.ExpBase+i] == id {
 				return

@@ -15,7 +15,7 @@ Each stable ID uses a category letter and a three-digit number: `E` (value elisi
 The registry of optimizations in the compiler is the source of this index ([design record 080](../design/records/080-optimization-management.md)). The tables between the generated markers are written by `go generate ./internal/optcatalog` from the registry, the profiles and the records, and a test fails when they differ. Each mechanism is classified either as an optimization, which has a control and is listed under Optimization Mechanisms, or as an [implementation design](../design/implementation/README.md), which has no control and is described in the design pages; [Former Mechanism IDs](#former-mechanism-ids) maps the IDs that left the index.
 
 <!-- generated:counts -->
-Unclassified mechanisms: 0. Experiment mechanisms, off by default: 1. Optimization mechanisms without a control: 30. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
+Unclassified mechanisms: 0. Experiment mechanisms, off by default: 1. Optimization mechanisms without a control: 29. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
 <!-- /generated:counts -->
 
 ### Optimization Mechanisms
@@ -69,7 +69,7 @@ A backend cell is `✓` where the mechanism acts on every parser of the backend,
 | [M070](mechanisms/M070-vm-predecoded-match-data.md) | Predecoded VM Match Data | Literals and classes of VM programs | — | ✓ | ✓ | — | — | — | — | none yet |
 | [M080](mechanisms/M080-direct-code-point-access.md) | Direct Code-Point Access | Direct generated Go bodies over code points | — | — | — | Partial | Partial | Partial | — | none yet |
 | [M090](mechanisms/M090-diagnostic-line-index.md) | Diagnostic Line Index | Lines and columns of diagnostics | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | none yet |
-| [M100](mechanisms/M100-absent-expectation-filter.md) | Absent Expectation Filter | Expectation sets of the Go backends | Partial | Partial | Partial | Partial | Partial | Partial | — | none yet |
+| [M100](mechanisms/M100-absent-expectation-filter.md) | Absent Expectation Filter | Expectation sets of the Go backends | Partial | Partial | Partial | Partial | Partial | Partial | — | `sxir_reference_expectation_filter` (reference) |
 | [M110](mechanisms/M110-compact-vm-backtracking-state.md) | Compact VM Backtracking State | Backtracking state of the VMs | — | ✓ | ✓ | — | — | — | — | none yet |
 | [M120](mechanisms/M120-unboxed-text-comparisons.md) | Unboxed Text Comparisons | Comparisons of text | Partial | Partial | Partial | Partial | Partial | Partial | Partial | `field-compare` |
 | [M130](mechanisms/M130-short-literal-comparisons.md) | Short Literal Comparisons | Short literals of generated Go | — | — | — | Partial | Partial | Partial | — | `inline-literals` |
@@ -133,6 +133,7 @@ A reference control is a build tag that builds the parser without the mechanism,
 | `sxir_reference_stream_prefix` | A220 | closure, recursive VM, iterative VM | [089](logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
 | `sxir_reference_stream_undo` | A230 | closure, recursive VM, iterative VM | [089](logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
 | `sxir_reference_stream_stack` | A240 | recursive VM, iterative VM | [089](logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
+| `sxir_reference_expectation_filter` | M100 | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go | [075](logs/075-exclude-absent-expectations-before-scanning.md) |
 | `sxir_reference_sparse_memo` | R030 | closure, recursive VM, iterative VM | [087](logs/087-sparse-deferred-memo-seen-pages.md) |
 | `sxir_reference_document_pieces` | R060 | closure, recursive VM, iterative VM | [093](logs/093-chunked-document-input.md) |
 | `sxir_snapshot_sharing_reference` | R130 | closure, recursive VM, iterative VM | [097](logs/097-exact-document-snapshot-record-sharing.md) |

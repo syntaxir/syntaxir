@@ -4,7 +4,10 @@
 - **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
 - **Path scope**: Expectation sets of the Go backends
 - **An eligible subset, named under Scope, of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go
-- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `sxir_reference_expectation_filter` | reference build tag | — | — | — | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go | [075](../logs/075-exclude-absent-expectations-before-scanning.md) |
 <!-- /generated:facts -->
 
 An expectation already present in the active error record needs an exact
@@ -27,7 +30,10 @@ and typed output. TypeScript is unchanged.
 
 ## Controls and Measurements
 
-No maintained same-source filter-disable control exists.
+The build tag `sxir_reference_expectation_filter` builds the engine and the Go library of generated
+parsers without consulting the filter: every expectation scans the current record in order, as before
+the filter. The bits are still kept, so the parser state and the record marks are those of the
+default build; the comparison is same-source and measures the skipped scans.
 
 ## Evidence and Implementation
 

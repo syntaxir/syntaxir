@@ -299,7 +299,7 @@ func (p *Parser) expectSlow(pos int, id ExpID) {
 		}
 		return
 	}
-	if p.expBits&(uint64(1)<<(uint32(id)*0x9e3779b1>>26)) != 0 {
+	if !expectationFilter || p.expBits&(uint64(1)<<(uint32(id)*0x9e3779b1>>26)) != 0 {
 		for i = 0; i < (len(p.exp) - p.expBase); i++ {
 			if p.exp[p.expBase+i] == id {
 				return

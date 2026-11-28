@@ -521,7 +521,7 @@ row names it as the starting point.
 | M070 | Predecoded VM match data | None yet |
 | M080 | Direct code-point access | None yet |
 | M090 | Diagnostic line index | None yet |
-| M100 | Absent expectation filter | None yet |
+| M100 | Absent expectation filter | Reference: `sxir_reference_expectation_filter` (engine and generated Go) |
 | M110 | Compact VM backtracking state | None yet |
 | M120 | Unboxed text comparisons | `field-compare` (typed Go); none yet on the other backends |
 | R030 | Sparse seen-position storage | `sparse-memo` (TypeScript); reference `sxir_reference_sparse_memo` (engine); none yet in generated Go |

@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
@@ -85,7 +87,7 @@ func TestExpectationRecordMutantsFail(t *testing.T) {
 		chunks = "^TestBudgetExpectationKeepFillsChunks$"
 	)
 	here := []string{"syntaxir.dev/sxir/internal/runtime/state"}
-	runPrintedMutants(t, "internal/runtime/state/call_exec.go", []printedMutant{
+	mutants := []printedMutant{
 		{"an expectation in a lookahead is recorded",
 			[]printedEdit{{dropped, "if pos < p.Farthest {\n\t\treturn"}}, scan, here},
 		{"an expectation before the farthest failure is recorded",
@@ -135,7 +137,16 @@ func TestExpectationRecordMutantsFail(t *testing.T) {
 			[]printedEdit{{last + "\tk := p.LastKept\n\treturn k\n", "\tk := p.Arena[off:len(p.Arena):len(p.Arena)]\n\treturn k\n"}}, kept, here},
 		{"a kept set can grow into the next",
 			[]printedEdit{{last, "\tp.LastKept = p.Arena[off:len(p.Arena)]\n"}}, kept, here},
-	})
+	}
+	if !state.ExpectationFilter {
+		// The reference build (sxir_reference_expectation_filter) never consults the filter, so an
+		// expectation left out of it changes nothing there and the mutant has nothing to kill. The
+		// default build still runs it.
+		const unread = "an added expectation stays out of the filter"
+		t.Logf("skipping %q: the reference build never consults the filter", unread)
+		mutants = slices.DeleteFunc(mutants, func(m printedMutant) bool { return m.name == unread })
+	}
+	runPrintedMutants(t, "internal/runtime/state/call_exec.go", mutants)
 }
 
 // TestOperatorsLoopMutantsFail is the negative control of the tests of the Operators Rule loop, whose

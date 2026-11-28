@@ -515,7 +515,7 @@ func goTarget(s goSpec) *print.Target {
 		case "exp.placeholder":
 			return "p.exp = append(p.exp, ExpFar)"
 		case "exp.maybe":
-			return fmt.Sprintf("p.expBits&(uint64(1)<<(uint32(%s)*0x9e3779b1>>26)) != 0", a[0])
+			return fmt.Sprintf("(!expectationFilter || p.expBits&(uint64(1)<<(uint32(%s)*0x9e3779b1>>26)) != 0)", a[0])
 		case "exp.count":
 			return "len(p.exp) - p.expBase"
 		case "exp.at":

@@ -225,6 +225,9 @@ func TestEngineExpConformanceDetectsBrokenEngine(t *testing.T) {
 	}
 	for name, v := range variants {
 		t.Run(name, func(t *testing.T) {
+			if name == "exp.add leaves the filter" && !ExpectationFilter {
+				t.Skip("the reference build (sxir_reference_expectation_filter) never consults the filter, so an entry left out of it changes nothing")
+			}
 			op := strings.Fields(name)[0]
 			s := conform.Suite{Name: name, Ops: conform.ExpOps, LazyEdits: true, New: func(c ref.Config) conform.Impl {
 				return brokenExp{newExpMachine(c, false).(*expMachine), op, v}

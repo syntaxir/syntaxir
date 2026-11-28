@@ -59,7 +59,7 @@ func (p *Parser) confExpPlaceholder() {
 // Printed from Exec IR function confExpMaybe of internal/ir/code/exec/compose.
 func (p *Parser) confExpMaybe(id ExpID) bool {
 	var r bool
-	r = p.ExpBits&expBit(id) != 0
+	r = (!ExpectationFilter || p.ExpBits&expBit(id) != 0)
 	return r
 }
 

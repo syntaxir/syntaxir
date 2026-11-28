@@ -524,7 +524,7 @@ func engineTarget() *print.Target {
 		case "exp.placeholder":
 			return "p.Exp = append(p.Exp, ExpFar)"
 		case "exp.maybe":
-			return fmt.Sprintf("p.ExpBits&expBit(%s) != 0", a[0])
+			return fmt.Sprintf("(!ExpectationFilter || p.ExpBits&expBit(%s) != 0)", a[0])
 		case "exp.count":
 			return "len(p.Exp) - p.ExpBase"
 		case "exp.at":
