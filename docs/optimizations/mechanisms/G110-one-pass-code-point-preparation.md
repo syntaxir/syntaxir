@@ -4,7 +4,10 @@
 - **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
 - **Path scope**: Preparation of code-point input
 - **An eligible subset, named under Scope, of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript
-- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `sxir_reference_input_preparation` | reference build tag | — | — | — | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [040](../logs/040-one-pass-to-prepare-code-point-input-in-generated-parsers.md) |
 <!-- /generated:facts -->
 
 Decoding, validating UTF-8 and building token-text offsets in separate passes
@@ -28,9 +31,13 @@ backend cells.
 
 ## Controls and Measurements
 
-No maintained same-source separate-pass reference control exists. Lazy
-recognition offsets are an operation-specific policy, not a full-parse
-reference.
+The build tag `sxir_reference_input_preparation` prepares code-point input in three passes, as
+before records 040 and 041: the code points, the validity of the UTF-8 (in TypeScript, whether the
+string is well formed) and the offsets. In the engine and the Go library it selects the other body of
+the preparation function; in TypeScript it replaces a marked region of the library with the
+reference body, and a test fails when a marker of the region is missing or duplicated. The results
+are the same, so the comparison is same-source. Lazy recognition offsets are an operation-specific
+policy, not a full-parse reference.
 
 ## Evidence and Implementation
 

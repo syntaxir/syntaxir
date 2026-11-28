@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -89,7 +90,7 @@ process.exit(bad ? 1 : 0);
 // observed within one observation interval, and at the end of the parse whatever the interval.
 func TestUnitsChecksAgreeWithEachUnit(t *testing.T) {
 	node := tooltest.RequireNode(t)
-	src, err := FS.ReadFile("budget.ts")
+	src, err := fs.ReadFile(FS, "budget.ts")
 	if err != nil {
 		t.Fatal(err)
 	}

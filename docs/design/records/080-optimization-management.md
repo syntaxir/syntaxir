@@ -513,7 +513,7 @@ row names it as the starting point.
 | E050 | Projected repetition values | None yet; the compile option that turns projections off is the plain form |
 | E060 | Concat input fusion | None yet; `concat` charges what it builds, so the plain form counts the same |
 | G020 | Lazy backend preparation | None yet |
-| G110 | One-pass code-point preparation | None yet |
+| G110 | One-pass code-point preparation | Reference: `sxir_reference_input_preparation` (engine, generated Go and TypeScript) |
 | M020 | Character-class tests | None yet |
 | M030 | Literal matching | Reference: `sxir_reference_literals` (engine) |
 | M050 | Plain rule calls | None yet; the memo policy is unchanged and the call wrapper is no unit |

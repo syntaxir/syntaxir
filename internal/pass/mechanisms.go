@@ -137,6 +137,7 @@ var referenceControls = []ReferenceControl{
 	{Mechanism: "A220", Tag: "sxir_reference_stream_prefix", Backends: Engines, Witnesses: []string{"stream records", "stream text commit"}, Record: 89},
 	{Mechanism: "A230", Tag: "sxir_reference_stream_undo", Backends: Engines, Witnesses: []string{"stream records recover", "stream start action"}, Record: 89},
 	{Mechanism: "A240", Tag: "sxir_reference_stream_stack", Backends: On(BackendRecursiveVM, BackendIterativeVM), Witnesses: []string{"stream records", "stream start action"}, Record: 89},
+	{Mechanism: "G110", Tag: "sxir_reference_input_preparation", Backends: Engines | Generated, Witnesses: []string{"capture frames", "guards", "literals", "typed text fields"}, Record: 40},
 	{Mechanism: "M030", Tag: "sxir_reference_literals", Backends: Engines, Witnesses: []string{"literals", "guards", "outlined keywords", "recovery"}, Record: 32},
 	{Mechanism: "M100", Tag: "sxir_reference_expectation_filter", Backends: Engines | GeneratedGo, Witnesses: []string{"guards", "literals", "many memoized rules", "recovery"}, Record: 75},
 	{Mechanism: "R030", Tag: "sxir_reference_sparse_memo", Backends: Engines, Witnesses: []string{"many memoized rules"}, Record: 87},

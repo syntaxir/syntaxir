@@ -15,7 +15,7 @@ Each stable ID uses a category letter and a three-digit number: `E` (value elisi
 The registry of optimizations in the compiler is the source of this index ([design record 080](../design/records/080-optimization-management.md)). The tables between the generated markers are written by `go generate ./internal/optcatalog` from the registry, the profiles and the records, and a test fails when they differ. Each mechanism is classified either as an optimization, which has a control and is listed under Optimization Mechanisms, or as an [implementation design](../design/implementation/README.md), which has no control and is described in the design pages; [Former Mechanism IDs](#former-mechanism-ids) maps the IDs that left the index.
 
 <!-- generated:counts -->
-Unclassified mechanisms: 0. Experiment mechanisms, off by default: 1. Optimization mechanisms without a control: 28. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
+Unclassified mechanisms: 0. Experiment mechanisms, off by default: 1. Optimization mechanisms without a control: 27. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
 <!-- /generated:counts -->
 
 ### Optimization Mechanisms
@@ -55,7 +55,7 @@ A backend cell is `✓` where the mechanism acts on every parser of the backend,
 | [G010](mechanisms/G010-generated-helper-sharing.md) | Generated Helper Sharing | Generated parsers with exactly equal bodies | — | — | — | Partial | Partial | Partial | Partial | `method-sharing` |
 | [G020](mechanisms/G020-lazy-backend-preparation.md) | Lazy Backend Preparation | The engine's recognizer and VM setup on first use | Partial | Partial | Partial | — | — | — | — | none yet |
 | [G070](mechanisms/G070-literal-text-predicates.md) | Literal Text Predicates | Predicates that compare a capture's text with literals, without limit controls | — | — | — | Partial | Partial | Partial | Partial | `text-dispatch` |
-| [G110](mechanisms/G110-one-pass-code-point-preparation.md) | One-Pass Code-Point Preparation | Preparation of code-point input | Partial | Partial | Partial | Partial | Partial | Partial | Partial | none yet |
+| [G110](mechanisms/G110-one-pass-code-point-preparation.md) | One-Pass Code-Point Preparation | Preparation of code-point input | Partial | Partial | Partial | Partial | Partial | Partial | Partial | `sxir_reference_input_preparation` (reference) |
 | [G130](mechanisms/G130-generated-literal-sharing.md) | Generated Literal Sharing | Generated parsers with equal literals; TypeScript as an opt-in | — | — | — | Partial | Partial | Partial | Partial | `literal-sharing`, `ts-literal-sharing` |
 | [G220](mechanisms/G220-outlined-typescript-nodes.md) | Outlined TypeScript Nodes | Large and repeated nodes of TypeScript Node and recognizer tables | — | — | — | — | — | — | Partial | `outline` |
 | [G240](mechanisms/G240-typescript-exec-forms.md) | Compact TypeScript Exec Forms | Expectation merges and tested calls in TypeScript | — | — | — | — | — | — | Partial | `ts-merged-records`, `ts-tested-inits` |
@@ -133,6 +133,7 @@ A reference control is a build tag that builds the parser without the mechanism,
 | `sxir_reference_stream_prefix` | A220 | closure, recursive VM, iterative VM | [089](logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
 | `sxir_reference_stream_undo` | A230 | closure, recursive VM, iterative VM | [089](logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
 | `sxir_reference_stream_stack` | A240 | recursive VM, iterative VM | [089](logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
+| `sxir_reference_input_preparation` | G110 | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | [040](logs/040-one-pass-to-prepare-code-point-input-in-generated-parsers.md) |
 | `sxir_reference_literals` | M030 | closure, recursive VM, iterative VM | [032](logs/032-matching-literals-against-loaded-input-in-one-loop.md) |
 | `sxir_reference_expectation_filter` | M100 | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go | [075](logs/075-exclude-absent-expectations-before-scanning.md) |
 | `sxir_reference_sparse_memo` | R030 | closure, recursive VM, iterative VM | [087](logs/087-sparse-deferred-memo-seen-pages.md) |

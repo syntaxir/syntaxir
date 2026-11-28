@@ -116,7 +116,11 @@ worse only when the change is meant to make it so and its commit says why.
 compile: test files that use helpers of untagged files keep each tagged build compiling, and a test whose feature a tag
 removes skips under that tag. `hack/test-reference-tags.sh [tag...]` vets the engine packages and every package with a
 tagged file, and tests them with `-short`, under every tag of the tree or the tags it is given. It sets the tag through
-`GOFLAGS`, so that the generated parsers that the tests build take it too. For the tag of a registered reference
+`GOFLAGS`, so that the generated parsers that the tests build take it too. The TypeScript library has no build
+tags: a pair of tagged Go files in `internal/backend/codegen/typescript/lib` makes the tag replace a region of `lib.ts`
+between the lines `// sxir:reference <name> begin` and `// sxir:reference <name> end` with `reference/<name>.region`,
+and every build drops the marker lines; a test fails when a region's markers are missing, duplicated or out of order,
+or when a body belongs to no region. For the tag of a registered reference
 control it also compares the two builds: `TestReferenceTranscript` in `internal/testing/reftest` writes the transcript
 of the default build, then, in the build with the tag, checks that the tag selected other files and that the parsers of
 the control's backends give the same trees, typed values, errors and compute units on the control's witnesses, and

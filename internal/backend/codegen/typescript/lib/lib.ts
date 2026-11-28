@@ -3424,6 +3424,7 @@ export class Parser {
     this.sparse = g.sparse && stride > 64 && this.n > 1024;
   }
 
+  // sxir:reference input-preparation begin
   // decodeString sets cps (and offs) from s, with lone surrogates as U+FFFD, and returns s with the
   // same replacement.
   decodeString(s: string): string {
@@ -3462,6 +3463,7 @@ export class Parser {
     this.offs = offs;
     return lone ? wellFormed(s) : s;
   }
+  // sxir:reference input-preparation end
 
   // decodeCodePoints sets cps (and offs) by decoding b as Go does, and returns the text.
   decodeCodePoints(b: Uint8Array): string {

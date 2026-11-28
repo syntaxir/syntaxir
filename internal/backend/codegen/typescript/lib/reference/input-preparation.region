@@ -1,0 +1,47 @@
+  // decodeString sets cps (and offs) from s, with lone surrogates as U+FFFD, and returns s with the
+  // same replacement. The reference build reads s in three passes: the code points, whether s is well
+  // formed, and the offsets.
+  decodeString(s: string): string {
+    const n = runeCount(s);
+    const cps = new Int32Array(n);
+    let j = 0;
+    for (let i = 0; i < s.length; i++) {
+      let c = s.charCodeAt(i);
+      if (c >= 0xd800 && c <= 0xdfff) {
+        if (c < 0xdc00 && i + 1 < s.length && (s.charCodeAt(i + 1) & 0xfc00) === 0xdc00) {
+          cps[j++] = 0x10000 + ((c - 0xd800) << 10) + (s.charCodeAt(i + 1) - 0xdc00);
+          i++;
+          continue;
+        }
+        c = 0xfffd;
+      }
+      cps[j++] = c;
+    }
+    let lone = false;
+    for (let i = 0; i < s.length && !lone; i++) {
+      const c = s.charCodeAt(i);
+      if (c >= 0xd800 && c <= 0xdfff) {
+        if (c < 0xdc00 && i + 1 < s.length && (s.charCodeAt(i + 1) & 0xfc00) === 0xdc00) {
+          i++;
+          continue;
+        }
+        lone = true;
+      }
+    }
+    let offs: Int32Array | null = null;
+    if (n < s.length) {
+      offs = new Int32Array(n + 1);
+      let k = 0;
+      for (let i = 0; i < s.length; i++) {
+        offs[k++] = i;
+        const c = s.charCodeAt(i);
+        if (c >= 0xd800 && c < 0xdc00 && i + 1 < s.length && (s.charCodeAt(i + 1) & 0xfc00) === 0xdc00) {
+          i++;
+        }
+      }
+      offs[n] = s.length;
+    }
+    this.cps = cps;
+    this.offs = offs;
+    return lone ? wellFormed(s) : s;
+  }

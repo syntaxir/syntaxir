@@ -25,7 +25,7 @@ func Corpus() []codegentest.Case {
 		codegentest.Case{Name: "equal bodies", Src: "rule main = a \",\" b $$\nrule a = #operators {\n    operand n\n    level { infix left \"+\" }\n}\nrule b = #operators {\n    operand n\n    level { infix left \"*\" }\n}\nrule n = [0-9]+\n"},
 		codegentest.Case{Name: "typed text fields", Src: textcompare.Grammar, Inputs: textcompare.Inputs},
 		codegentest.Case{Name: "many memoized rules", Src: manyMemoizedRules(70), Inputs: []string{"", "k0!", "k0? k69ab! k35?", "k1x!k2!", "k70!", "k3ab?  k3ab!", "k12"}},
-		codegentest.Case{Name: "capture frames", Src: captureFrames, Inputs: []string{"", "a=1;", "a=1+2*3; b=(1+2)*c,d,e;", "x=1;", "a=1+;b=2;", "a=((1);c=d;", "a=b,c", "日=1;", "a=1;\xff"}},
+		codegentest.Case{Name: "capture frames", Src: captureFrames, Inputs: []string{"", "a=1;", "a=1+2*3; b=(1+2)*c,d,e;", "x=1;", "a=1+;b=2;", "a=((1);c=d;", "a=b,c", "日=1;", "a=1;\xff", "𝄞=1; a=b,c;"}},
 	)
 	return cases
 }

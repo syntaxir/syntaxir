@@ -1929,7 +1929,7 @@ func (p *Parser) SetCapture(slot int, v *sxirvalue.Node) {
 var offsLimit = 1<<31 - 1
 
 // setSource decodes the input s into code points and, if s is valid UTF-8, records the offset
-// table for token text, all in one pass (a U+FFFD that decodes from three bytes is valid).
+// table for token text (prepareCodePoints, a U+FFFD that decodes from three bytes is valid).
 func (p *Parser) setSource(s string) {
 	n := utf8.RuneCountInString(s)
 	// The buffers of a parser used before are reused (the typed library keeps parsers).
@@ -1948,20 +1948,7 @@ func (p *Parser) setSource(s string) {
 	} else {
 		offs = make([]int32, n+1)
 	}
-	valid := true
-	i := 0
-	for off, r := range s {
-		if r == utf8.RuneError && valid {
-			if _, size := utf8.DecodeRuneInString(s[off:]); size == 1 {
-				valid = false
-			}
-		}
-		p.In[i] = r
-		if tabled {
-			offs[i] = int32(off)
-		}
-		i++
-	}
+	valid := prepareCodePoints(s, p.In, offs)
 	p.decoded, p.wide = false, nil
 	if !valid {
 		p.src, p.offs = "", nil
@@ -1969,7 +1956,6 @@ func (p *Parser) setSource(s string) {
 	}
 	p.src = s
 	if tabled {
-		offs[n] = int32(len(s))
 		p.offs = offs
 	} else {
 		p.offs = nil

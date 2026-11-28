@@ -261,7 +261,7 @@ func newTextInputIn(s string, unit input.PositionUnit, offsets bool, sc *scratch
 		in.setSource(s)
 		return in
 	}
-	// Decode and check validity in one pass (a U+FFFD that decodes from three bytes is valid).
+	// Decode, check validity and build the offsets (prepareCodePoints).
 	n := utf8.RuneCountInString(s)
 	offsets = offsets && len(s) <= offsLimit
 	var offs []int32
@@ -276,23 +276,7 @@ func newTextInputIn(s string, unit input.PositionUnit, offsets bool, sc *scratch
 			offs = make([]int32, n+1)
 		}
 	}
-	if offsets {
-		offs[n] = int32(len(s))
-	}
-	valid := true
-	i := 0
-	for off, r := range s {
-		if r == utf8.RuneError && valid {
-			if _, size := utf8.DecodeRuneInString(s[off:]); size == 1 {
-				valid = false
-			}
-		}
-		in.In[i] = r
-		if offsets {
-			offs[i] = int32(off)
-		}
-		i++
-	}
+	valid := prepareCodePoints(s, in.In, offs)
 	in.Src, in.SrcOK = s, valid && len(s) <= offsLimit
 	if in.SrcOK {
 		in.Offs = offs

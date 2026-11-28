@@ -2,9 +2,14 @@
 // assembles), which the TypeScript generator reads and the -lib modes copy.
 package lib
 
-import "embed"
+import (
+	"embed"
+	"io/fs"
+)
 
-// FS holds the files of the library.
-//
 //go:embed *.ts
-var FS embed.FS
+var files embed.FS
+
+// FS holds the files of the library, with the reference regions of lib.ts resolved for the build
+// (regions).
+var FS fs.FS = mustResolve(files, regions)
