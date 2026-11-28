@@ -43,8 +43,9 @@ type Generator struct {
 	literalNames map[string]string
 	// shares counts the uses of each shared body and literal table that would share it, so that each
 	// use is a site of its own (sharedUse).
-	shares      map[any]int
-	methodKeys  []generatedMethod
+	shares map[any]int
+	// methods are the functions that MethodName named, in order, for ForgetMethods.
+	methods     []namedMethod
 	literalKeys []string
 	// Params are the values of the parameters of the printing step that runs the generator.
 	Params Params
@@ -130,22 +131,54 @@ type generatedMethod struct {
 // its own, as with the parameter off.
 func (g *Generator) MethodName(signature, body string) (string, bool) {
 	if !g.Params.MethodSharing {
-		return g.Name("e"), false
+		return g.newMethod(generatedMethod{}, false), false
 	}
 	key := generatedMethod{signature, body}
 	if name, ok := g.methodNames[key]; ok {
 		if !g.Params.Decide(MethodSharing, g.sharedUse(key)) {
-			return g.Name("e"), false
+			return g.newMethod(generatedMethod{}, false), false
 		}
 		return name, true
 	}
 	if g.methodNames == nil {
 		g.methodNames = make(map[generatedMethod]string)
 	}
-	name := g.Name("e")
+	name := g.newMethod(key, true)
 	g.methodNames[key] = name
-	g.methodKeys = append(g.methodKeys, key)
 	return name, false
+}
+
+// A namedMethod is a function that MethodName named, with the key under which later bodies share it
+// if keyed.
+type namedMethod struct {
+	name  string
+	key   generatedMethod
+	keyed bool
+}
+
+// newMethod names a new function, shared under key if keyed.
+func (g *Generator) newMethod(key generatedMethod, keyed bool) string {
+	name := g.Name("e")
+	g.methods = append(g.methods, namedMethod{name, key, keyed})
+	return name
+}
+
+// MethodMark returns the mark of the functions that MethodName has named so far, for ForgetMethods.
+func (g *Generator) MethodMark() int { return len(g.methods) }
+
+// ForgetMethods forgets the functions that MethodName named since mark, whose code the caller
+// discards: no later body shares one of them, since none is printed. It returns their names, which
+// the printed code must not refer to.
+func (g *Generator) ForgetMethods(mark int) []string {
+	var names []string
+	for _, m := range g.methods[mark:] {
+		if m.keyed {
+			delete(g.methodNames, m.key)
+		}
+		names = append(names, m.name)
+	}
+	g.methods = g.methods[:mark]
+	return names
 }
 
 // LiteralName shares immutable literal tables by decoded text. Descriptions

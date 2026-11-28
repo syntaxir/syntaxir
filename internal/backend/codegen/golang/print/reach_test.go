@@ -68,18 +68,21 @@ var reachInputs = map[string][]string{
 	reachStreamGrammar: {"(a)b", "((a)(b))c", "(", "", "abc"},
 }
 
+// generatedName matches the names of the functions that the generator numbers: a letter or two and
+// a number.
+var generatedName = regexp.MustCompile(`^[a-z]{1,2}[0-9]+$`)
+
 // undefinedGenerated returns the functions that the generated Go source calls by a generated name
-// (a letter or two and a number) without declaring them.
+// without declaring them.
 func undefinedGenerated(t *testing.T, src []byte) []string {
 	t.Helper()
 	f, err := goparser.ParseFile(token.NewFileSet(), "parser.go", src, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	re := regexp.MustCompile(`^[a-z]{1,2}[0-9]+$`)
 	var undefined []string
 	for _, id := range f.Unresolved {
-		if re.MatchString(id.Name) {
+		if generatedName.MatchString(id.Name) {
 			undefined = append(undefined, id.Name)
 		}
 	}

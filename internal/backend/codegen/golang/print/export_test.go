@@ -59,3 +59,8 @@ func (l *LiveRules) MissingBodies(table string, printed map[RuleKey]bool) []Rule
 
 // LoweredActionNames returns the names of the library functions and methods that only lowered action expressions call.
 func LoweredActionNames() []string { return loweredActionNames() }
+
+// CheckDiscarded is Generator.checkDiscarded of a generator that discarded the functions named.
+func CheckDiscarded(discarded []string, parts ...string) error {
+	return (&Generator{discarded: discarded}).checkDiscarded(parts...)
+}

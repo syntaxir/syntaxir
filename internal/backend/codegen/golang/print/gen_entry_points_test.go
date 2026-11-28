@@ -164,8 +164,18 @@ func TestGeneratedEntryPointCombinations(t *testing.T) {
 	testEntryCombinations(t, []codegentest.Case{
 		{Name: "converted", Src: codegentest.OrdinaryOnlyConverted, Inputs: codegentest.OrdinaryOnlyConvertedInputs},
 		{Name: "hidden", Src: ordinaryOnlyHidden, Inputs: ordinaryOnlyHiddenInputs},
+		{Name: "text predicate", Src: textPredicate, Inputs: textPredicateInputs},
 	})
 }
+
+// textPredicate has a predicate that reads the text of a capture, so the recognizer keeps the value of
+// the captured rule, whose body is the same as that of the Node table.
+const textPredicate = `rule main = (s:stmt " "*)* $$
+rule stmt = n:name "=" m:name ";" {text($n) != "x"}
+rule name = [a-z]+ #atomic
+`
+
+var textPredicateInputs = []string{"", "a=b;", "x=b;", "a=b; c=d;", "a=b; x=d;", "a=;", "a=b"}
 
 // The combinations that no generated parser can have fail generation with an error that names why.
 func TestGeneratedEntryPointRejections(t *testing.T) {

@@ -2,6 +2,8 @@ package print
 
 import (
 	"fmt"
+	"go/scanner"
+	"go/token"
 	"sort"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
@@ -121,6 +123,34 @@ func (g *Generator) finishReach() error {
 		}
 		if miss := g.live.missingBodies(table, g.bodySet); len(miss) > 0 {
 			return fmt.Errorf("internal error: the reachable rule slot %s[%d] has no Body", table, miss[0].ID)
+		}
+	}
+	return nil
+}
+
+// checkDiscarded checks that the printed code, the parts of the file, refers to none of the functions
+// of the Node bodies that the parser generated and does not print (Generator.discarded), which would
+// otherwise fail only when the parser is built.
+func (g *Generator) checkDiscarded(parts ...string) error {
+	if len(g.discarded) == 0 {
+		return nil
+	}
+	gone := make(map[string]bool, len(g.discarded))
+	for _, name := range g.discarded {
+		gone[name] = true
+	}
+	for _, part := range parts {
+		var s scanner.Scanner
+		fs := token.NewFileSet()
+		s.Init(fs.AddFile("", fs.Base(), len(part)), []byte(part), nil, 0)
+		for {
+			_, tok, lit := s.Scan()
+			if tok == token.EOF {
+				break
+			}
+			if tok == token.IDENT && gone[lit] {
+				return fmt.Errorf("internal error: the generated code refers to %s, the function of a Node body that the parser does not print", lit)
+			}
 		}
 	}
 	return nil

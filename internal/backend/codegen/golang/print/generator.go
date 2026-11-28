@@ -394,6 +394,9 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 	if err := genGo.finishReach(); err != nil {
 		return nil, nil, err
 	}
+	if err := genGo.checkDiscarded(genGo.Vars.String(), genGo.Init.String(), tracedInit, genGo.Methods.String()); err != nil {
+		return nil, nil, err
+	}
 	out.WriteString(genGo.Vars.String())
 	out.WriteString("\nfunc init() {\n")
 	out.WriteString(genGo.Init.String())
@@ -547,6 +550,9 @@ type Generator struct {
 	// (GenOptions.KeepUnreachable).
 	program *plandata.Program
 	live    *liveRules
+	// discarded are the functions of the Node bodies that a parser without Node rules generated for
+	// their frame layouts and does not print (checkDiscarded).
+	discarded []string
 	// keepTableRules marks a typed-only parser without Node rules: its Node and recognizer tables
 	// have no rule bodies to check; the typed table leaves its unreached rules out as usual.
 	keepTableRules bool
@@ -695,7 +701,7 @@ func (g *Generator) useTable() error {
 
 func (g *Generator) rules() {
 	init := &g.Init
-	methodsBefore := g.Methods.String()
+	methodsBefore, methodMark := g.Methods.String(), g.MethodMark()
 	bodies := map[*common.Rule]string{}
 	scopes := map[*common.Rule]*check.Scope{}
 	flats := map[*common.Rule]*flatRule{}
@@ -888,9 +894,11 @@ func (g *Generator) rules() {
 	nodeCode := g.Table == "rules" && g.typedOnly
 	if nodeCode {
 		// The Node bodies were generated for the frame layouts they fix; their methods are not
-		// kept, and the typed rules need none of the Node entries.
+		// kept, and the typed rules need none of the Node entries. No later body may share one of
+		// them: the recognizer prints its own copy of a body that it would share.
 		g.Methods.Reset()
 		g.Methods.WriteString(methodsBefore)
+		g.discarded = append(g.discarded, g.ForgetMethods(methodMark)...)
 	}
 	for _, r := range all {
 		if nodeCode {
