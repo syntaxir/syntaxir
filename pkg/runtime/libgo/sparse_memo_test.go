@@ -77,6 +77,7 @@ func TestSparseMemoPagesBound(t *testing.T) {
 }
 
 func TestSparseMemoPoolReuse(t *testing.T) {
+	needsScratchPools(t)
 	for _, typed := range []bool{false, true} {
 		p := &Parser{memo: memoTable{firstCalls: firstCalls{stride: 65, sparse: true}}, deferMemo: true}
 		r := &Rule{Seen: 64}
@@ -196,6 +197,7 @@ func TestSparseMemoTypedAbsoluteRetentionBound(t *testing.T) {
 // Dropping an oversized dense buffer must preserve the plain parser's
 // existing policy of discarding its complete memo scratch table.
 func TestSparseMemoDenseReleasePolicy(t *testing.T) {
+	needsScratchPools(t)
 	p := &Parser{memo: memoTable{slots: make([]*memoEntry, 1), firstCalls: firstCalls{seen: make([]uint64, 0, (1<<20)+1)}}}
 	p.release()
 	if p.memo.slots != nil || p.memo.seen != nil {

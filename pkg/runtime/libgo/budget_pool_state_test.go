@@ -10,6 +10,7 @@ import (
 // record of a controlled parse is the same on a fresh parser and on one that a parse released with its
 // storage, for dense and sparse tables.
 func TestFirstCallChargeIndependentOfReusedStorage(t *testing.T) {
+	needsScratchPools(t)
 	for _, stride := range []int{10, 65, 130} {
 		run := func(p *Parser, n int) uint64 {
 			p.setControl(newBudgetControl(sxirruntime.Limits{Memory: 1 << 40}))
@@ -34,5 +35,14 @@ func TestFirstCallChargeIndependentOfReusedStorage(t *testing.T) {
 		if got := run(p, n); got != fresh {
 			t.Errorf("stride %d: parser reused twice charged %d bytes, fresh %d", stride, got, fresh)
 		}
+	}
+}
+
+// needsScratchPools skips a test of what a parser keeps for its next parse in the reference build
+// (sxir_reference_scratch_pools), which keeps no parser and so prepares none for reuse.
+func needsScratchPools(t *testing.T) {
+	t.Helper()
+	if !scratchPools {
+		t.Skip("the reference build (sxir_reference_scratch_pools) keeps no parser for a later parse")
 	}
 }

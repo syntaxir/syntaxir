@@ -131,6 +131,7 @@ var mechanisms = []Mechanism{
 var referenceControls = []ReferenceControl{
 	{Mechanism: "A080", Tag: "sxir_reference_node_frames", Backends: On(BackendGoNode, BackendGoRecognizer), Witnesses: []string{"capture frames", "text comparison", "typed text fields"}, Record: 92},
 	{Mechanism: "A100", Tag: "sxir_reference_document_vm_values", Backends: On(BackendRecursiveVM, BackendIterativeVM), Witnesses: []string{"document moves", "document recovered", "document runs"}, Record: 86},
+	{Mechanism: "A160", Tag: "sxir_reference_scratch_pools", Backends: Engines | On(BackendGoNode, BackendGoRecognizer, BackendTypedGo), Witnesses: []string{"many memoized rules", "capture frames", "recovery", "typed text fields"}, Record: 57},
 	{Mechanism: "A200", Tag: "sxir_reference_stream_frames", Backends: Engines, Witnesses: []string{"stream records", "stream records recover", "stream text commit"}, Record: 85},
 	{Mechanism: "A210", Tag: "sxir_reference_stream_text", Backends: Engines, Witnesses: []string{"stream text commit"}, Record: 88},
 	{Mechanism: "A220", Tag: "sxir_reference_stream_prefix", Backends: Engines, Witnesses: []string{"stream records", "stream text commit"}, Record: 89},

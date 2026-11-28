@@ -498,7 +498,7 @@ row names it as the starting point.
 | A120 | Source token text | None yet |
 | A140 | Construction tracking release | None yet |
 | A150 | VM position chunks | None yet |
-| A160 | Whole-input scratch pooling | None yet |
+| A160 | Whole-input scratch pooling | Reference: `sxir_reference_scratch_pools` (engine, Go Node, recognizer and typed Go) |
 | A170 | Operators Rule attempt scratch | None yet |
 | A180 | Typed frame reuse | None yet |
 | A190 | Evaluation context reuse | None yet |

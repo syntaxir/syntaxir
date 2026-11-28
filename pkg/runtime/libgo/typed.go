@@ -764,11 +764,21 @@ func TParse[T any](r *TRule, input string, opts []sxirruntime.ParseOption, ext a
 func TParseResolved[T any](r *TRule, input string, o parseOptions, ext any, conv func(any) T) (res T, err error) {
 	defer recoverParse(&res, &err)
 	o = prepareText(o, input)
-	p, _ := tpool.Get().(*TParser)
+	var p *TParser
+	if scratchPools {
+		p, _ = tpool.Get().(*TParser)
+	}
 	if p == nil {
 		p = &TParser{Parser: &Parser{}}
 	}
-	defer func() { p.recycle(); tpool.Put(p) }()
+	defer func() {
+		if !scratchPools {
+			p.Observation.release()
+			return
+		}
+		p.recycle()
+		tpool.Put(p)
+	}()
 	p.setControl(o.control)
 	o.control.attachTypedMemory(p, ext)
 	p.Observation = newObservation(&o.observe, &p.Silent, nil)

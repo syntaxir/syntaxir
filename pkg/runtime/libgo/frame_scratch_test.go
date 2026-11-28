@@ -65,6 +65,7 @@ func TestNodeFrameScratchChunkStability(t *testing.T) {
 
 func TestNodeFrameScratchReleaseOwnership(t *testing.T) {
 	needsFrameScratch(t)
+	needsScratchPools(t)
 	p := &Parser{}
 	f := p.NewFrame(2)
 	captured := p.NewNode(Data{Kind: valueimpl.MatchKind, Text: "é", Start: 1, End: 2, Terminal: true})

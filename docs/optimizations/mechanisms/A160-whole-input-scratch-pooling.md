@@ -4,7 +4,10 @@
 - **Classification**: optimization ([design record 080](../../design/records/080-optimization-management.md))
 - **Path scope**: Scratch of a whole-input parse in Go
 - **Every parser of**: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go
-- **Controls**: none yet; a release needs a control on every backend the mechanism acts on
+
+| Control | Kind | Default | Profiles | State | Backends | Record |
+|:--|:--|:--|:--|:--|:--|:--|
+| `sxir_reference_scratch_pools` | reference build tag | — | — | — | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go | [057](../logs/057-pooling-the-scratch-memory-of-whole-input-parses.md) |
 <!-- /generated:facts -->
 
 Repeated batch parses can reuse decoded input, offset, memo and collection
@@ -27,8 +30,12 @@ invocation-owned parser with no cross-call pool.
 
 ## Controls and Measurements
 
-No universal same-source pool-disable control exists. Narrow Node frame/sparse
-controls do not disable all pooling.
+The build tag `sxir_reference_scratch_pools` builds the engine and the Go library of generated parsers
+without the pools: every whole-input parse and recognition allocates its own scratch, and its end
+keeps nothing for a later one. The release step that clears scratch for reuse is skipped with the
+pool, so the reference does no work that only reuse needs. Both builds parse the same source; the
+controls of the frame scratch and of sparse seen positions are separate, since each replaces one
+representation and leaves the pools in place.
 
 ## Evidence and Implementation
 

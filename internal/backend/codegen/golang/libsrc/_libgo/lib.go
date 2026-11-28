@@ -791,7 +791,10 @@ func RunParseResolved(r *Rule, input string, o parseOptions) (n *sxirvalue.Node,
 // from an ordinary nil result without inspecting caller-owned error values.
 func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *sxirvalue.Node, err error) {
 	o = prepareText(o, input)
-	p, _ := ppool.Get().(*Parser)
+	var p *Parser
+	if scratchPools {
+		p, _ = ppool.Get().(*Parser)
+	}
 	if p == nil {
 		p = &Parser{}
 	}
@@ -842,6 +845,9 @@ var ppool sync.Pool
 // input, memo storage, capture scratch and construction stacks within their retention bounds.
 func (p *Parser) release() {
 	p.Observation.release()
+	if !scratchPools {
+		return
+	}
 	m := &p.memo
 	discardMemo := cap(m.slots) > 1<<20 || len(m.chunks) > 1<<12 || cap(m.seen) > 1<<20
 	clear(m.slots)

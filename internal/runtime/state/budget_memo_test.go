@@ -354,7 +354,11 @@ rule atom = "a"`)
 					if observed.Control != nil || observed.Scratch != nil {
 						t.Fatal("batch interruption retained invocation state")
 					}
-					statetest.RequireMemoCleared(t, chunks)
+					if state.ScratchPools {
+						// The reference build (sxir_reference_scratch_pools) drops the memo with the
+						// parser instead of clearing it for a later parse.
+						statetest.RequireMemoCleared(t, chunks)
+					}
 					after, _ := json.Marshal(retained)
 					if string(after) != string(before) {
 						t.Fatal("batch cleanup changed retained graph")

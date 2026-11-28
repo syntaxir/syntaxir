@@ -324,7 +324,10 @@ const MaxScratch = 1 << 22
 // AcquirePooledParser separates scratch acquisition from input initialization,
 // so a caller can arm release before controlled decoding can interrupt.
 func AcquirePooledParser(prog *SharedProgram) *Parser {
-	sc, _ := prog.scratch.Get().(*scratch)
+	var sc *scratch
+	if ScratchPools {
+		sc, _ = prog.scratch.Get().(*scratch)
+	}
 	if sc == nil {
 		sc = &scratch{}
 	}
@@ -341,6 +344,9 @@ func (p *Parser) ReleaseScratch() {
 		return
 	}
 	p.Scratch = nil
+	if !ScratchPools {
+		return
+	}
 	if cap(p.In) > cap(sc.runes) && cap(p.In) <= MaxScratch {
 		sc.runes = p.In[:0]
 	}

@@ -15,7 +15,7 @@ Each stable ID uses a category letter and a three-digit number: `E` (value elisi
 The registry of optimizations in the compiler is the source of this index ([design record 080](../design/records/080-optimization-management.md)). The tables between the generated markers are written by `go generate ./internal/optcatalog` from the registry, the profiles and the records, and a test fails when they differ. Each mechanism is classified either as an optimization, which has a control and is listed under Optimization Mechanisms, or as an [implementation design](../design/implementation/README.md), which has no control and is described in the design pages; [Former Mechanism IDs](#former-mechanism-ids) maps the IDs that left the index.
 
 <!-- generated:counts -->
-Unclassified mechanisms: 0. Experiment mechanisms, off by default: 1. Optimization mechanisms without a control: 31. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
+Unclassified mechanisms: 0. Experiment mechanisms, off by default: 1. Optimization mechanisms without a control: 30. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
 <!-- /generated:counts -->
 
 ### Optimization Mechanisms
@@ -35,7 +35,7 @@ A backend cell is `✓` where the mechanism acts on every parser of the backend,
 | [A120](mechanisms/A120-source-token-text.md) | Source Token Text | Token text, subject to the input representation | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | none yet |
 | [A140](mechanisms/A140-construction-tracking-release.md) | Construction Tracking Release | Construction of values | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | none yet |
 | [A150](mechanisms/A150-vm-position-chunks.md) | VM Position Chunks | Positions of the VMs | — | ✓ | ✓ | — | — | — | — | none yet |
-| [A160](mechanisms/A160-whole-input-scratch-pooling.md) | Whole-Input Scratch Pooling | Scratch of a whole-input parse in Go | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | none yet |
+| [A160](mechanisms/A160-whole-input-scratch-pooling.md) | Whole-Input Scratch Pooling | Scratch of a whole-input parse in Go | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | `sxir_reference_scratch_pools` (reference) |
 | [A170](mechanisms/A170-operators-attempt-scratch.md) | Operators Rule Attempt Scratch | Operators Rule attempts in Go | Partial | Partial | Partial | Partial | Partial | Partial | — | none yet |
 | [A180](mechanisms/A180-typed-frame-reuse.md) | Typed Frame Reuse | Capture frames of typed Go | — | — | — | — | — | ✓ | — | none yet |
 | [A190](mechanisms/A190-evaluation-context-reuse.md) | Evaluation Context Reuse | Evaluation of actions | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | none yet |
@@ -127,6 +127,7 @@ A reference control is a build tag that builds the parser without the mechanism,
 |:--|:--|:--|:--|
 | `sxir_reference_node_frames` | A080 | Go Node, Go recognizer | [092](logs/092-reuse-generated-node-capture-scratch.md) |
 | `sxir_reference_document_vm_values` | A100 | recursive VM, iterative VM | [086](logs/086-reuse-document-vm-values.md) |
+| `sxir_reference_scratch_pools` | A160 | closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go | [057](logs/057-pooling-the-scratch-memory-of-whole-input-parses.md) |
 | `sxir_reference_stream_frames` | A200 | closure, recursive VM, iterative VM | [085](logs/085-reuse-stream-capture-frames.md) |
 | `sxir_reference_stream_text` | A210 | closure, recursive VM, iterative VM | [088](logs/088-share-bounded-stream-text-snapshots.md) |
 | `sxir_reference_stream_prefix` | A220 | closure, recursive VM, iterative VM | [089](logs/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md) |
