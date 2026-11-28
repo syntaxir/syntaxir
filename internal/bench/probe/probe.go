@@ -72,10 +72,14 @@ func ExecOut(dir string, env []string, name string, args ...string) (string, err
 	return string(out), nil
 }
 
-// BuildSXIR builds the sxir command of the repository at root into the work directory.
+// BuildSXIR builds the sxir command of the repository at root into the work directory. It builds
+// without version control information (-buildvcs=false), so the command reports the generator
+// version "(devel)", as go test, go run and go generate do: the files it writes carry the header of
+// those that the repository's tests and generators write, and their sizes do not change with the
+// commit or with whether the checkout is modified.
 func BuildSXIR(root, work string) (string, error) {
 	out := filepath.Join(work, "sxir")
-	if _, err := ExecOut(root, []string{"GOFLAGS=" + os.Getenv("GOFLAGS")}, "go", "build", "-trimpath", "-o", out, "./cmd/sxir"); err != nil {
+	if _, err := ExecOut(root, []string{"GOFLAGS=" + os.Getenv("GOFLAGS")}, "go", "build", "-trimpath", "-buildvcs=false", "-o", out, "./cmd/sxir"); err != nil {
 		return "", err
 	}
 	return out, nil
