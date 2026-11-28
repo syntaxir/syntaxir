@@ -394,9 +394,6 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 	if err := genGo.finishReach(); err != nil {
 		return nil, nil, err
 	}
-	if err := genGo.checkDiscarded(genGo.Vars.String(), genGo.Init.String(), tracedInit, genGo.Methods.String()); err != nil {
-		return nil, nil, err
-	}
 	out.WriteString(genGo.Vars.String())
 	out.WriteString("\nfunc init() {\n")
 	out.WriteString(genGo.Init.String())
@@ -456,6 +453,9 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 	files = []common.GeneratedFile{{Path: "parser.go", Content: src}, {Path: "api.go", Content: []byte(api)}}
 	if opts.Types {
 		files = append(files, common.GeneratedFile{Path: "types/types.go", Content: typesFile})
+	}
+	if err := genGo.checkDiscarded(files); err != nil {
+		return nil, nil, err
 	}
 	if opts.Lib == common.LibEmbed {
 		var roots, users [][]byte

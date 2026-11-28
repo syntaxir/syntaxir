@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	goparser "go/parser"
 	"go/token"
+	"maps"
 	"strings"
 	"testing"
 
@@ -81,21 +82,32 @@ func unreferencedFuncs(t *testing.T, src []byte) []string {
 	return unused
 }
 
-// TestCheckDiscarded checks that the generator fails on code that refers to a function it discarded,
-// and only on an identifier of one.
+// TestCheckDiscarded checks that the generator fails on any file it prints for the grammar (the parser,
+// its API and its types) that refers to a function it discarded, and only on an identifier of one.
 func TestCheckDiscarded(t *testing.T) {
 	t.Parallel()
 	gone := []string{"e3"}
-	if err := print.CheckDiscarded(gone, "func q1(p *Parser) {\n\tv, ok := e3(p, 0)\n}\n"); err == nil || !strings.Contains(err.Error(), "refers to e3") {
-		t.Errorf("a call of a discarded function: err = %v, want an internal error naming e3", err)
+	clean := map[string]string{
+		"parser.go":      "package p\n\nfunc e30(p *Parser) {\n\t_ = \"e3\" // e3\n}\n",
+		"api.go":         "package p\n\nfunc Recognize(s string) error { return nil }\n",
+		"types/types.go": "package types\n\ntype Main struct{}\n",
 	}
-	if err := print.CheckDiscarded(gone, "\trecRules[0].Body = e3\n"); err == nil {
-		t.Error("a table row that names a discarded function passed the check")
+	if err := print.CheckDiscarded(gone, clean); err != nil {
+		t.Errorf("files that only spell the name in other tokens: %v", err)
 	}
-	if err := print.CheckDiscarded(gone, "func e30(p *Parser) {\n\t_ = \"e3\" // e3\n}\n"); err != nil {
-		t.Errorf("code that only spells the name in other tokens: %v", err)
+	for _, tc := range []struct{ path, text string }{
+		{"parser.go", "package p\n\nfunc q1(p *Parser) {\n\tv, ok := e3(p, 0)\n}\n"},
+		{"parser.go", "package p\n\nfunc init() {\n\trecRules[0].Body = e3\n}\n"},
+		{"api.go", "package p\n\nvar recognizeMain = e3\n"},
+		{"types/types.go", "package types\n\nvar _ = e3\n"},
+	} {
+		files := maps.Clone(clean)
+		files[tc.path] = tc.text
+		if err := print.CheckDiscarded(gone, files); err == nil || !strings.Contains(err.Error(), tc.path+" refers to e3") {
+			t.Errorf("%s naming a discarded function: err = %v, want an internal error naming the file and e3", tc.path, err)
+		}
 	}
-	if err := print.CheckDiscarded(nil, "e3(p, 0)\n"); err != nil {
+	if err := print.CheckDiscarded(nil, map[string]string{"parser.go": "package p\n\nvar _ = e3\n"}); err != nil {
 		t.Errorf("a generator that discarded nothing: %v", err)
 	}
 }

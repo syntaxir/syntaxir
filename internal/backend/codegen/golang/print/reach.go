@@ -128,10 +128,11 @@ func (g *Generator) finishReach() error {
 	return nil
 }
 
-// checkDiscarded checks that the printed code, the parts of the file, refers to none of the functions
-// of the Node bodies that the parser generated and does not print (Generator.discarded), which would
-// otherwise fail only when the parser is built.
-func (g *Generator) checkDiscarded(parts ...string) error {
+// checkDiscarded checks that the files that the generator printed for the grammar (the parser, its API and
+// its types, without the library) refer to none of the functions of the Node bodies that the parser
+// generated and does not print (Generator.discarded), which would otherwise fail only when the parser
+// is built.
+func (g *Generator) checkDiscarded(files []common.GeneratedFile) error {
 	if len(g.discarded) == 0 {
 		return nil
 	}
@@ -139,17 +140,17 @@ func (g *Generator) checkDiscarded(parts ...string) error {
 	for _, name := range g.discarded {
 		gone[name] = true
 	}
-	for _, part := range parts {
+	for _, f := range files {
 		var s scanner.Scanner
 		fs := token.NewFileSet()
-		s.Init(fs.AddFile("", fs.Base(), len(part)), []byte(part), nil, 0)
+		s.Init(fs.AddFile(f.Path, fs.Base(), len(f.Content)), f.Content, nil, 0)
 		for {
 			_, tok, lit := s.Scan()
 			if tok == token.EOF {
 				break
 			}
 			if tok == token.IDENT && gone[lit] {
-				return fmt.Errorf("internal error: the generated code refers to %s, the function of a Node body that the parser does not print", lit)
+				return fmt.Errorf("internal error: %s refers to %s, the function of a Node body that the parser does not print", f.Path, lit)
 			}
 		}
 	}

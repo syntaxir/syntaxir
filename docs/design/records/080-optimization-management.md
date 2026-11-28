@@ -300,7 +300,11 @@ miscompilation in them. They become decision points of the same manager:
   which is deterministic because generation is (the determinism metric of `bench/metrics` checks it).
 - A decision is asked once per site. The features that a TypeScript parser leaves out are decided by the step that
   specializes its library, and the printer prints the parser for the features that step decided, so the two cannot
-  disagree under a limit.
+  disagree under a limit. A Go parser without Node rules (recognize-only, or typed-only with Recognize) generates the
+  Node bodies for the frame layouts they fix and prints none of them: the sharing decisions of those bodies are
+  numbered all the same, as sites that print nothing, and no later body shares one of them. (Amended 2026-11-28:
+  before then the recognizer of such a parser could share a body that was not printed, so the decision logs of those
+  parsers recorded earlier are not comparable with later ones.)
 
 Under a limit, a build generates once, so that one sequence numbers every decision: the bisection mode. The Go parser
 keeps every rule, and the TypeScript parser keeps the rules of the plan's reach instead of generating again with the
