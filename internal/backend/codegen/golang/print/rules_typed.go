@@ -244,13 +244,19 @@ func (p *primPrinter) expectHelper() string {
 
 // peekText returns the read of the next character into the places ch, size and ok.
 func (p *primPrinter) peekText(ch, size, ok string) string {
-	// The inlined read and its fallback are one call of the library, which the compiler inlines.
-	if p.g.Ordinary {
-		return fmt.Sprintf("%s, %s, %s = p.NextOrdinary()\n", ch, size, ok)
-	}
 	if p.g.Traced {
 		// A traced body runs only in an observed parse, which records every read.
 		return fmt.Sprintf("%s, %s, %s = p.%s()\n", ch, size, ok, p.g.helper("Peek"))
+	}
+	if !p.g.directRead() {
+		if p.g.Ordinary {
+			return fmt.Sprintf("%s, %s, %s = p.PeekOrdinary()\n", ch, size, ok)
+		}
+		return fmt.Sprintf("%s, %s, %s = p.Peek()\n", ch, size, ok)
+	}
+	// The inlined read and its fallback are one call of the library, which the compiler inlines.
+	if p.g.Ordinary {
+		return fmt.Sprintf("%s, %s, %s = p.NextOrdinary()\n", ch, size, ok)
 	}
 	guard := "p.Pos < len(p.In)"
 	if p.document {
@@ -258,6 +264,16 @@ func (p *primPrinter) peekText(ch, size, ok string) string {
 	}
 	// The inlined read leaves a Document's examined range to Peek.
 	return fmt.Sprintf("if %s {\n%s, %s, %s = p.In[p.Pos], 1, true\n} else {\n%[2]s, %[3]s, %[4]s = p.Peek()\n}\n", guard, ch, size, ok)
+}
+
+// directRead reports whether the read that the printer prints next is read in place: DirectReads is
+// on and the read, a site of its own, is decided so (Params.Decide).
+func (g *Generator) directRead() bool {
+	if !g.params.DirectReads {
+		return false
+	}
+	g.reads++
+	return g.Params.Decide(DirectReads, directRead(g.reads))
 }
 
 // fixedExpNames names the expectations of the library that every parser has, by ID.

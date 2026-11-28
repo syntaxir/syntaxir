@@ -106,6 +106,13 @@ type Parser struct {
 	Start       *common.Rule
 }
 
+// DirectReads is the parameter of the Go printer that reads the next character in place (Params.DirectReads).
+// Each printed read is one site of it (Params.Decide), a directRead.
+const DirectReads = "direct-reads"
+
+// directRead is a site of DirectReads: the number of the read among the reads that the printer printed.
+type directRead int
+
 // Params are the values of the parameters of the step print-go that the Go printer reads: those of
 // both printers and the Go printer's own.
 type Params struct {
@@ -114,6 +121,9 @@ type Params struct {
 	// TypedOutputBootstrap sizes the first slab of the typed output from the input, and
 	// TypedChunkGrowth lets the slabs and the match chunks grow with the values allocated before them.
 	TypedObjectSlabs, TypedListSlabs, TypedOutputBootstrap, TypedChunkGrowth bool
+	// DirectReads reads the next character of a code-point input in place, from the decoded input,
+	// with the library's read as the fallback; off, every read is the library's (DirectReads).
+	DirectReads bool
 	// Control, if not nil, is the control of the printing step (cancel.New of the context of the step), which the
 	// printers of the grammar's code poll (Target.Control).
 	Control *cancel.Control
@@ -509,6 +519,8 @@ type Generator struct {
 	// params are the parameters of the printing (Params), whose common part is common.Generator.Params.
 	params              Params
 	directTypedDocument bool
+	// reads counts the reads that the printer decided (directRead), which number the sites of DirectReads.
+	reads int
 	// varNames names the package variables that hold the tables of the parser (classes, class steps,
 	// terminal programs) by their content, so that each is declared once.
 	varNames     map[string]string

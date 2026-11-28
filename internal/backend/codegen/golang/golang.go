@@ -383,7 +383,7 @@ func (d *Decision) tableIR(s tableSpec, m *core.Module) *plandata.TableIR {
 }
 
 // printingParams are the parameters of print-go, each also a pattern: the decisions of its sites.
-var printingParams = append(slices.Clone(codegen.Params), TypedObjectSlabs, TypedListSlabs, TypedOutputBootstrap, TypedChunkGrowth)
+var printingParams = append(slices.Clone(codegen.Params), TypedObjectSlabs, TypedListSlabs, TypedOutputBootstrap, TypedChunkGrowth, print.DirectReads)
 
 // Printing is the step print-go: it prints the files of the Go parser of the target of the pipeline
 // (codegen.TargetFeature) from its tables at the Exec stage, with the Go printer, which receives the
@@ -409,7 +409,7 @@ var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 		}
 		// A storage parameter acts on typed output only, so only a typed parser decides it.
 		storage := func(flag string) bool { return c.Value(flag) != 0 && (!d.Parser.Opts.Types || c.Allow(flag, nil)) }
-		params := print.Params{Params: codegen.ParamsOf(c.Value, c.Allow), Control: cancel.New(c.Context())}
+		params := print.Params{Params: codegen.ParamsOf(c.Value, c.Allow), DirectReads: c.Value(print.DirectReads) != 0, Control: cancel.New(c.Context())}
 		params.TypedObjectSlabs, params.TypedListSlabs = storage(TypedObjectSlabs), storage(TypedListSlabs)
 		params.TypedOutputBootstrap, params.TypedChunkGrowth = storage(TypedOutputBootstrap), storage(TypedChunkGrowth)
 		files, err := print.Print(&d.Parser, params, t, h)

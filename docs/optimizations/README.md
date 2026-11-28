@@ -15,7 +15,7 @@ Each stable ID uses a category letter and a three-digit number: `E` (value elisi
 The registry of optimizations in the compiler is the source of this index ([design record 080](../design/records/080-optimization-management.md)). The tables between the generated markers are written by `go generate ./internal/optcatalog` from the registry, the profiles and the records, and a test fails when they differ. Each mechanism is classified either as an optimization, which has a control and is listed under Optimization Mechanisms, or as an [implementation design](../design/implementation/README.md), which has no control and is described in the design pages; [Former Mechanism IDs](#former-mechanism-ids) maps the IDs that left the index.
 
 <!-- generated:counts -->
-Unclassified mechanisms: 0. Experiment mechanisms, off by default: 1. Optimization mechanisms without a control: 27. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
+Unclassified mechanisms: 0. Experiment mechanisms, off by default: 1. Optimization mechanisms without a control: 26. Optimization mechanisms with backends that no control reaches: 3. All are 0 at a release.
 <!-- /generated:counts -->
 
 ### Optimization Mechanisms
@@ -67,7 +67,7 @@ A backend cell is `✓` where the mechanism acts on every parser of the backend,
 | [M050](mechanisms/M050-plain-rule-calls.md) | Plain Rule Calls | Calls of rules that are neither captured nor memoized | Partial | Partial | Partial | Partial | Partial | Partial | Partial | none yet |
 | [M060](mechanisms/M060-left-recursion-growth.md) | Left-Recursion Growth State | Left-recursion seed growth in Go | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | none yet |
 | [M070](mechanisms/M070-vm-predecoded-match-data.md) | Predecoded VM Match Data | Literals and classes of VM programs | — | ✓ | ✓ | — | — | — | — | none yet |
-| [M080](mechanisms/M080-direct-code-point-access.md) | Direct Code-Point Access | Direct generated Go bodies over code points | — | — | — | Partial | Partial | Partial | — | none yet |
+| [M080](mechanisms/M080-direct-code-point-access.md) | Direct Code-Point Access | Direct generated Go bodies over code points | — | — | — | Partial | Partial | Partial | — | `direct-reads` |
 | [M090](mechanisms/M090-diagnostic-line-index.md) | Diagnostic Line Index | Lines and columns of diagnostics | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | none yet |
 | [M100](mechanisms/M100-absent-expectation-filter.md) | Absent Expectation Filter | Expectation sets of the Go backends | Partial | Partial | Partial | Partial | Partial | Partial | — | `sxir_reference_expectation_filter` (reference) |
 | [M110](mechanisms/M110-compact-vm-backtracking-state.md) | Compact VM Backtracking State | Backtracking state of the VMs | — | ✓ | ✓ | — | — | — | — | none yet |
@@ -107,6 +107,7 @@ The settings are the same-source controls of the optimizations: the flags of `-o
 | `terminals` | M140 | flow pass | adopted (speed, memory, size) | typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) |
 | `ts-merged-records` | G240 | exec pass | adopted (speed, memory, size) | TypeScript | [143](logs/143-compact-typescript-exec-forms.md) |
 | `ts-tested-inits` | G240 | exec pass | adopted (speed, memory, size) | TypeScript | [143](logs/143-compact-typescript-exec-forms.md) |
+| `direct-reads` | M080 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go | [152](logs/152-the-direct-reads-setting.md) |
 | `literal-sharing` | G130 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go | [136](logs/136-measured-effect-of-the-generation-flags.md) |
 | `method-sharing` | G010 | printer | adopted (speed, memory, size) | Go Node, Go recognizer, typed Go, TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) |
 | `ts-literal-sharing` | G130 | printer | opt-in | TypeScript | [136](logs/136-measured-effect-of-the-generation-flags.md) |

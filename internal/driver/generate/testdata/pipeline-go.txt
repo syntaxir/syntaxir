@@ -73,7 +73,7 @@ pipeline program -> output {
           }
         }
       }
-      print-go![method-sharing,literal-sharing,used-features,typed-object-slabs,typed-list-slabs,typed-output-bootstrap,typed-chunk-growth]
+      print-go![method-sharing,literal-sharing,used-features,typed-object-slabs,typed-list-slabs,typed-output-bootstrap,typed-chunk-growth,direct-reads]
     }
   }
 }

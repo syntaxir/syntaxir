@@ -72,6 +72,7 @@ var optimizationTests = map[string]string{
 	"class-runs":             "",
 	"class-tables":           "",
 	"inline-literals":        "",
+	"direct-reads":           "",
 	"method-sharing":         "TestGeneratedUnsharedParsersMatchEngine",
 	"used-features":          "",
 	"literal-sharing":        "TestGeneratedUnsharedParsersMatchEngine",
@@ -236,7 +237,7 @@ func TestRegistryOfTheGenerators(t *testing.T) {
 		"field-compare", "text-dispatch",
 		"class-runs", "class-tables", "guarded-classes", "inline-literals", "terminals",
 		"ts-merged-records", "ts-tested-inits",
-		"literal-sharing", "method-sharing", "ts-literal-sharing", "used-features",
+		"direct-reads", "literal-sharing", "method-sharing", "ts-literal-sharing", "used-features",
 		"sparse-memo", "typed-chunk-growth", "typed-list-slabs", "typed-object-slabs", "typed-output-bootstrap",
 	}
 	if got := pass.Names(); !slices.Equal(got, want) {

@@ -1,6 +1,9 @@
 package golang
 
-import "syntaxir.dev/sxir/internal/pass"
+import (
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/pass"
+)
 
 // The parameters that only the Go printer reads, which print-go declares.
 const (
@@ -27,6 +30,10 @@ func init() {
 		pass.Flag{Name: TypedChunkGrowth, Kind: pass.KindStorage, Default: 1, Doc: "grow the slabs of typed values with the values allocated before them (typed Go)",
 			Tradeoff:  "Allocations that grow with the logarithm of the output against an unused tail of at most 1/33 of the values",
 			Mechanism: "A280", Record: 139, Backends: pass.On(pass.BackendTypedGo),
+			Witnesses: []string{"guards"}},
+		pass.Flag{Name: print.DirectReads, Kind: pass.KindPrinter, Default: 1, Doc: "read the next character of a code-point input in place, with the library's read as the fallback (Go)",
+			Tradeoff:  "A read inlined into the body against a call of the library's read: faster parsing, a larger binary",
+			Mechanism: "M080", Record: 152, Backends: pass.GeneratedGo,
 			Witnesses: []string{"guards"}},
 	)
 }

@@ -344,6 +344,7 @@ table changes output yet:
 | `terminals` | flow pass | on | Value-free choices of many literals and classes run as one program (lean typed Go). Data against code: the choice becomes a table in the parser instead of nested alternatives |
 | `ts-merged-records` | exec pass | on | The end of an expectation record and the merge of its expectations are one call (TypeScript). Saves a copy of the expectations and a local per merge |
 | `ts-tested-inits` | exec pass | on | An `if` that tests whether its first call matched tests the call's result in its condition (TypeScript). Saves the boolean local that the call sets |
+| `direct-reads` | printer | on | Read the next character of a code-point input in place, with the library's read as the fallback (Go). A read inlined into the body against a call of the library's read: faster parsing, a larger binary |
 | `literal-sharing` | printer | on | Emit one table for equal literals (Go; TypeScript also needs ts-literal-sharing). Smaller source against an indirection to the table |
 | `method-sharing` | printer | on | Emit one helper for generated bodies that are exactly equal (Go and TypeScript). Code against calls: smaller source, with a call where a body was |
 | `ts-literal-sharing` | printer | off | Share literal tables in TypeScript parsers. Smaller code against speed: a small cold parse measured about 1.5 times slower. It is an opt-in: turn it on with `-opt ts-literal-sharing` |
