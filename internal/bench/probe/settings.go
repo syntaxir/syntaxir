@@ -55,6 +55,11 @@ func (v SettingVariant) NoOpt() []string {
 // and otherwise the value that turns it on: 1, or for a flag with a count the largest count that its
 // speed value or a profile gives it, so that an opt-in or an experiment is measured at the value that
 // a profile adopts or at its proposed one.
+//
+// The rule rests on the registry's convention that 0 turns every flag off and any other value turns
+// it on (pass.Settings.On); SettingVariants refuses a flag with a count that no profile and no
+// default gives, since it has no value to measure, and a flag whose off value were not 0 would need
+// a rule of its own.
 func SettingVariants() ([]SettingVariant, error) {
 	flags := pass.Flags()
 	if len(flags) == 0 {

@@ -232,8 +232,12 @@ the window and commit of the run that last covered it.
 
 The timing runs:
 
-- **At each performance milestone and before a release**, over every flag and profile, in a window of its own: it
-  takes hours (each variant of each row is built and timed in every round).
+- **At each performance milestone and before a release**, over every flag and profile, in a window of its own. No
+  full run has been timed yet; an estimate from its size: each round runs every measured variant of every row, the
+  profile's parser and the control once, each for at least `-benchtime` (1 s by default), and the deterministic part
+  finds about 400 variants and rows whose Go parser differs, so 20 rounds take at least 20 × (400 + 72) s, about
+  2.6 hours, before the builds and the processes' start-up; open the window for longer (below, 10 hours) and close it
+  when the run ends.
 - **For a proposed change of a flag's state** (adopting, dropping or removing it), over that flag, before the record
   that decides it. A decision that rests on time follows the claim rules of the timed method; where the timing does
   not separate from the control, the decision rests on the deterministic metrics.
