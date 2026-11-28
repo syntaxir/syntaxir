@@ -10,6 +10,14 @@
 #
 #	hack/test-reference-tags.sh [tag...]
 #
+# The tag is set through GOFLAGS, not -tags, so that the go commands that the tests run take it too: the
+# generated parsers that they build and run are built with it, and a tag that selects a form of the Go
+# library reaches them. For a tag that is a reference control of the registry (internal/pass), the script
+# also compares the parsers of its build with those of the default build, which a test cannot do in one
+# process: the test TestReferenceTranscript of internal/testing/reftest writes the transcript of the default
+# build once, and in the build with the tag compares its own with it. The configurations, the files that a
+# tag selects, must differ, and the results of the control's backends on its witnesses must not.
+#
 # Without arguments it checks every tag of the tree: each sxir_ tag named in a build constraint except sxir_long, the
 # long test tier, and sxir_feature_witness, which the tests of generated parsers set themselves. It rejects a given tag that no build constraint names, so a misspelt tag cannot pass as the
 # default build. It exits non-zero when a tag fails to build or pass. A test whose feature a tag removes skips
@@ -39,12 +47,27 @@ done
 jobs=${TAG_JOBS:-4}
 dir=$(mktemp -d "${TMPDIR:-/tmp}/reference-tags.XXXXXX") || exit 1
 trap 'rm -rf "$dir"' EXIT
-check() { # check TAG: vet then test one tag; the status is the result
+flags=${GOFLAGS:+$GOFLAGS }
+# control TAG: whether the tag is the build tag of a reference control of the registry.
+control() { grep -q "Tag: \"$1\"" internal/pass/mechanisms.go; }
+transcript() { # transcript TAG: run TestReferenceTranscript in the build with the tag, or in the default build for ""
+	GOFLAGS="$flags${1:+-tags=$1}" SXIR_REFTEST_TAG=$1 SXIR_REFTEST_OUT="$dir/transcript.${1:-default}" SXIR_REFTEST_BASE="$dir/transcript.default" \
+		go test -count=1 -run '^TestReferenceTranscript$' ./internal/testing/reftest
+}
+check() { # check TAG: vet then test one tag, then compare its transcript; the status is the result
 	t=$1
 	pkgs=$(constrained -w "^//go:build .*$t" | xargs -n1 dirname | sort -u)
-	go vet -tags "$t" ./internal/runtime/engine/... $pkgs || { echo "test-reference-tags: $t: vet failed"; return 1; }
-	go test -count=1 -short -tags "$t" ./internal/runtime/engine/... $pkgs || { echo "test-reference-tags: $t: tests failed"; return 1; }
+	GOFLAGS="$flags-tags=$t" go vet ./internal/runtime/engine/... $pkgs || { echo "test-reference-tags: $t: vet failed"; return 1; }
+	GOFLAGS="$flags-tags=$t" go test -count=1 -short ./internal/runtime/engine/... $pkgs || { echo "test-reference-tags: $t: tests failed"; return 1; }
+	if control "$t"; then
+		transcript "$t" || { echo "test-reference-tags: $t: the transcript differs from the default build's"; return 1; }
+	fi
 }
+any=
+for t in $tags; do control "$t" && any=1; done
+if [ -n "$any" ]; then
+	transcript "" >"$dir/default.log" 2>&1 || { cat "$dir/default.log" >&2; echo "test-reference-tags: the transcript of the default build failed" >&2; exit 1; }
+fi
 n=0
 for t in $tags; do
 	( check "$t" >"$dir/$t.log" 2>&1; echo $? >"$dir/$t.rc" ) &

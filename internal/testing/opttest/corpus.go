@@ -12,7 +12,8 @@ import (
 )
 
 // Corpus returns the cases of the backend-claims test: the cases of the flag parity corpus, and cases of
-// the shapes that the other flags act on.
+// the shapes that the other flags act on. The inputs of a case are those that the transcripts of the
+// reference controls (internal/testing/reftest) parse where it is a witness.
 func Corpus() []codegentest.Case {
 	cases := codegentest.FlagParityCases()
 	kw, kwIn := codegentest.OutlineKeywords()
@@ -22,8 +23,8 @@ func Corpus() []codegentest.Case {
 		codegentest.Case{Name: "terminals", Src: "rule main = (-([aA] [bB] / [cC] [dD] / [eE] [fF] / [gG] [hH] / [iI] [jJ] / [kK] [lL] / [mM] [nN] / [oO] [pP]) / -\" \")* $$\n"},
 		// The operand lines of the two Operators Rules call one rule, so their generated Go helpers are equal.
 		codegentest.Case{Name: "equal bodies", Src: "rule main = a \",\" b $$\nrule a = #operators {\n    operand n\n    level { infix left \"+\" }\n}\nrule b = #operators {\n    operand n\n    level { infix left \"*\" }\n}\nrule n = [0-9]+\n"},
-		codegentest.Case{Name: "typed text fields", Src: textcompare.Grammar},
-		codegentest.Case{Name: "many memoized rules", Src: manyMemoizedRules(70)},
+		codegentest.Case{Name: "typed text fields", Src: textcompare.Grammar, Inputs: textcompare.Inputs},
+		codegentest.Case{Name: "many memoized rules", Src: manyMemoizedRules(70), Inputs: []string{"", "k0!", "k0? k69ab! k35?", "k1x!k2!", "k70!", "k3ab?  k3ab!", "k12"}},
 	)
 	return cases
 }

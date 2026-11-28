@@ -71,8 +71,8 @@ func TestControlOf(t *testing.T) {
 }
 
 // The check of the declarations: a flag may name a mechanism that is not classified yet, an ID
-// belongs to one list only, and an experiment reaches some backends partly, none fully, and has no
-// reference control.
+// belongs to one list only, an experiment reaches some backends partly, none fully, and has no
+// reference control, and a reference control names its witnesses once each and has a tag of its own.
 func TestCheckCatalogDeclarations(t *testing.T) {
 	m := Mechanism{ID: "M140", Title: "t", Page: "M140-t.md", Scope: "s", Partial: On(BackendTypedGo)}
 	exp := Mechanism{ID: "R160", Title: "t", Page: "R160-t.md", Scope: "s", Partial: Engines, Experiment: "tag"}
@@ -93,12 +93,21 @@ func TestCheckCatalogDeclarations(t *testing.T) {
 		{"unclassified and former", catalog{unclassified: []string{"M140"}, former: []string{"M140"}}, f, "M140 is both unclassified mechanism and former ID"},
 		{"former twice", catalog{mechanisms: []Mechanism{m}, former: []string{"R010", "R010"}}, f, "former ID R010 is declared twice"},
 		{"reference control of a former ID", catalog{mechanisms: []Mechanism{m}, former: []string{"R010"},
-			refs: []ReferenceControl{{Mechanism: "R010", Tag: "t", Backends: Engines, Record: 1}}}, f, "neither declared nor unclassified"},
+			refs: []ReferenceControl{{Mechanism: "R010", Tag: "t", Backends: Engines, Witnesses: []string{"w"}, Record: 1}}}, f, "neither declared nor unclassified"},
 		{"experiment", catalog{mechanisms: []Mechanism{m, exp}}, f, ""},
 		{"experiment with full reach", catalog{mechanisms: []Mechanism{m, expFull}}, f, "acts fully on no parser"},
 		{"experiment without reach", catalog{mechanisms: []Mechanism{m, expNone}}, f, "names no backend"},
 		{"reference control of an experiment", catalog{mechanisms: []Mechanism{m, exp},
-			refs: []ReferenceControl{{Mechanism: "R160", Tag: "t", Backends: Engines, Record: 1}}}, f, "names the experiment R160"},
+			refs: []ReferenceControl{{Mechanism: "R160", Tag: "t", Backends: Engines, Witnesses: []string{"w"}, Record: 1}}}, f, "names the experiment R160"},
+		{"reference control", catalog{mechanisms: []Mechanism{m},
+			refs: []ReferenceControl{{Mechanism: "M140", Tag: "t", Backends: On(BackendTypedGo), Witnesses: []string{"w"}, Record: 1}}}, f, ""},
+		{"reference control without witnesses", catalog{mechanisms: []Mechanism{m},
+			refs: []ReferenceControl{{Mechanism: "M140", Tag: "t", Backends: On(BackendTypedGo), Record: 1}}}, f, "names no witness"},
+		{"reference control with a witness twice", catalog{mechanisms: []Mechanism{m},
+			refs: []ReferenceControl{{Mechanism: "M140", Tag: "t", Backends: On(BackendTypedGo), Witnesses: []string{"w", "v", "w"}, Record: 1}}}, f, `names the witness "w" twice`},
+		{"one tag of two mechanisms", catalog{mechanisms: []Mechanism{m}, unclassified: []string{"M150"},
+			refs: []ReferenceControl{{Mechanism: "M140", Tag: "t", Backends: On(BackendTypedGo), Witnesses: []string{"w"}, Record: 1},
+				{Mechanism: "M150", Tag: "t", Backends: Engines, Witnesses: []string{"w"}, Record: 1}}}, f, "the tag t is the reference control of two mechanisms"},
 	} {
 		err := c.cat.check([]Flag{c.flag})
 		if c.want == "" && err != nil || c.want != "" && (err == nil || !strings.Contains(err.Error(), c.want)) {

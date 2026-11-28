@@ -129,16 +129,16 @@ var mechanisms = []Mechanism{
 }
 
 var referenceControls = []ReferenceControl{
-	{Mechanism: "A100", Tag: "sxir_reference_document_vm_values", Backends: On(BackendRecursiveVM, BackendIterativeVM), Record: 86},
-	{Mechanism: "A200", Tag: "sxir_reference_stream_frames", Backends: Engines, Record: 85},
-	{Mechanism: "A210", Tag: "sxir_reference_stream_text", Backends: Engines, Record: 88},
-	{Mechanism: "A220", Tag: "sxir_reference_stream_prefix", Backends: Engines, Record: 89},
-	{Mechanism: "A230", Tag: "sxir_reference_stream_undo", Backends: Engines, Record: 89},
-	{Mechanism: "A240", Tag: "sxir_reference_stream_stack", Backends: On(BackendRecursiveVM, BackendIterativeVM), Record: 89},
-	{Mechanism: "R030", Tag: "sxir_reference_sparse_memo", Backends: Engines, Record: 87},
-	{Mechanism: "R060", Tag: "sxir_reference_document_pieces", Backends: Engines, Record: 93},
-	{Mechanism: "R130", Tag: "sxir_snapshot_sharing_reference", Backends: Engines, Record: 97},
-	{Mechanism: "R140", Tag: "sxir_snapshot_child_chunks_reference", Backends: Engines, Record: 99},
+	{Mechanism: "A100", Tag: "sxir_reference_document_vm_values", Backends: On(BackendRecursiveVM, BackendIterativeVM), Witnesses: []string{"document moves", "document recovered", "document runs"}, Record: 86},
+	{Mechanism: "A200", Tag: "sxir_reference_stream_frames", Backends: Engines, Witnesses: []string{"stream records", "stream records recover", "stream text commit"}, Record: 85},
+	{Mechanism: "A210", Tag: "sxir_reference_stream_text", Backends: Engines, Witnesses: []string{"stream text commit"}, Record: 88},
+	{Mechanism: "A220", Tag: "sxir_reference_stream_prefix", Backends: Engines, Witnesses: []string{"stream records", "stream text commit"}, Record: 89},
+	{Mechanism: "A230", Tag: "sxir_reference_stream_undo", Backends: Engines, Witnesses: []string{"stream records recover", "stream start action"}, Record: 89},
+	{Mechanism: "A240", Tag: "sxir_reference_stream_stack", Backends: On(BackendRecursiveVM, BackendIterativeVM), Witnesses: []string{"stream records", "stream start action"}, Record: 89},
+	{Mechanism: "R030", Tag: "sxir_reference_sparse_memo", Backends: Engines, Witnesses: []string{"many memoized rules"}, Record: 87},
+	{Mechanism: "R060", Tag: "sxir_reference_document_pieces", Backends: Engines, Witnesses: []string{"document moves", "document moves bytes", "document unit before"}, Record: 93},
+	{Mechanism: "R130", Tag: "sxir_snapshot_sharing_reference", Backends: Engines, Witnesses: []string{"document moves", "document pinned", "document lag moved"}, Record: 97},
+	{Mechanism: "R140", Tag: "sxir_snapshot_child_chunks_reference", Backends: Engines, Witnesses: []string{"document runs", "document moves"}, Record: 99},
 }
 
 var removedFlags = []Removed{

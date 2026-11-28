@@ -115,8 +115,13 @@ worse only when the change is meant to make it so and its commit says why.
 `sxir_snapshot_position_overlays` an opt-in representation that the default build has not adopted. Every build must
 compile: test files that use helpers of untagged files keep each tagged build compiling, and a test whose feature a tag
 removes skips under that tag. `hack/test-reference-tags.sh [tag...]` vets the engine packages and every package with a
-tagged file, and tests them with `-short`, under every tag of the tree or the tags it is given; it takes tens of minutes, and a change of budget-control code, a reference variant or the tests of the engine
-packages runs it.
+tagged file, and tests them with `-short`, under every tag of the tree or the tags it is given. It sets the tag through
+`GOFLAGS`, so that the generated parsers that the tests build take it too. For the tag of a registered reference
+control it also compares the two builds: `TestReferenceTranscript` in `internal/testing/reftest` writes the transcript
+of the default build, then, in the build with the tag, checks that the tag selected other files and that the parsers of
+the control's backends give the same trees, typed values, errors and compute units on the control's witnesses, and
+prints the first line that differs. The script takes tens of minutes, and a change of budget-control code, a reference
+variant or the tests of the engine packages runs it.
 
 **Ready-made parsers.** The ready-made parsers are in the separate
 [alpha-parsers](https://github.com/syntaxir/alpha-parsers) repository, generated from `testdata/grammars/` with the

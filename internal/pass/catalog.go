@@ -135,6 +135,10 @@ type ReferenceControl struct {
 	Mechanism string
 	Tag       string
 	Backends  Backends
+	// Witnesses name the cases of the transcript that compares the two builds
+	// (internal/testing/reftest) on which the mechanism acts: a case of the backend-claims corpus, a
+	// Document session or a stream.
+	Witnesses []string
 	// Record is the optimization record that says why no setting selects the mechanism.
 	Record int
 }
@@ -257,7 +261,8 @@ func declared() catalog {
 // program that links every part: a flag without a mechanism, a record, a trade-off, backends or
 // witnesses; a flag that needs itself, a flag twice or an unregistered one (Flag.ActsWith); a mechanism that is not declared or not classified; an ID declared twice, or in more than
 // one of the mechanisms, the unclassified mechanisms and the former IDs; a control that changes a
-// backend that its mechanism does not act on; a reference control of an unknown mechanism; and a
+// backend that its mechanism does not act on; a reference control of an unknown mechanism, without
+// witnesses, with a witness twice or with the tag of another mechanism's control; and a
 // removed name that is registered.
 func CheckCatalog(flags []Flag) error { return declared().check(flags) }
 
@@ -333,6 +338,16 @@ func (c catalog) check(flags []Flag) error {
 			return fmt.Errorf("reference control %s names the mechanism %s, which is neither declared nor unclassified", r.Tag, r.Mechanism)
 		case r.Tag == "" || r.Record <= 0 || r.Backends == 0:
 			return fmt.Errorf("reference control of %s has no tag, record or backends", r.Mechanism)
+		case len(r.Witnesses) == 0:
+			return fmt.Errorf("reference control %s names no witness of the backends it lists", r.Tag)
+		}
+		for i, w := range r.Witnesses {
+			if slices.Contains(r.Witnesses[:i], w) {
+				return fmt.Errorf("reference control %s names the witness %q twice", r.Tag, w)
+			}
+		}
+		if slices.ContainsFunc(c.refs, func(o ReferenceControl) bool { return o.Tag == r.Tag && o.Mechanism != r.Mechanism }) {
+			return fmt.Errorf("the tag %s is the reference control of two mechanisms", r.Tag)
 		}
 		if i := slices.IndexFunc(c.mechanisms, func(m Mechanism) bool { return m.ID == r.Mechanism }); i >= 0 && c.mechanisms[i].Experiment != "" {
 			return fmt.Errorf("reference control %s names the experiment %s: a reference control selects the reference form of an adopted mechanism", r.Tag, r.Mechanism)

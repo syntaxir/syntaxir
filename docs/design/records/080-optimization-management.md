@@ -334,7 +334,10 @@ Where no such switch exists, the mechanism
 keeps its build tag as a reference control, registered with its record. The generated catalog lists every reference
 control with its record and reason, and the milestone review revisits it. A reference control has the parity tests of
 a setting, run as two invocations, one with the default tags and one with its tag, whose printed configurations and
-parse results are compared across them; it is not bisected and is not part of the command line. A mechanism that gains a setting
+parse results are compared across them; it is not bisected and is not part of the command line. The printed
+configuration of a build is the list of the files that its tags select, of the engine and of the Go library that the
+generated parsers are built with, and the results are those of the control's backends on its witnesses
+(`internal/testing/reftest`, run by `hack/test-reference-tags.sh`). A mechanism that gains a setting
 may keep its build tag as an additional control for tests.
 
 ### Compiler and Tool Techniques
