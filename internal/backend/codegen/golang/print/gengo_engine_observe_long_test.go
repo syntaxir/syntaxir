@@ -202,7 +202,7 @@ var engineObservationMutants = []engineObservationMutant{
 	// The control changes nothing that the tests observe: they must pass with it, so that what makes the
 	// other mutants fail is their change, not the overlay.
 	{name: "control", file: "internal/runtime/state/trace.go",
-		old: "\tt.exp = nil\n", new: "\tt.exp = nil\n\t_ = t\n",
+		old: "\tt.exp, t.val, t.valued = nil, nil, false\n", new: "\tt.exp, t.val, t.valued = nil, nil, false\n\t_ = t\n",
 		runs: []engineObservationRun{agreementRun, discardRun, engineOptionsRun, libOptionsRun, engineDocumentRun}},
 	{name: "library control", file: "pkg/runtime/libgo/trace.go",
 		old: "\tx := new(observeExtras)\n", new: "\tx := new(observeExtras)\n\t_ = x\n",
