@@ -255,7 +255,7 @@ func declared() catalog {
 
 // CheckCatalog reports what breaks the rules of the catalog in the flags, which are the registry of a
 // program that links every part: a flag without a mechanism, a record, a trade-off, backends or
-// witnesses; a mechanism that is not declared or not classified; an ID declared twice, or in more than
+// witnesses; a flag that needs itself, a flag twice or an unregistered one (Flag.ActsWith); a mechanism that is not declared or not classified; an ID declared twice, or in more than
 // one of the mechanisms, the unclassified mechanisms and the former IDs; a control that changes a
 // backend that its mechanism does not act on; a reference control of an unknown mechanism; and a
 // removed name that is registered.
@@ -315,6 +315,16 @@ func (c catalog) check(flags []Flag) error {
 			return fmt.Errorf("flag %s changes the parser of no backend", f.Name)
 		case len(f.Witnesses) == 0:
 			return fmt.Errorf("flag %s names no witness of the backends it changes", f.Name)
+		}
+		for i, n := range f.ActsWith {
+			if n == f.Name || slices.Contains(f.ActsWith[:i], n) {
+				return fmt.Errorf("flag %s needs %s twice or itself", f.Name, n)
+			}
+		}
+		for _, n := range f.ActsWith {
+			if !slices.ContainsFunc(flags, func(g Flag) bool { return g.Name == n }) {
+				return fmt.Errorf("flag %s needs %s, which is not registered", f.Name, n)
+			}
 		}
 	}
 	for _, r := range c.refs {

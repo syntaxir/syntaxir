@@ -184,3 +184,64 @@ func TestBackendClaimsNoticeChanges(t *testing.T) {
 		t.Error("turning outline off changes the closure parser")
 	}
 }
+
+// with returns the values of set with the values of more over them.
+func with(set map[string]int, more map[string]int) map[string]int {
+	out := map[string]int{}
+	for k, v := range set {
+		out[k] = v
+	}
+	for k, v := range more {
+		out[k] = v
+	}
+	return out
+}
+
+// A flag that needs others (pass.Flag.ActsWith) changes no parser while all of them are off: turning it
+// against speed with them off leaves the parser of each backend it lists unchanged on its witnesses,
+// and in the long tier on the whole corpus. With one of them on, it acts again, which shows that the
+// comparison notices the flag.
+func TestActsWith(t *testing.T) {
+	c := newCorpus(t)
+	n := 0
+	for _, f := range pass.Flags() {
+		if len(f.ActsWith) == 0 {
+			continue
+		}
+		n++
+		t.Run(f.Name, func(t *testing.T) {
+			t.Parallel()
+			off := map[string]int{}
+			for _, d := range f.ActsWith {
+				off[d] = 0
+			}
+			cases := f.Witnesses
+			if codegentest.Long() {
+				cases = nil
+				for _, k := range c.cases {
+					cases = append(cases, k.Name)
+				}
+			}
+			for _, b := range f.Backends.List() {
+				for _, k := range cases {
+					g := c.grammars[k]
+					if observable(t, g, b, off) != observable(t, g, b, with(off, toggled(f))) {
+						t.Errorf("with %q off, turning %s against speed changes the %s parser of %q", f.ActsWith, f.Name, b, k)
+					}
+				}
+				for _, d := range f.ActsWith {
+					one := with(off, map[string]int{d: 1})
+					if !slices.ContainsFunc(f.Witnesses, func(k string) bool {
+						g := c.grammars[k]
+						return observable(t, g, b, one) != observable(t, g, b, with(one, toggled(f)))
+					}) {
+						t.Errorf("with only %s of %q on, turning %s against speed changes the %s parser of none of its witnesses", d, f.ActsWith, f.Name, b)
+					}
+				}
+			}
+		})
+	}
+	if n == 0 {
+		t.Fatal("no registered flag needs another: the test checks nothing")
+	}
+}

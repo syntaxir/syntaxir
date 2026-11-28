@@ -31,6 +31,9 @@ func TestCheckCatalog(t *testing.T) {
 		{"no witnesses", func(f *Flag) { f.Witnesses = nil }, "no witness"},
 		{"backends beyond the mechanism", func(f *Flag) { f.Backends = On(BackendTypedGo, BackendTypeScript) }, "mechanism M140 acts on"},
 		{"removed name", func(f *Flag) { f.Name = "fold-constants" }, "the removed optimization fold-constants is registered"},
+		{"needs itself", func(f *Flag) { f.ActsWith = []string{"t-catalog"} }, "needs t-catalog twice or itself"},
+		{"needs a flag twice", func(f *Flag) { f.ActsWith = []string{"t-other", "t-other"} }, "needs t-other twice"},
+		{"needs an unregistered flag", func(f *Flag) { f.ActsWith = []string{"t-nothing"} }, "needs t-nothing, which is not registered"},
 	} {
 		f := catalogFlag()
 		c.edit(&f)

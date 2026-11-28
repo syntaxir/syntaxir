@@ -137,6 +137,7 @@ it costs and gains, and the guide's row shows both.
 | Trade-off | What it costs and what it gains | generation |
 | Backends | The backends whose parser the flag changes: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | the backend-claims test |
 | Witnesses | Per listed backend, the corpus cases on which the flag changes that backend's parser (one case may serve several backends) | the backend-claims test |
+| Acts with | The flags it needs, if any: it changes a parser only while one of them is on, since it shapes what they print | registration: they are registered flags; test: with all of them off the flag changes no parser on its witnesses (the corpus in the long tier), and with each one on it changes one |
 
 The run of the timed measurement that last covered each flag is not in this repository. Timing results and their
 provenance live in `syntaxir/bench`, which renders from its own results a table of each flag's last measurement window;
@@ -380,6 +381,7 @@ The checks extend the existing tests instead of adding parallel ones.
   full matrix of flags, backends and corpus cases. The flag-specific tests stay for the corpora that reach their edges.
 - **Backend claims**: with a flag off, the observable differs from the default on every listed backend for that
   backend's witnesses, and is identical on every unlisted backend over the corpus (the second half in the long tier).
+  A flag that acts with others leaves every parser identical while all of them are off.
 - **Bisection**: the three invariants above.
 - **Release**: a test behind the build tag `sxir_release`, named like the other test tags (`sxir_long`), fails while any mechanism is unclassified, is an experiment mechanism (with that reason), has Control `none`,
   or acts on a backend that none of its controls lists; the release checklist runs it.

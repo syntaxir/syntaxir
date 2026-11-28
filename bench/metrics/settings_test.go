@@ -128,3 +128,41 @@ func firstDiff(a, b []byte) string {
 	}
 	return "no differing line"
 }
+
+// An inactive variant is checked by generating it: one whose parsers equal the profile's passes, and
+// one of a flag that does change them is refused.
+func TestSettingsCheckInactive(t *testing.T) {
+	root, err := repoRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := loadSettingsSubject(root, t.TempDir(), "json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.generations["memory"], err = s.generate("memory", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	vs, err := probe.SettingVariants()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var inactive, active probe.SettingVariant
+	for _, v := range vs {
+		switch {
+		case v.Profile == "memory" && v.Flag.Name == "typed-output-bootstrap":
+			inactive = v
+		case v.Profile == "memory" && v.Flag.Name == "typed-chunk-growth":
+			active = v
+		}
+	}
+	if !inactive.Inactive || active.Inactive {
+		t.Fatalf("typed-output-bootstrap inactive %v and typed-chunk-growth inactive %v in memory, want true and false", inactive.Inactive, active.Inactive)
+	}
+	if err := s.checkInactive(inactive); err != nil {
+		t.Errorf("%s: %v", inactive.Name(), err)
+	}
+	if err := s.checkInactive(active); err == nil {
+		t.Errorf("%s changes the json parser in memory, but checkInactive accepts it", active.Name())
+	}
+}

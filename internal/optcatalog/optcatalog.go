@@ -506,6 +506,18 @@ func profileList(names []string) string {
 	return strings.Join(q[:len(q)-1], ", ") + " and " + q[len(q)-1] + " profiles"
 }
 
+// orList joins the names as code spans: `a`, `a` or `b`, `a`, `b` or `c`.
+func orList(names []string) string {
+	q := make([]string, len(names))
+	for i, n := range names {
+		q[i] = "`" + n + "`"
+	}
+	if len(q) == 1 {
+		return q[0]
+	}
+	return strings.Join(q[:len(q)-1], ", ") + " or " + q[len(q)-1]
+}
+
 // guideRegions returns the regions of the code-generation guide: the table of the flags, each row
 // with what the flag does, what it trades, and whether it is an opt-in, an experiment, or on only in
 // profiles other than speed.
@@ -520,6 +532,9 @@ func guideRegions() (map[string]string, error) {
 		text := strings.ToUpper(f.Doc[:1]) + f.Doc[1:] + ". " + f.Tradeoff
 		if f.ChangesOutput {
 			text += ". It changes output"
+		}
+		if len(f.ActsWith) > 0 {
+			text += ". It acts only with " + orList(f.ActsWith) + " on"
 		}
 		switch {
 		case st == Experiment:

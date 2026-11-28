@@ -19,6 +19,9 @@ type SettingVariant struct {
 	Profile string
 	Flag    pass.Flag
 	Value   int
+	// Inactive reports that the profile leaves off every flag that Flag needs (pass.Flag.ActsWith), so
+	// that the variant changes no parser: it is checked rather than measured.
+	Inactive bool
 }
 
 // Name is the name of the variant in keys and reports: the flag with its value, as "guards=0".
@@ -73,7 +76,7 @@ func SettingVariants() ([]SettingVariant, error) {
 			return nil, err
 		}
 		for _, f := range flags {
-			v := SettingVariant{Profile: p, Flag: f}
+			v := SettingVariant{Profile: p, Flag: f, Inactive: !f.Acts(s)}
 			if s.Value(f.Name) == 0 {
 				if v.Value, err = onValue(f); err != nil {
 					return nil, err

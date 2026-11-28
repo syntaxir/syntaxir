@@ -34,6 +34,7 @@ import (
 // an optimization's effect without judging it:
 //
 //	setting-identical-grammars <profile> <flag>=<value> go|ts   grammars whose parser the flag leaves byte-identical
+//	setting-inactive <profile> <flag>=<value>                    1: the profile leaves off every flag the flag needs
 //	setting <profile> <flag>=<value> compile-steps <grammar>     steps of the generation of both parsers
 //	setting <profile> <flag>=<value> go-source <grammar>         bytes of the generated Go files
 //	setting <profile> <flag>=<value> go-binary <grammar>         bytes of a stripped program that measures the parser
@@ -51,7 +52,10 @@ import (
 // (probe.MatrixInputs) by the program internal/bench/settingsprobe, built for each parser; the
 // generated parsers' units are not recorded, since their equality under every setting is a parity
 // test. A flag that changes the output (pass.Flag.ChangesOutput) changes the API that the program
-// calls and gets the source, steps and identity metrics only.
+// calls and gets the source, steps and identity metrics only. A variant that cannot change a parser,
+// since the profile leaves off every flag that its flag needs (pass.Flag.ActsWith), gets
+// setting-inactive alone; the part generates it to check that its parsers are byte-identical to the
+// profile's, and fails otherwise.
 
 // settingsModule is the import path of the generated package that internal/bench/settingsprobe
 // imports; the build supplies it by an overlay.
@@ -205,6 +209,19 @@ func (s *settingsSubject) generate(profile string, opt map[string]int, noOpt []s
 		return nil, fmt.Errorf("%s, profile %s: %w", s.name, profile, err)
 	}
 	return &settingsGeneration{goFiles: files[0], tsFiles: files[1], steps: meter.Steps()}, nil
+}
+
+// checkInactive reports an error if the inactive variant v changes a parser of s against the
+// generation of its profile, which s holds.
+func (s *settingsSubject) checkInactive(v probe.SettingVariant) error {
+	g, err := s.generate(v.Profile, v.Opt(), v.NoOpt())
+	if err != nil {
+		return err
+	}
+	if b := s.generations[v.Profile]; !sameFiles(g.goFiles, b.goFiles) || !sameFiles(g.tsFiles, b.tsFiles) {
+		return fmt.Errorf("%s, profile %s: %s changes the parser, but the profile leaves off every flag it needs (%s)", s.name, v.Profile, v.Name(), strings.Join(v.Flag.ActsWith, ", "))
+	}
+	return nil
 }
 
 // apisSource is the file apis.go of internal/bench/settingsprobe for a parser with the APIs apis.
@@ -362,6 +379,15 @@ func collectSettings(root, work string) ([]metrics.Metric, error) {
 		}
 		for _, v := range group {
 			f := v.Flag
+			if v.Inactive {
+				// The profile leaves off every flag that f needs: generating checks that the variant
+				// changes no parser, in place of measuring it.
+				if err := parallel(len(subjects), workers, func(i int) error { return subjects[i].checkInactive(v) }); err != nil {
+					return nil, err
+				}
+				ms = append(ms, metrics.New(1, info, "setting-inactive", profile, v.Name()))
+				continue
+			}
 			goReach := f.Backends&pass.GeneratedGo != 0
 			tsReach := f.Backends.Has(pass.BackendTypeScript)
 			rows := make([][]metrics.Metric, len(subjects))

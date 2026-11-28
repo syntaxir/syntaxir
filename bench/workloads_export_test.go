@@ -35,9 +35,9 @@ type workloadManifest struct {
 	// Program on its inputs.
 	Matrix []matrixRowSpec `json:"matrix"`
 	// Settings are the per-setting variants (design record 080, "Re-Measurement"): each registered
-	// flag set against each profile, as the settings part of bench/metrics measures them. A
-	// measurement window times every variant whose Go is true on the parse rows of the matrix, against
-	// the profile's own parser.
+	// flag set against each profile, as the settings part of bench/metrics measures them, without the
+	// variants that cannot change a parser (probe.SettingVariant.Inactive). A measurement window times
+	// every variant whose Go is true on the parse rows of the matrix, against the profile's own parser.
 	Settings []settingSpec `json:"settings"`
 }
 
@@ -148,6 +148,9 @@ func exportWorkloads(root, dir string) (*workloadManifest, error) {
 		return nil, err
 	}
 	for _, v := range variants {
+		if v.Inactive {
+			continue
+		}
 		state, _, err := optcatalog.StateOf(v.Flag)
 		if err != nil {
 			return nil, err

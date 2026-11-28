@@ -88,6 +88,16 @@ type Flag struct {
 	// on which turning the flag off, or an opt-in on, changes the parser: for each backend of
 	// Backends, at least one of them.
 	Witnesses []string
+	// ActsWith names the flags that the flag needs: it changes a parser only while one of them is on,
+	// and with all of them off it changes none (it shapes what they print). Empty for a flag that
+	// acts on its own. Acts tells the two apart.
+	ActsWith []string
+}
+
+// Acts reports whether the flag can change a parser under the settings: whether it acts on its own
+// or one of the flags it needs (ActsWith) is on.
+func (f Flag) Acts(s Settings) bool {
+	return len(f.ActsWith) == 0 || slices.ContainsFunc(f.ActsWith, s.On)
 }
 
 // DefaultText is the default value as the guide and the usage text write it: "on" or "off" for a

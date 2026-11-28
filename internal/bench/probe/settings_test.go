@@ -45,4 +45,12 @@ func TestSettingVariants(t *testing.T) {
 			t.Errorf("%s in %s: Opt %v, NoOpt %v for value %d", c.flag, c.profile, v.Opt(), v.NoOpt(), c.value)
 		}
 	}
+	// A variant is inactive where the profile turns off every flag that its flag needs: memory turns
+	// off both slab flags, which typed-output-bootstrap needs, and speed and size keep them.
+	for _, v := range vs {
+		want := v.Profile == "memory" && v.Flag.Name == "typed-output-bootstrap"
+		if v.Inactive != want {
+			t.Errorf("%s in %s: inactive %v, want %v", v.Flag.Name, v.Profile, v.Inactive, want)
+		}
+	}
 }

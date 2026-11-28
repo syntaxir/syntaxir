@@ -352,7 +352,7 @@ table changes output yet:
 | `typed-chunk-growth` | storage | on | Grow the slabs of typed values with the values allocated before them (typed Go). Allocations that grow with the logarithm of the output against an unused tail of at most 1/33 of the values |
 | `typed-list-slabs` | storage | on | Allocate typed lists in slabs (typed Go). Fewer allocations against memory, as for objects |
 | `typed-object-slabs` | storage | on | Allocate typed objects in slabs (typed Go). Fewer allocations against memory: an object that escapes keeps the unused objects of its chunk |
-| `typed-output-bootstrap` | storage | on | Size the first slab of the typed output from the input (typed Go). A small parse keeps little memory, against a few allocations before the slabs start |
+| `typed-output-bootstrap` | storage | on | Size the first slab of the typed output from the input (typed Go). A small parse keeps little memory, against a few allocations before the slabs start. It acts only with `typed-object-slabs` or `typed-list-slabs` on |
 <!-- /generated:flags -->
 
 A profile is chosen with `-optimize` (`compiler.WithOptimize` with a `compiler.Optimize` for `compiler.GenerateGo` and `compiler.GenerateTypeScript`). Each sets flags of the table above to other values
