@@ -19,8 +19,12 @@
 # tag selects, must differ, and the results of the control's backends on its witnesses must not.
 #
 # Without arguments it checks every tag of the tree: each sxir_ tag named in a build constraint except sxir_long, the
-# long test tier, and sxir_feature_witness, which the tests of generated parsers set themselves. It rejects a given tag that no build constraint names, so a misspelt tag cannot pass as the
-# default build. It exits non-zero when a tag fails to build or pass. A test whose feature a tag removes skips
+# long test tier, sxir_feature_witness, which the tests of generated parsers set themselves, sxir_settingsprobe,
+# which selects the measuring program of internal/bench/settingsprobe: that program builds only with the overlay that
+# supplies its parser, as the test TestSettingsProbe of bench/metrics builds it, and sxir_release, the release gate,
+# which is no reference tag and runs on its own (go test -tags sxir_release -run TestReleaseCriterion
+# ./internal/optcatalog). It rejects a given tag that no build constraint names, or one of these, so a misspelt tag
+# cannot pass as the default build. It exits non-zero when a tag fails to build or pass. A test whose feature a tag removes skips
 # under that tag. Tags run 4 at a time (TAG_JOBS), each with its output printed under its own heading once all have ended.
 # The run takes tens of minutes.
 set -u
@@ -31,12 +35,12 @@ constrained() { # constrained [grep flags]: the Go files whose build constraint 
 if [ $# -gt 0 ]; then
 	tags="$*"
 else
-	tags=$(constrained '^//go:build .*sxir_' | xargs grep -h '^//go:build' | grep -o 'sxir_[a-z0-9_]*' | sort -u | grep -v -e '^sxir_long$' -e '^sxir_feature_witness$')
+	tags=$(constrained '^//go:build .*sxir_' | xargs grep -h '^//go:build' | grep -o 'sxir_[a-z0-9_]*' | sort -u | grep -v -e '^sxir_long$' -e '^sxir_feature_witness$' -e '^sxir_settingsprobe$' -e '^sxir_release$')
 fi
 [ -n "$tags" ] || { echo "test-reference-tags: no reference tags found" >&2; exit 1; }
 for t in $tags; do
 	case $t in
-	sxir_long | *[!a-z0-9_]* | '') ok= ;;
+	sxir_long | sxir_feature_witness | sxir_settingsprobe | sxir_release | *[!a-z0-9_]* | '') ok= ;;
 	*) ok=$(constrained -w "^//go:build .*$t") ;;
 	esac
 	[ -n "$ok" ] || { echo "test-reference-tags: $t: not a reference tag of the tree" >&2; exit 2; }
