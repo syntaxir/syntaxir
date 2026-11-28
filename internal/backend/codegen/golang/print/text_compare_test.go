@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/bench/textcompare"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
@@ -22,7 +23,7 @@ func TestGeneratedTextFieldComparisons(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds generated consumers")
 	}
-	g, err := parseTest(codegentest.TextCompareGrammar)
+	g, err := parseTest(textcompare.Grammar)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +31,7 @@ func TestGeneratedTextFieldComparisons(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(codegentest.GoMod("comparefixture")), 0644); err != nil {
 		t.Fatal(err)
 	}
-	inputs := fmt.Sprintf("%#v", codegentest.TextCompareInputs)
+	inputs := fmt.Sprintf("%#v", textcompare.Inputs)
 	pkg := func(convert, boxed bool) string { return fmt.Sprintf("compare_%v_%v", convert, boxed) }
 	for _, convert := range []bool{false, true} {
 		for _, boxed := range []bool{false, true} {

@@ -3,6 +3,7 @@ package engine
 import (
 	"testing"
 
+	"syntaxir.dev/sxir/internal/bench/textcompare"
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -14,11 +15,11 @@ import (
 // and without budget controls.
 func TestTextFieldComparisons(t *testing.T) {
 	t.Parallel()
-	prog := compileBare(t, codegentest.TextCompareGrammar, checkpkg.Options{})
+	prog := compileBare(t, textcompare.Grammar, checkpkg.Options{})
 	limits := runtime.Limits{Compute: 1 << 40}
 	for _, controlled := range []bool{false, true} {
 		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
-			for _, input := range codegentest.TextCompareInputs {
+			for _, input := range textcompare.Inputs {
 				opts := ParseOptions{Backend: Closure, Unit: unit}
 				if controlled {
 					opts.Limits = limits

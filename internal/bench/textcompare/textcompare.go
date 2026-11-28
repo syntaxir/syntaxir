@@ -1,8 +1,11 @@
-package codegentest
+// Package textcompare holds a typed grammar whose actions and predicates compare string fields, the
+// witness of the optimizations of such comparisons, with its inputs, which the tests and the settings
+// part of bench/metrics share.
+package textcompare
 
-// TextCompareGrammar compares string fields of structs with each other, with literals and in
+// Grammar compares string fields of structs with each other, with literals and in
 // predicates.
-const TextCompareGrammar = `type Name = { Text string }
+const Grammar = `type Name = { Text string }
 type Tag = { Text string; N int }
 type Ops = { Eq bool; Ne bool; Lt bool; Le bool; Gt bool; Ge bool }
 type Out = { Items node[_] }
@@ -14,5 +17,5 @@ rule pred = "?" a:name {$a.Text != "no"} {"a" <= $a.Text} => $a
 rule tag = "<" t:([a-z]+ #atomic) ">" => Tag{Text: text($t), N: 1}
 rule name Name = t:([a-z]+) #atomic => Name{Text: text($t)}`
 
-// TextCompareInputs are the inputs of TextCompareGrammar.
-var TextCompareInputs = []string{"", "a,b", "b,a", "ab,ab", "%ab:<ab>", "%z:<a>", "%a:<x>", "?no", "?yes", "a,b %c:<d> ?x", "?", "a,"}
+// Inputs are the inputs of Grammar.
+var Inputs = []string{"", "a,b", "b,a", "ab,ab", "%ab:<ab>", "%z:<a>", "%a:<x>", "?no", "?yes", "a,b %c:<d> ?x", "?", "a,"}

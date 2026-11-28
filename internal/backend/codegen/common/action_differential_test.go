@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/bench/textcompare"
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
@@ -593,7 +594,7 @@ func testActionPassesDetectBrokenTargets(t *testing.T) {
 		}
 	}
 	fieldCompared := []codegentest.Case{
-		{Name: "text fields", Src: codegentest.TextCompareGrammar, Inputs: codegentest.TextCompareInputs},
+		{Name: "text fields", Src: textcompare.Grammar, Inputs: textcompare.Inputs},
 		{Name: "arithmetic", Src: "type T = { S string; N int }\nrule main = t:item $$ => $t.N == $t.N * 2 - 3 && $t.S != \"y\"\n" +
 			"rule item T = s:[a-z] #atomic => T{S: text($s), N: 3}", Inputs: []string{"x", "y", ""}},
 	}

@@ -18,6 +18,7 @@ import (
 	tslib "syntaxir.dev/sxir/internal/backend/codegen/typescript/lib"
 	"syntaxir.dev/sxir/internal/bench/metrics"
 	"syntaxir.dev/sxir/internal/bench/probe"
+	"syntaxir.dev/sxir/internal/bench/textcompare"
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/driver"
 	gensrc "syntaxir.dev/sxir/internal/driver/generate"
@@ -28,8 +29,9 @@ import (
 )
 
 // The settings part measures the effect of each registered optimization flag in each profile
-// (design record 080, "Re-Measurement"): it generates the grammars of probe.Grammars with the flag set
-// against the profile, and records what that changes against the profile's own parsers. Every value
+// (design record 080, "Re-Measurement"): it generates the grammars of probe.Grammars, and the witness
+// text-compare (witnessSubject) that reaches what none of them does, with the flag set against the
+// profile, and records what that changes against the profile's own parsers. Every value
 // is the variant's minus the profile's, with policy info, so that compare lists a landing that changes
 // an optimization's effect without judging it:
 //
@@ -48,8 +50,9 @@ import (
 // the largest count that the speed values or a profile give it. The generation options are those of
 // testdata/grammars/generate.txt, with the Go library embedded (-lib embed) so that the flags that
 // narrow the embedded library show their effect; the TypeScript options are those of
-// probe.GenTSArgs. The calls are measured on the inputs of the language-grammar matrix
-// (probe.MatrixInputs) by the program internal/bench/settingsprobe, built for each parser; the
+// probe.GenTSArgs; text-compare is generated typed with the embedded library. The calls are measured
+// on the inputs of the language-grammar matrix (probe.MatrixInputs; text-compare's own for it) by the
+// program internal/bench/settingsprobe, built for each parser; the
 // generated parsers' units are not recorded, since their equality under every setting is a parity
 // test. A flag that changes the output (pass.Flag.ChangesOutput) changes the API that the program
 // calls and gets the source, steps and identity metrics only. A variant that cannot change a parser,
@@ -164,6 +167,39 @@ func loadSettingsSubject(root, work, name string) (*settingsSubject, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", name, err)
 	}
+	in, err := probe.MatrixInputs(root, name)
+	if err != nil {
+		return nil, err
+	}
+	return newSettingsSubject(work, name, g, goOpts, tsOpts, in)
+}
+
+// witnessSubject is the subject that reaches the optimizations of typed string-field comparisons, which
+// no grammar of probe.Grammars compares: the grammar of internal/testing/textcompare, generated typed,
+// with its inputs, and its rule main the start rule.
+func witnessSubject(work string) (*settingsSubject, error) {
+	const name = "text-compare"
+	g, err := grammar.Load(grammar.FromString(name+".sxir", textcompare.Grammar))
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", name, err)
+	}
+	for _, rd := range g.Rules() {
+		if rd.Name == "main" {
+			rd.Attrs = append(rd.Attrs, &ast.Attribute{Name: "start"})
+		}
+	}
+	goOpts := common.GenOptions{Module: settingsModule, Lib: common.LibEmbed, Types: true, OmitPackageDoc: true}
+	tsOpts := common.GenOptions{Types: true}
+	var in []probe.Input
+	for i, text := range textcompare.Inputs {
+		in = append(in, probe.Input{Name: fmt.Sprintf("%02d.txt", i), Text: text})
+	}
+	return newSettingsSubject(work, name, g, goOpts, tsOpts, in)
+}
+
+// newSettingsSubject returns the subject of the grammar g with its options, writing its inputs in to
+// files under work.
+func newSettingsSubject(work, name string, g *ast.Grammar, goOpts, tsOpts common.GenOptions, in []probe.Input) (*settingsSubject, error) {
 	if !goOpts.Types {
 		return nil, fmt.Errorf("%s: the settings part measures ParseValue, which -types generates", name)
 	}
@@ -173,10 +209,6 @@ func loadSettingsSubject(root, work, name string) (*settingsSubject, error) {
 	}
 	if goOpts.Recognize {
 		apis = append(apis, "recognize")
-	}
-	in, err := probe.MatrixInputs(root, name)
-	if err != nil {
-		return nil, err
 	}
 	dir := filepath.Join(work, "settings-inputs", name)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -343,12 +375,17 @@ func collectSettings(root, work string) ([]metrics.Metric, error) {
 	if err != nil {
 		return nil, err
 	}
-	subjects := make([]*settingsSubject, len(probe.Grammars))
+	subjects := make([]*settingsSubject, len(probe.Grammars), len(probe.Grammars)+1)
 	for i, name := range probe.Grammars {
 		if subjects[i], err = loadSettingsSubject(root, work, name); err != nil {
 			return nil, err
 		}
 	}
+	w, err := witnessSubject(work)
+	if err != nil {
+		return nil, err
+	}
+	subjects = append(subjects, w)
 	workers := max(runtime.NumCPU()/2, 1)
 	info := metrics.Policy{Kind: metrics.Info}
 	var ms []metrics.Metric

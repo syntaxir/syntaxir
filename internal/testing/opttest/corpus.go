@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"syntaxir.dev/sxir/internal/bench/textcompare"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
@@ -21,7 +22,7 @@ func Corpus() []codegentest.Case {
 		codegentest.Case{Name: "terminals", Src: "rule main = (-([aA] [bB] / [cC] [dD] / [eE] [fF] / [gG] [hH] / [iI] [jJ] / [kK] [lL] / [mM] [nN] / [oO] [pP]) / -\" \")* $$\n"},
 		// The operand lines of the two Operators Rules call one rule, so their generated Go helpers are equal.
 		codegentest.Case{Name: "equal bodies", Src: "rule main = a \",\" b $$\nrule a = #operators {\n    operand n\n    level { infix left \"+\" }\n}\nrule b = #operators {\n    operand n\n    level { infix left \"*\" }\n}\nrule n = [0-9]+\n"},
-		codegentest.Case{Name: "typed text fields", Src: codegentest.TextCompareGrammar},
+		codegentest.Case{Name: "typed text fields", Src: textcompare.Grammar},
 		codegentest.Case{Name: "many memoized rules", Src: manyMemoizedRules(70)},
 	)
 	return cases

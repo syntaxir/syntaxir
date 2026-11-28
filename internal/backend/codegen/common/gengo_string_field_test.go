@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/bench/textcompare"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
@@ -69,7 +70,7 @@ type B = { Text int }
 rule main = x:(a / b) $$ => Out{B: $x.Text == 1}
 rule a = t:[a-z]+ #atomic => A{Text: text($t)}
 rule b = [0-9]+ => B{Text: 1}`, Inputs: []string{"ab", "12", ""}}, false},
-		{codegentest.Case{Name: "text struct comparisons", Src: codegentest.TextCompareGrammar, Inputs: codegentest.TextCompareInputs}, true},
+		{codegentest.Case{Name: "text struct comparisons", Src: textcompare.Grammar, Inputs: textcompare.Inputs}, true},
 		{codegentest.Case{Name: "list field", Src: `type Out = { V string; N int; B bool }
 type A = { Items node[_] }
 rule main = x:a $$ => Out{N: len($x.Items)}

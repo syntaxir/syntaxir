@@ -166,3 +166,26 @@ func TestSettingsCheckInactive(t *testing.T) {
 		t.Errorf("%s changes the json parser in memory, but checkInactive accepts it", active.Name())
 	}
 }
+
+// The witness subject reaches what no grammar of probe.Grammars reaches: turning field-compare off
+// changes its Go parser.
+func TestSettingsWitnessSubject(t *testing.T) {
+	s, err := witnessSubject(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := s.generate("speed", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := s.generate("speed", nil, []string{"field-compare"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sameFiles(b.goFiles, v.goFiles) {
+		t.Error("field-compare=0 leaves the Go parser of text-compare byte-identical")
+	}
+	if len(s.inputs) == 0 || !slices.Contains(s.apis, "parse") {
+		t.Errorf("text-compare: inputs %v, APIs %v; want its inputs and parse", s.inputs, s.apis)
+	}
+}
